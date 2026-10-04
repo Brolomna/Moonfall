@@ -4,6 +4,7 @@
 import express from 'express';
 import http from 'node:http';
 import os from 'node:os';
+import dgram from 'node:dgram';
 import path from 'node:path';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -40,20 +41,34 @@ for (let i = 0; i < Number(process.env.FAKE_PLAYERS || 0); i++) {
 // Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
 const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
 
-/** Base URL phones use to reach this server, e.g. http://192.168.0.5:3000 or https://moonfall.onrender.com */
-function joinBase(): string {
-  return PUBLIC_URL || `http://${lanAddress()}:${WEB_PORT}`;
+/** Base URL phones use to reach this server, e.g. http://192.168.0.5:3000 or https://moonfall.onrender.com.
+ *  Worked out per request, so the QR follows the host onto a different Wi-Fi without a restart. */
+async function joinBase(): Promise<string> {
+  if (PUBLIC_URL) return PUBLIC_URL;
+  const host = process.env.PUBLIC_HOST || (await lanAddress());
+  return `http://${/:\d+$/.test(host) ? host : `${host}:${WEB_PORT}`}`;
 }
 
-function lanAddress(): string {
+async function lanAddress(): Promise<string> {
   const prefer = (n: string) => (/^(en|wl|eth|wlan|Wi-Fi|Ethernet)/i.test(n) ? 0 : 1);
-  if (process.env.PUBLIC_HOST) return process.env.PUBLIC_HOST;
   let ifaces: ReturnType<typeof os.networkInterfaces> = {};
-  try { ifaces = os.networkInterfaces(); } catch { /* Android (Termux) denies this — set PUBLIC_HOST */ }
+  try { ifaces = os.networkInterfaces(); } catch { /* Android (Termux) denies this */ }
   const all = Object.entries(ifaces)
     .flatMap(([name, list]) => (list || []).filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, address: a.address })))
     .sort((a, b) => prefer(a.name) - prefer(b.name));
-  return all[0]?.address || 'localhost';
+  return all[0]?.address || (await routeAddress()) || 'localhost';
+}
+
+/** Local IP of the interface the default route uses. Connecting a UDP socket sends nothing,
+ *  and unlike os.networkInterfaces() it is allowed on Android. */
+function routeAddress(): Promise<string | undefined> {
+  return new Promise(resolve => {
+    const sock = dgram.createSocket('udp4');
+    const done = (ip?: string) => { clearTimeout(timer); try { sock.close(); } catch { /* already closed */ } resolve(ip); };
+    const timer = setTimeout(() => done(), 1000);
+    sock.on('error', () => done());
+    sock.connect(53, '8.8.8.8', () => { try { done(sock.address().address); } catch { done(); } });
+  });
 }
 
 function uniqueName(raw: string, selfId?: string): string {
@@ -136,7 +151,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.get('/api/info', async (_req, res) => {
-  const base = joinBase();
+  const base = await joinBase();
   const host = base.replace(/^https?:\/\//, '');
   const url = `${base}/player`; // QR → player screen (any path except /host renders it)
   const qr = await QRCode.toDataURL(url, { margin: 1, width: 320, color: { dark: '#140b22', light: '#ede6f7' } });
@@ -222,8 +237,8 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  const base = joinBase();
+server.listen(PORT, '0.0.0.0', async () => {
+  const base = await joinBase();
   console.log(`\n  🌕 Moonfall is running\n`);
   console.log(`  Host (open on your phone):  ${base}/host`);
   console.log(`  Players join at:            ${base}/player\n`);
