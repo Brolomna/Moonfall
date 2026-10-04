@@ -47,10 +47,13 @@ function joinBase(): string {
 
 function lanAddress(): string {
   const prefer = (n: string) => (/^(en|wl|eth|wlan|Wi-Fi|Ethernet)/i.test(n) ? 0 : 1);
-  const all = Object.entries(os.networkInterfaces())
+  if (process.env.PUBLIC_HOST) return process.env.PUBLIC_HOST;
+  let ifaces: ReturnType<typeof os.networkInterfaces> = {};
+  try { ifaces = os.networkInterfaces(); } catch { /* Android (Termux) denies this — set PUBLIC_HOST */ }
+  const all = Object.entries(ifaces)
     .flatMap(([name, list]) => (list || []).filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, address: a.address })))
     .sort((a, b) => prefer(a.name) - prefer(b.name));
-  return process.env.PUBLIC_HOST || all[0]?.address || 'localhost';
+  return all[0]?.address || 'localhost';
 }
 
 function uniqueName(raw: string, selfId?: string): string {
