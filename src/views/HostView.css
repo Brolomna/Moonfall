@@ -1,0 +1,27 @@
+a{color:#c7a8ff}a:hover{color:#e2d2ff}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:not-allowed}
+input,textarea{font-family:inherit}
+input:focus,textarea:focus{outline:none;border-color:rgba(199,168,255,.75) !important;box-shadow:0 0 0 4px rgba(167,127,240,.18)}
+input::placeholder,textarea::placeholder{color:#7f7397}
+.press{transition:transform .15s ease,background-color .25s ease,border-color .25s ease,opacity .25s ease,color .25s ease,box-shadow .25s ease}
+.press:active{transform:scale(.96)}
+.sky{transition:background 1.2s ease}
+.scroll{overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.fog{animation:drift 50s linear infinite}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+.twinkle{animation:twinkle 3.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+.sheet{animation:sheet .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.fade{animation:fade .3s ease both}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.pop{animation:pop .3s ease both}

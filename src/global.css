@@ -1,0 +1,16 @@
+html, body, #root { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(120% 70% at 80% 0%, #2a1748 0%, #120a20 45%, #07040c 100%) fixed #0a0612;
+  color: #ece6f6;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+* { -webkit-tap-highlight-color: transparent; }
+.frame-outer { position: fixed; inset: 0; overflow: clip; }
+.frame-inner { position: absolute; top: 0; left: 50%; }
+.offline {
+  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 50;
+  padding: 8px 14px; border-radius: 999px; font: 600 13px 'Manrope', sans-serif;
+  color: #ffd3a8; background: rgba(40, 18, 10, .92); border: 1px solid rgba(242, 166, 90, .5);
+}

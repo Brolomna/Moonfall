@@ -1,0 +1,218 @@
+// Moonfall room server — one room per server, meant to run on the host's laptop / phone hotspot
+// on the same Wi-Fi as everyone else. Holds the game state in memory and pushes each phone
+// only what it is allowed to see (players never receive other players' roles).
+import express from 'express';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { Server, type Socket } from 'socket.io';
+import QRCode from 'qrcode';
+
+const PORT = Number(process.env.PORT || 3000);
+const PROD = process.env.NODE_ENV === 'production';
+// In dev the phones load the Vite dev server (5173), which proxies /socket.io + /api here.
+const WEB_PORT = PROD ? PORT : Number(process.env.WEB_PORT || 5173);
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+type Player = { id: string; name: string; color: string; connected: boolean };
+type Shared = Record<string, any>;
+
+const PALETTE = ['#c9a7ff', '#ff9fb0', '#9fd0ff', '#8fe0b8', '#ffc98a', '#f2b6e6', '#b8c4ff', '#e8d3a0', '#a6eedd', '#ffb38a',
+  '#d8e08a', '#f29a7a', '#8fd3e8', '#c48aa0', '#f2d06b', '#b45cc7', '#9fd6b8', '#f08fb8', '#a58ad6', '#ffd3a8'];
+
+const room = {
+  players: [] as Player[],
+  shared: {} as Shared, // everything the host screen owns (deck, rules, phase, marks…)
+  assign: {} as Record<string, string>, // player name -> dealt role key
+  dealt: false,
+};
+
+// Testing aid: FAKE_PLAYERS=5 starts the room with that many joined (phone-less) players.
+const FAKE_NAMES = ['Luna', 'Felix', 'Iris', 'Oscar', 'Hazel', 'Milo', 'Nora', 'Theo', 'Ruby', 'Jasper'];
+for (let i = 0; i < Number(process.env.FAKE_PLAYERS || 0); i++) {
+  room.players.push({ id: `fake-${i + 1}`, name: FAKE_NAMES[i] || `Bot ${i + 1}`, color: PALETTE[i % PALETTE.length], connected: true });
+}
+
+// ---------- helpers ----------
+function lanAddress(): string {
+  const prefer = (n: string) => (/^(en|wl|eth|wlan|Wi-Fi|Ethernet)/i.test(n) ? 0 : 1);
+  const all = Object.entries(os.networkInterfaces())
+    .flatMap(([name, list]) => (list || []).filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, address: a.address })))
+    .sort((a, b) => prefer(a.name) - prefer(b.name));
+  return process.env.PUBLIC_HOST || all[0]?.address || 'localhost';
+}
+
+function uniqueName(raw: string, selfId?: string): string {
+  const base = raw.trim().slice(0, 18) || 'Player';
+  const taken = (n: string) => room.players.some(p => p.id !== selfId && p.name.toLowerCase() === n.toLowerCase());
+  if (!taken(base)) return base;
+  for (let i = 2; ; i++) if (!taken(`${base} ${i}`)) return `${base} ${i}`;
+}
+
+function nextColor(): string {
+  const used = new Set(room.players.map(p => p.color));
+  return PALETTE.find(c => !used.has(c)) || PALETTE[room.players.length % PALETTE.length];
+}
+
+function shuffle<T>(a: T[]): T[] {
+  const b = a.slice();
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
+
+/** What one phone is allowed to know. */
+function playerView(p: Player) {
+  const sh = room.shared;
+  const mark = (sh.status || {})[p.name];
+  const fate = !mark ? 'none' : mark.how === 'night' ? 'killed' : mark.how === 'voted' ? 'voted' : 'none';
+  const role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
+
+  const counts: Record<string, number> = {};
+  Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
+  const deck = Object.entries(counts);
+
+  // Custom roles + host edits for any role this phone might show (its own card + the guide list)
+  const keys = new Set([...Object.keys(counts), ...(role ? [role] : [])]);
+  const roleDefs: Record<string, any> = {};
+  for (const k of keys) {
+    const custom = (sh.custom || []).find((c: any) => c.key === k);
+    const edit = (sh.edits || {})[k];
+    const src = custom || edit;
+    if (!src) continue;
+    roleDefs[k] = {
+      ...(src.name ? { name: src.name } : {}),
+      ...(src.team ? { team: src.team } : {}),
+      ...(src.color ? { color: src.color, rgb: src.rgb } : {}),
+      ...(src.icon ? { icon: src.icon } : {}),
+      ...(src.blurb ? { desc: src.blurb } : {}),
+      ...(custom ? { motto: '', custom: true } : {}),
+      edited: true,
+    };
+  }
+
+  return {
+    joined: true,
+    name: p.name,
+    dealt: room.dealt && !!role,
+    role,
+    phase: sh.phase || 'night',
+    fate,
+    roomLang: sh.roomLang || 'en',
+    showRoles: !(sh.rules && sh.rules.showRoles === false),
+    deck,
+    roleDefs,
+    playerCount: room.players.length,
+  };
+}
+
+function hostView() {
+  return {
+    players: room.players.map(({ name, color, connected }) => ({ name, color, connected })),
+    assign: room.assign,
+    dealt: room.dealt,
+  };
+}
+
+// ---------- server ----------
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+app.get('/api/info', async (_req, res) => {
+  const host = `${lanAddress()}:${WEB_PORT}`;
+  const url = `http://${host}/player`; // QR → player screen (any path except /host renders it)
+  const qr = await QRCode.toDataURL(url, { margin: 1, width: 320, color: { dark: '#140b22', light: '#ede6f7' } });
+  res.json({ host, url, qr });
+});
+
+if (PROD) {
+  const dist = path.join(ROOT, 'dist');
+  if (!fs.existsSync(dist)) console.warn('⚠  dist/ not found — run `npm run build` first.');
+  app.use(express.static(dist));
+  app.use((req, res, next) => (req.method === 'GET' && !req.path.startsWith('/socket.io') ? res.sendFile(path.join(dist, 'index.html')) : next()));
+}
+
+function pushAll() {
+  io.to('host').emit('room', hostView());
+  for (const p of room.players) io.to(`p:${p.id}`).emit('player:view', playerView(p));
+}
+
+io.on('connection', (socket: Socket) => {
+  const auth = socket.handshake.auth || {};
+
+  if (auth.role === 'host') {
+    socket.join('host');
+    socket.emit('host:init', { shared: room.shared, room: hostView() });
+
+    socket.on('host:patch', (patch: Shared) => {
+      Object.assign(room.shared, patch);
+      pushAll();
+    });
+    socket.on('host:kick', (name: string) => {
+      const p = room.players.find(x => x.name === name);
+      if (!p) return;
+      room.players = room.players.filter(x => x !== p);
+      delete room.assign[p.name];
+      io.to(`p:${p.id}`).emit('player:kicked');
+      pushAll();
+    });
+    socket.on('host:deal', (keys: string[]) => {
+      const deck = shuffle(keys);
+      room.assign = {};
+      shuffle(room.players).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
+      room.dealt = true;
+      pushAll();
+    });
+    socket.on('host:end', () => {
+      room.assign = {};
+      room.dealt = false;
+      pushAll();
+    });
+    return;
+  }
+
+  // ----- players -----
+  let me: Player | undefined = room.players.find(p => p.id === auth.playerId);
+  const attach = (p: Player) => {
+    me = p;
+    p.connected = true;
+    socket.join(`p:${p.id}`);
+    socket.emit('player:view', playerView(p));
+    pushAll();
+  };
+  if (me) attach(me);
+  else socket.emit('player:view', null);
+
+  socket.on('player:join', ({ name }: { name: string }, ack?: (r: { playerId: string; name: string }) => void) => {
+    if (me) {
+      me.name = room.dealt ? me.name : uniqueName(name, me.id); // names are locked once cards are dealt
+    } else {
+      me = { id: randomUUID(), name: uniqueName(name), color: nextColor(), connected: true };
+      room.players.push(me);
+    }
+    ack?.({ playerId: me.id, name: me.name });
+    attach(me);
+  });
+
+  socket.on('disconnect', () => {
+    if (!me) return;
+    const stillHere = [...(io.sockets.adapter.rooms.get(`p:${me.id}`) || [])].length > 0;
+    if (!stillHere) {
+      me.connected = false;
+      pushAll();
+    }
+  });
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  const host = `${lanAddress()}:${WEB_PORT}`;
+  console.log(`\n  🌕 Moonfall is running\n`);
+  console.log(`  Host (open on your phone):  http://${host}/host`);
+  console.log(`  Players join at:            http://${host}/player\n`);
+});

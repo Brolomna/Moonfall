@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "moonfall",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "moonfall-fake",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:fake"
+      ],
+      "port": 3000
+    }
+  ]
+}

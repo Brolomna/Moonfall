@@ -1,0 +1,44 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { connect } from './net';
+import { PhoneFrame } from './PhoneFrame';
+import { HostView } from './views/HostView';
+
+type RoomInfo = { players: { name: string; color: string; connected: boolean }[]; assign: Record<string, string>; dealt: boolean };
+
+export function HostApp() {
+  const socket = useMemo(() => connect('host'), []);
+  const [init, setInit] = useState<Record<string, unknown> | null>(null);
+  const [net, setNet] = useState<RoomInfo>({ players: [], assign: {}, dealt: false });
+  const [info, setInfo] = useState<{ host: string; qr: string } | null>(null);
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    socket.on('host:init', ({ shared, room }) => { setInit(shared || {}); setNet(room); });
+    socket.on('room', setNet);
+    socket.on('connect', () => setOnline(true));
+    socket.on('disconnect', () => setOnline(false));
+    fetch('/api/info').then(r => r.json()).then(setInfo).catch(() => setInfo(null));
+    return () => { socket.disconnect(); };
+  }, [socket]);
+
+  if (!init) return null;
+  return (
+    <>
+      <PhoneFrame>
+        {frameH => (
+          <HostView
+            frameH={frameH}
+            sharedInit={init}
+            net={net}
+            info={info}
+            onPatch={(patch: Record<string, unknown>) => socket.emit('host:patch', patch)}
+            onKick={(name: string) => socket.emit('host:kick', name)}
+            onDeal={(keys: string[]) => socket.emit('host:deal', keys)}
+            onEnd={() => socket.emit('host:end')}
+          />
+        )}
+      </PhoneFrame>
+      {!online && <div className="offline">Reconnecting to the room…</div>}
+    </>
+  );
+}
