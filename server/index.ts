@@ -37,6 +37,14 @@ for (let i = 0; i < Number(process.env.FAKE_PLAYERS || 0); i++) {
 }
 
 // ---------- helpers ----------
+// Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
+const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+
+/** Base URL phones use to reach this server, e.g. http://192.168.0.5:3000 or https://moonfall.onrender.com */
+function joinBase(): string {
+  return PUBLIC_URL || `http://${lanAddress()}:${WEB_PORT}`;
+}
+
 function lanAddress(): string {
   const prefer = (n: string) => (/^(en|wl|eth|wlan|Wi-Fi|Ethernet)/i.test(n) ? 0 : 1);
   const all = Object.entries(os.networkInterfaces())
@@ -125,8 +133,9 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.get('/api/info', async (_req, res) => {
-  const host = `${lanAddress()}:${WEB_PORT}`;
-  const url = `http://${host}/player`; // QR → player screen (any path except /host renders it)
+  const base = joinBase();
+  const host = base.replace(/^https?:\/\//, '');
+  const url = `${base}/player`; // QR → player screen (any path except /host renders it)
   const qr = await QRCode.toDataURL(url, { margin: 1, width: 320, color: { dark: '#140b22', light: '#ede6f7' } });
   res.json({ host, url, qr });
 });
@@ -211,8 +220,8 @@ io.on('connection', (socket: Socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  const host = `${lanAddress()}:${WEB_PORT}`;
+  const base = joinBase();
   console.log(`\n  🌕 Moonfall is running\n`);
-  console.log(`  Host (open on your phone):  http://${host}/host`);
-  console.log(`  Players join at:            http://${host}/player\n`);
+  console.log(`  Host (open on your phone):  ${base}/host`);
+  console.log(`  Players join at:            ${base}/player\n`);
 });
