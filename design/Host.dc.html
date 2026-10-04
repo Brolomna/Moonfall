@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moonfall · Host</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0a0612}
+a{color:#c7a8ff}a:hover{color:#e2d2ff}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:not-allowed}
+input,textarea{font-family:inherit}
+input:focus,textarea:focus{outline:none;border-color:rgba(199,168,255,.75) !important;box-shadow:0 0 0 4px rgba(167,127,240,.18)}
+input::placeholder,textarea::placeholder{color:#7f7397}
+.press{transition:transform .15s ease,background-color .25s ease,border-color .25s ease,opacity .25s ease,color .25s ease,box-shadow .25s ease}
+.press:active{transform:scale(.96)}
+.sky{transition:background 1.2s ease}
+.scroll{overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.fog{animation:drift 50s linear infinite}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+.twinkle{animation:twinkle 3.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rise{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+.sheet{animation:sheet .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.fade{animation:fade .3s ease both}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+@keyframes pop{0%{transform:scale(.4)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.pop{animation:pop .3s ease both}
+</style>
+</helmet>
+<div class="sky" style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: 'Manrope', sans-serif; color: #ece6f6; background: {{skyBg}}">
+
+  <!-- atmosphere -->
+  <div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none">
+    <div style="position: absolute; top: {{orbTop}}; right: 30px; width: 54px; height: 54px; border-radius: 50%; background: {{orbBg}}; box-shadow: {{orbGlow}}; transition: all 1.2s ease"></div>
+    <span class="twinkle" style="position: absolute; top: 74px; left: 40px; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: {{starOpacity}}"></span>
+    <span class="twinkle" style="position: absolute; top: 130px; left: 170px; width: 3px; height: 3px; border-radius: 50%; background: #e6dcff; animation-delay: 1.1s; opacity: {{starOpacity}}"></span>
+    <span class="twinkle" style="position: absolute; top: 40px; left: 250px; width: 2px; height: 2px; border-radius: 50%; background: #fff; animation-delay: 2.2s; opacity: {{starOpacity}}"></span>
+    <img src="/forest-phone.svg" alt="" style="position: absolute; left: 0; bottom: 0; width: 390px; height: 280px; object-fit: cover; object-position: bottom; opacity: .9">
+    <div class="fog" style="position: absolute; left: 0; bottom: 20px; width: 780px; height: 180px; background: radial-gradient(40% 50% at 20% 60%, rgba(190,165,240,.11), transparent 70%), radial-gradient(40% 50% at 70% 60%, rgba(190,165,240,.09), transparent 70%)"></div>
+    <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,6,18,0) 40%, rgba(10,6,18,.7) 100%)"></div>
+  </div>
+
+  <div style="position: absolute; inset: 0; display: flex; flex-direction: column">
+
+    <!-- header -->
+    <div style="padding: 54px 20px 14px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1e9d2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"></path></svg>
+        <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 16px; letter-spacing: .22em">MOONFALL</span>
+      </div>
+      <nav aria-label="Setup steps" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+        <sc-for list="{{steps}}" as="st" hint-placeholder-count="3">
+          <button class="press" onClick="{{st.go}}" disabled="{{st.locked}}" aria-current="{{st.current}}" style="padding: 0; border: none; background: transparent; color: inherit; display: flex; flex-direction: column; gap: 7px; text-align: left">
+            <span style="height: 4px; border-radius: 999px; background: {{st.bar}}"></span>
+            <span style="font-size: 12px; font-weight: 700; color: {{st.fg}}">{{st.label}}</span>
+          </button>
+        </sc-for>
+      </nav>
+    </div>
+
+    <!-- ================= STEP 1 · PLAYERS ================= -->
+    <sc-if value="{{isPlayers}}" hint-placeholder-val="{{true}}">
+      <div class="scroll rise" style="flex: 1; min-height: 0; padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <h1 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 28px; letter-spacing: .02em">Invite players</h1>
+          <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #c4b8da">Everyone scans the code with their phone camera and types their name. That’s it.</p>
+        </div>
+
+        <div style="display: flex; gap: 16px; align-items: center; padding: 16px; border-radius: 22px; background: rgba(22,13,38,.78); border: 1px solid rgba(190,165,235,.18); backdrop-filter: blur(12px)">
+          <div style="padding: 8px; border-radius: 14px; background: #ede6f7; flex: none">
+            <img src="{{qrSrc}}" alt="QR code to join" style="display: block; width: 112px; height: 112px">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+            <span style="font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #a99bc2">Room code</span>
+            <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 34px; letter-spacing: .2em">HOWL</span>
+            <span style="font-size: 12.5px; line-height: 1.4; color: #a99bc2">No camera? Open <span style="color: #ece6f6; font-weight: 600">{{joinHost}}</span></span>
+          </div>
+        </div>
+
+        <section aria-label="Players' language" style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 20px; background: rgba(22,13,38,.72); border: 1px solid rgba(190,165,235,.16)">
+          <span style="display: flex; align-items: center; gap: 10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c7a8ff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"></path></svg>
+            <span style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; font-weight: 700">Language on players’ phones</span>
+              <span style="font-size: 12.5px; line-height: 1.4; color: #a99bc2">Everyone starts in this language. Each player can still switch on their own phone.</span>
+            </span>
+          </span>
+          <div role="radiogroup" aria-label="Players' language" style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{roomLangs}}" as="l" hint-placeholder-count="7">
+              <button class="press" role="radio" aria-checked="{{l.on}}" onClick="{{l.pick}}" lang="{{l.code}}" style="height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid {{l.border}}; background: {{l.bg}}; color: {{l.fg}}; font-size: 13.5px; font-weight: 700">{{l.native}}</button>
+            </sc-for>
+          </div>
+        </section>
+
+        <!-- house rules summary -->
+        <button class="press" onClick="{{openRules}}" style="display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 20px; border: 1px solid rgba(232,211,160,.28); background: linear-gradient(150deg, rgba(232,211,160,.1), rgba(22,13,38,.85)); color: #ece6f6; text-align: left">
+          <span style="width: 44px; height: 44px; flex: none; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: rgba(232,211,160,.14); border: 1px solid rgba(232,211,160,.35)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0dfb4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z M6 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2 M9 8h6 M9 12h6 M9 16h3"></path></svg>
+          </span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 15px; font-weight: 700">House rules</span>
+            <span style="font-size: 12.5px; line-height: 1.4; color: #cbbfa0">{{rulesSummary}}</span>
+          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbbfa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M9 6l6 6-6 6"></path></svg>
+        </button>
+
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: baseline; justify-content: space-between">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700">Joined <span style="color: #c7a8ff">{{playerCount}}</span></h2>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8fe0b8"><span class="pulse" style="width: 7px; height: 7px; border-radius: 50%; background: #62d4a6"></span>Waiting for more</span>
+          </div>
+          <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px">
+            <sc-for list="{{players}}" as="p" hint-placeholder-count="10">
+              <li style="display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 6px 0 10px; border-radius: 14px; background: rgba(20,12,34,.66); border: 1px solid rgba(236,230,246,.07)">
+                <span style="width: 34px; height: 34px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; color: #12091c; background: {{p.color}}">{{p.initial}}</span>
+                <span style="flex: 1; font-weight: 600; font-size: 15px">{{p.name}}</span>
+                <button class="press" onClick="{{p.kick}}" aria-label="Remove {{p.name}}" style="width: 44px; height: 44px; border: none; border-radius: 12px; background: transparent; color: #8f82a8; display: flex; align-items: center; justify-content: center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+                </button>
+              </li>
+            </sc-for>
+          </ul>
+        </div>
+      </div>
+      <div style="padding: 14px 20px 30px; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.85) 40%)">
+        <span style="text-align: center; font-size: 13px; color: #a99bc2">{{playersHint}}</span>
+        <button class="press" onClick="{{go.roles}}" disabled="{{tooFew}}" style="height: 58px; border-radius: 16px; border: none; background: #e9dcff; color: #160b28; font-size: 17px; font-weight: 700; opacity: {{playersCtaOpacity}}; box-shadow: 0 0 36px rgba(199,168,255,.3); display: flex; align-items: center; justify-content: center; gap: 10px">
+          Next: choose roles
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14 M13 6l6 6-6 6"></path></svg>
+        </button>
+      </div>
+    </sc-if>
+
+    <!-- ================= STEP 2 · ROLES ================= -->
+    <sc-if value="{{isRoles}}" hint-placeholder-val="{{false}}">
+      <div class="scroll rise" style="flex: 1; min-height: 0; padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <h1 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 28px; letter-spacing: .02em">Pick the roles</h1>
+          <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #c4b8da">One card per player. Cards are shuffled and dealt at random.</p>
+        </div>
+
+        <!-- quick start -->
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 18px; background: rgba(232,211,160,.08); border: 1px solid rgba(232,211,160,.25)">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 14px; font-weight: 700; color: #f6e7c1">New to Werewolf?</span>
+            <span style="font-size: 12.5px; line-height: 1.4; color: #cbbfa0">Werewolves, Villagers, a Seer and a Healer.</span>
+          </span>
+          <button class="press" onClick="{{beginnerSet}}" style="height: 44px; padding: 0 14px; flex: none; border-radius: 12px; border: none; background: #e8d3a0; color: #1c140a; font-size: 14px; font-weight: 700">Use simple set</button>
+        </div>
+
+        <!-- balance -->
+        <section aria-label="Game balance" style="padding: 14px 16px; border-radius: 20px; background: rgba(22,13,38,.8); border: 1px solid rgba(190,165,235,.18); display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; align-items: center">
+            <span style="display: flex; align-items: baseline; gap: 10px">
+              <span style="font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #a99bc2">Balance</span>
+              <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 18px; color: {{balColor}}">{{balLabel}}</span>
+            </span>
+            <span style="min-width: 48px; height: 34px; padding: 0 10px; box-sizing: border-box; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 18px; background: rgba(255,255,255,.06); color: {{balColor}}">{{scoreText}}</span>
+          </div>
+          <div style="position: relative; height: 10px; border-radius: 999px; background: linear-gradient(90deg, #e0475f 0%, #8a4f9e 38%, #6b5f80 50%, #4f7fb8 62%, #62d4a6 100%)">
+            <span style="position: absolute; top: -5px; left: 40%; width: 20%; height: 20px; border-radius: 6px; border: 1px dashed rgba(255,255,255,.35); box-sizing: border-box"></span>
+            <span style="position: absolute; top: -6px; left: {{balPos}}; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: #f6f1ff; border: 3px solid #0a0612; box-shadow: 0 0 14px rgba(255,255,255,.5); transition: left .4s cubic-bezier(.2,.8,.2,1)"></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600">
+            <span style="color: #ff8a9b">Wolves favored</span>
+            <span style="color: #a99bc2">Fair</span>
+            <span style="color: #8fe0b8">Village favored</span>
+          </div>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.45; color: #a99bc2">Each role has a strength: <span style="color: #8fe0b8; font-weight: 700">+</span> helps the village, <span style="color: #ff8a9b; font-weight: 700">−</span> helps the wolves. Aim for the middle.</p>
+        </section>
+
+        <!-- counted roles -->
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; align-items: baseline; justify-content: space-between">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700">How many of each</h2>
+            <span style="font-size: 13px; font-weight: 700; color: {{deckColor}}">{{totalCards}} / {{playerCount}} cards</span>
+          </div>
+          <sc-for list="{{counted}}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 12px; border-radius: 18px; border: 1px solid {{r.border}}; background: {{r.bg}}; transition: border-color .3s ease, background-color .3s ease">
+              <button class="press" onClick="{{r.edit}}" aria-label="Edit {{r.plural}}" style="position: relative; width: 44px; height: 44px; flex: none; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{r.soft}}; border: 1px solid {{r.edge}}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{r.color}}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"></path></svg>
+                <span style="position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e9dcff; border: 2px solid #150c24">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#160b28" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>
+                </span>
+              </button>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+                <span style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-weight: 700; font-size: 15.5px">{{r.plural}}</span>
+                  <span style="height: 20px; padding: 0 7px; border-radius: 6px; display: flex; align-items: center; font-size: 11.5px; font-weight: 800; color: {{r.strFg}}; background: {{r.strBg}}">{{r.strText}} each</span>
+                </span>
+                <span style="font-size: 12.5px; line-height: 1.35; color: #a99bc2">{{r.countHint}}</span>
+              </span>
+              <span style="display: flex; align-items: center; gap: 2px; flex: none">
+                <button class="press" onClick="{{r.dec}}" aria-label="Fewer {{r.plural}}" style="width: 38px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,.05); color: #ece6f6; font-size: 20px">−</button>
+                <span style="width: 28px; text-align: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 19px; color: {{r.countFg}}">{{r.count}}</span>
+                <button class="press" onClick="{{r.inc}}" aria-label="More {{r.plural}}" style="width: 38px; height: 44px; border-radius: 12px; border: none; background: {{r.soft}}; color: #ece6f6; font-size: 20px">+</button>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- unique roles -->
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 700">Special roles</h2>
+          <span style="font-size: 13px; color: #a99bc2">Tap to add. Each one is a single card. Tap the pencil to edit any role.</span>
+        </div>
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: {{g.dot}}"></span>
+              <span style="font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: {{g.fg}}">{{g.label}}</span>
+              <span style="flex: 1; height: 1px; background: rgba(236,230,246,.1)"></span>
+              <span style="font-size: 12px; color: #a99bc2">{{g.picked}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <sc-for list="{{g.items}}" as="r" hint-placeholder-count="6">
+                <div style="position: relative; display: flex">
+                <button class="press" onClick="{{r.toggle}}" aria-pressed="{{r.on}}" style="flex: 1; min-height: 128px; padding: 12px 12px 14px; border-radius: 18px; border: 1px solid {{r.border}}; background: {{r.bg}}; color: #ece6f6; text-align: left; display: flex; flex-direction: column; gap: 6px; box-shadow: {{r.glow}}">
+                  <span style="display: flex; align-items: center; justify-content: space-between; width: 100%">
+                    <span style="width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{r.soft}}; border: 1px solid {{r.edge}}">
+                      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="{{r.color}}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}"></path></svg>
+                    </span>
+                    <sc-if value="{{r.on}}" hint-placeholder-val="{{false}}">
+                      <span class="pop" style="width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{r.color}}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#12091c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{r.off}}" hint-placeholder-val="{{true}}">
+                      <span style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid rgba(236,230,246,.25)"></span>
+                    </sc-if>
+                  </span>
+                  <span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+                    <span style="font-weight: 700; font-size: 14.5px">{{r.name}}</span>
+                    <span style="height: 18px; padding: 0 6px; border-radius: 5px; display: flex; align-items: center; font-size: 11px; font-weight: 800; color: {{r.strFg}}; background: {{r.strBg}}">{{r.strText}}</span>
+                  </span>
+                  <span style="font-size: 12px; line-height: 1.35; color: #b3a6c9; padding-right: 26px">{{r.blurb}}</span>
+                </button>
+                <button class="press" onClick="{{r.edit}}" aria-label="Edit {{r.name}}" style="position: absolute; right: 4px; bottom: 4px; width: 36px; height: 36px; border-radius: 12px; border: none; background: rgba(255,255,255,.07); color: #c4b8da; display: flex; align-items: center; justify-content: center">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z M14 6l4 4"></path></svg>
+                </button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+
+        <button class="press" onClick="{{openSheet}}" style="height: 56px; flex: none; border-radius: 18px; border: 1px dashed rgba(199,168,255,.45); background: rgba(167,127,240,.08); color: #e9dcff; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14 M5 12h14"></path></svg>
+          Create your own role
+        </button>
+      </div>
+      <div style="padding: 12px 20px 30px; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.9) 40%)">
+        <span style="text-align: center; font-size: 13px; font-weight: 600; color: {{deckColor}}">{{deckHint}}</span>
+        <div style="display: flex; gap: 10px">
+          <button class="press" onClick="{{go.players}}" aria-label="Back to players" style="width: 58px; height: 58px; flex: none; border-radius: 16px; border: 1px solid rgba(236,230,246,.18); background: rgba(255,255,255,.05); color: #ece6f6; display: flex; align-items: center; justify-content: center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5 M11 6l-6 6 6 6"></path></svg>
+          </button>
+          <button class="press" onClick="{{deal}}" disabled="{{cantDeal}}" style="flex: 1; height: 58px; border-radius: 16px; border: none; background: #e9dcff; color: #160b28; font-size: 17px; font-weight: 700; opacity: {{dealOpacity}}; box-shadow: 0 0 36px rgba(199,168,255,.3); display: flex; align-items: center; justify-content: center; gap: 10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4l10 10h4 M3 17h4l3-3 M14 10l3-3h4 M18 4l3 3-3 3 M18 14l3 3-3 3"></path></svg>
+            Shuffle &amp; deal cards
+          </button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ================= STEP 3 · PLAY ================= -->
+    <sc-if value="{{isPlay}}" hint-placeholder-val="{{false}}">
+      <div class="scroll rise" style="flex: 1; min-height: 0; padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 14px">
+
+        <!-- phase -->
+        <section aria-label="Phase" style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 22px; background: {{heroBg}}; border: 1px solid {{heroBorder}}; transition: background 1s ease, border-color 1s ease">
+          <span style="width: 52px; height: 52px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{heroOrb}}">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{{heroIconColor}}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{heroIcon}}"></path></svg>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 26px; letter-spacing: .05em">{{phaseTitle}}</span>
+            <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: #e4d9f0">{{phaseLine}}</span>
+          </span>
+        </section>
+
+        <div role="group" aria-label="Switch phase" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 6px; border-radius: 20px; background: rgba(10,6,18,.6); border: 1px solid rgba(236,230,246,.1)">
+          <button class="press" onClick="{{setNight}}" aria-pressed="{{isNightPhase}}" style="height: 56px; border-radius: 15px; border: none; background: {{nightBtnBg}}; color: {{nightBtnFg}}; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"></path></svg>
+            Night
+          </button>
+          <button class="press" onClick="{{setDay}}" aria-pressed="{{isDayPhase}}" style="height: 56px; border-radius: 15px; border: none; background: {{dayBtnBg}}; color: {{dayBtnFg}}; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"></path></svg>
+            Day
+          </button>
+        </div>
+
+        <!-- players strip -->
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 18px; background: rgba(20,12,34,.75); border: 1px solid rgba(236,230,246,.1)">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+            <span style="font-size: 15px; font-weight: 700">{{aliveCount}} alive <span style="color: #a99bc2; font-weight: 600">· {{outCount}} out</span></span>
+            <span style="font-size: 12.5px; color: #a99bc2">Wolves left <span style="color: #ff8a9b; font-weight: 700">{{wolvesAlive}}</span> · Others left <span style="color: #8fe0b8; font-weight: 700">{{othersAlive}}</span></span>
+          </span>
+          <button class="press" onClick="{{openMark}}" style="height: 48px; padding: 0 16px; flex: none; border-radius: 14px; border: none; background: #e9dcff; color: #160b28; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5 M16 11l2 2 4-4"></path></svg>
+            Mark players
+          </button>
+        </div>
+
+        <!-- game over -->
+        <sc-if value="{{gameOver}}" hint-placeholder-val="{{false}}">
+          <section class="rise" aria-label="Game over" style="padding: 22px 20px; border-radius: 24px; background: {{endBg}}; border: 1px solid {{endBorder}}; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; box-shadow: 0 0 60px {{endGlow}}">
+            <span style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); border: 1px solid {{endBorder}}">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="{{endColor}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{endIcon}}"></path></svg>
+            </span>
+            <span style="font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: {{endColor}}">Game over</span>
+            <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 26px">{{endTitle}}</span>
+            <span style="font-size: 14px; line-height: 1.5; color: #e4d9f0">{{endText}}</span>
+            <ul style="list-style: none; margin: 4px 0 0; padding: 12px 14px; border-radius: 14px; background: rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 8px; text-align: left; width: 100%; box-sizing: border-box">
+              <sc-for list="{{endTips}}" as="t" hint-placeholder-count="3">
+                <li style="display: flex; gap: 10px; font-size: 13px; line-height: 1.45; color: #d8cfe8"><span style="width: 6px; height: 6px; margin-top: 7px; flex: none; border-radius: 50%; background: {{endColor}}"></span>{{t}}</li>
+              </sc-for>
+            </ul>
+            <button class="press" onClick="{{endGame}}" style="margin-top: 6px; width: 100%; height: 52px; border-radius: 14px; border: none; background: {{endColor}}; color: #12091c; font-size: 16px; font-weight: 700">Start a new game</button>
+          </section>
+        </sc-if>
+
+        <!-- alerts -->
+        <sc-for list="{{alerts}}" as="a" hint-placeholder-count="0">
+          <section class="rise" aria-label="{{a.title}}" style="padding: 14px; border-radius: 20px; background: {{a.bg}}; border: 1px solid {{a.border}}; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 0 30px {{a.glow}}">
+            <div style="display: flex; gap: 12px">
+              <span style="width: 42px; height: 42px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{a.soft}}; border: 1px solid {{a.border}}">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{a.color}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{a.icon}}"></path></svg>
+              </span>
+              <span style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: {{a.color}}">{{a.kicker}}</span>
+                <span style="font-size: 16px; font-weight: 700; line-height: 1.3">{{a.title}}</span>
+                <span style="font-size: 13.5px; line-height: 1.5; color: #d8cfe8">{{a.text}}</span>
+              </span>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <sc-if value="{{a.hasAction}}" hint-placeholder-val="{{false}}">
+                <button class="press" onClick="{{a.act}}" style="flex: 1; height: 44px; border-radius: 12px; border: none; background: {{a.color}}; color: #12091c; font-size: 14px; font-weight: 700">{{a.actLabel}}</button>
+              </sc-if>
+              <button class="press" onClick="{{a.dismiss}}" style="flex: 1; height: 44px; border-radius: 12px; border: 1px solid rgba(236,230,246,.18); background: rgba(255,255,255,.05); color: #ece6f6; font-size: 14px; font-weight: 700">Got it</button>
+            </div>
+          </section>
+        </sc-for>
+
+        <!-- night guide -->
+        <sc-if value="{{showNightGuide}}" hint-placeholder-val="{{true}}">
+          <section aria-label="Wake-up order" style="padding: 16px; border-radius: 22px; background: rgba(22,13,38,.82); border: 1px solid rgba(199,168,255,.2); display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px">
+              <span style="display: flex; flex-direction: column; gap: 3px">
+                <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #c7a8ff">Host guide</span>
+                <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 19px">Wake-up order</span>
+              </span>
+              <span style="height: 28px; padding: 0 10px; border-radius: 999px; display: flex; align-items: center; font-size: 12px; font-weight: 700; color: #e9dcff; background: rgba(167,127,240,.18)">{{stepsDone}}</span>
+            </div>
+            <p style="margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(167,127,240,.1); font-size: 13px; line-height: 1.5; color: #e4d9f0">{{nightIntro}}</p>
+            <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+              <sc-for list="{{nightSteps}}" as="st" hint-placeholder-count="5">
+                <li>
+                  <button class="press" onClick="{{st.tick}}" aria-pressed="{{st.done}}" style="width: 100%; padding: 12px; border-radius: 16px; border: 1px solid {{st.border}}; background: {{st.bg}}; color: #ece6f6; text-align: left; display: flex; gap: 12px; opacity: {{st.opacity}}">
+                    <span style="width: 30px; height: 30px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; background: {{st.numBg}}; color: {{st.numFg}}">{{st.num}}</span>
+                    <span style="flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                      <span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{st.color}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{st.icon}}"></path></svg>
+                        <span style="font-weight: 700; font-size: 15px; text-decoration: {{st.strike}}">{{st.title}}</span>
+                        <sc-if value="{{st.hasTag}}" hint-placeholder-val="{{false}}">
+                          <span style="height: 20px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; font-size: 11px; font-weight: 800; color: {{st.tagFg}}; background: {{st.tagBg}}">{{st.tag}}</span>
+                        </sc-if>
+                      </span>
+                      <span style="font-size: 12.5px; color: #a99bc2">{{st.who}}</span>
+                      <span style="font-size: 13.5px; line-height: 1.45; color: #d8cfe8">{{st.say}}</span>
+                    </span>
+                  </button>
+                </li>
+              </sc-for>
+            </ol>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #c4b8da">Last, say <span style="color: #f1e9d2; font-style: italic">“Everyone, wake up.”</span> and tap <span style="font-weight: 700; color: #ffd3a8">Day</span>.</p>
+          </section>
+        </sc-if>
+
+        <!-- day guide -->
+        <sc-if value="{{showDayGuide}}" hint-placeholder-val="{{false}}">
+          <section aria-label="Day script" style="padding: 16px; border-radius: 22px; background: rgba(40,18,40,.8); border: 1px solid rgba(255,211,168,.25); display: flex; flex-direction: column; gap: 12px">
+            <span style="display: flex; flex-direction: column; gap: 3px">
+              <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #ffd3a8">Host guide</span>
+              <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 19px">Run the day</span>
+            </span>
+            <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+              <sc-for list="{{daySteps}}" as="d" hint-placeholder-count="3">
+                <li style="display: flex; gap: 12px">
+                  <span style="width: 26px; height: 26px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; background: rgba(242,166,90,.2); color: #ffd3a8">{{d.num}}</span>
+                  <span style="display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-weight: 700; font-size: 14.5px">{{d.title}}</span>
+                    <span style="font-size: 13px; line-height: 1.45; color: #d8c8d4">{{d.text}}</span>
+                  </span>
+                </li>
+              </sc-for>
+            </ol>
+            <sc-if value="{{hasDayRules}}" hint-placeholder-val="{{false}}">
+              <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(236,230,246,.1)">
+                <span style="font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #a99bc2">Remember during the vote</span>
+                <sc-for list="{{dayRules}}" as="r" hint-placeholder-count="2">
+                  <div style="display: flex; gap: 10px; align-items: flex-start">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{r.color}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px"><path d="{{r.icon}}"></path></svg>
+                    <span style="font-size: 13px; line-height: 1.45; color: #e4d9f0"><span style="font-weight: 700; color: {{r.color}}">{{r.name}}</span> · {{r.text}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </section>
+        </sc-if>
+      </div>
+      <div style="padding: 12px 20px 30px; background: linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.88) 40%)">
+        <button class="press" onClick="{{endGame}}" style="width: 100%; height: 48px; border-radius: 14px; border: 1px solid rgba(224,71,95,.35); background: rgba(224,71,95,.08); color: #ffb3bf; font-size: 15px; font-weight: 700">End game &amp; start over</button>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ================= CREATE / EDIT ROLE SHEET ================= -->
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}">
+    <div class="fade" onClick="{{closeSheet}}" style="position: absolute; inset: 0; background: rgba(5,3,10,.66); backdrop-filter: blur(3px)"></div>
+    <section class="sheet" aria-label="{{sheetTitle}}" style="position: absolute; left: 0; right: 0; bottom: 0; height: 792px; border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #1d1131 0%, #120a20 100%); border-top: 1px solid rgba(199,168,255,.3); box-shadow: 0 -20px 60px rgba(0,0,0,.6); display: flex; flex-direction: column">
+      <div style="padding: 10px 20px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px">
+        <span style="width: 40px; height: 5px; border-radius: 999px; background: rgba(236,230,246,.25)"></span>
+        <div style="width: 100%; display: flex; align-items: center; justify-content: space-between">
+          <span style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #c7a8ff">{{sheetKicker}}</span>
+            <h2 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 22px">{{sheetTitle}}</h2>
+          </span>
+          <button class="press" onClick="{{closeSheet}}" aria-label="Close" style="width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,.06); color: #ece6f6; display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="scroll" style="flex: 1; min-height: 0; padding: 6px 20px 16px; display: flex; flex-direction: column; gap: 16px">
+
+        <!-- name + online lookup -->
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 700">Role name
+            <span style="position: relative; display: flex">
+              <input type="text" value="{{dr.name}}" onChange="{{setName}}" placeholder="Type any role, e.g. Little Girl" autocomplete="off" style="flex: 1; height: 54px; padding: 0 48px 0 14px; border-radius: 14px; border: 1px solid rgba(236,230,246,.16); background: rgba(10,6,18,.6); color: #ece6f6; font-size: 17px; font-weight: 600">
+              <span style="position: absolute; right: 14px; top: 17px; width: 20px; height: 20px; color: #c7a8ff">
+                <sc-if value="{{lk.searching}}" hint-placeholder-val="{{false}}">
+                  <span class="spin" style="display: block; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; border: 2px solid rgba(199,168,255,.25); border-top-color: #c7a8ff"></span>
+                </sc-if>
+                <sc-if value="{{lk.notSearching}}" hint-placeholder-val="{{true}}">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-4-4"></path></svg>
+                </sc-if>
+              </span>
+            </span>
+          </label>
+          <sc-if value="{{lk.show}}" hint-placeholder-val="{{true}}">
+            <div class="fade" style="display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: {{lk.bg}}; border: 1px solid {{lk.border}}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{lk.color}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px"><path d="{{lk.icon}}"></path></svg>
+              <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 13.5px; font-weight: 700; color: {{lk.color}}">{{lk.title}}</span>
+                <span style="font-size: 12.5px; line-height: 1.45; color: #c4b8da">{{lk.text}}</span>
+              </span>
+              <sc-if value="{{lk.canEditExisting}}" hint-placeholder-val="{{false}}">
+                <button class="press" onClick="{{lk.editExisting}}" style="height: 34px; padding: 0 10px; flex: none; border-radius: 10px; border: none; background: {{lk.color}}; color: #12091c; font-size: 12.5px; font-weight: 700">Edit it</button>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- live preview -->
+        <div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 18px; background: linear-gradient(150deg, {{dr.tint}}, rgba(14,8,24,.9)); border: 1px solid {{dr.edge}}; transition: all .3s ease">
+          <span style="width: 54px; height: 54px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{dr.soft}}; border: 1px solid {{dr.edge}}; box-shadow: 0 0 26px {{dr.soft}}">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="{{dr.color}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{dr.icon}}"></path></svg>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+            <span style="font-family: 'Cinzel', serif; font-weight: 700; font-size: 20px">{{dr.displayName}}</span>
+            <span style="font-size: 13px; font-weight: 600; color: {{dr.color}}">{{dr.team}} · strength {{dr.strText}}</span>
+          </span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700">Which side are they on?
+            <sc-if value="{{auto.team}}" hint-placeholder-val="{{false}}"><span style="height: 20px; padding: 0 7px; border-radius: 6px; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 800; color: #c7a8ff; background: rgba(167,127,240,.18)">AUTO</span></sc-if>
+          </span>
+          <div role="group" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: rgba(10,6,18,.6); border: 1px solid rgba(236,230,246,.1)">
+            <sc-for list="{{teamOpts}}" as="t" hint-placeholder-count="3">
+              <button class="press" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 44px; border-radius: 10px; border: none; background: {{t.bg}}; color: {{t.fg}}; font-size: 14px; font-weight: 700">{{t.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 18px; background: rgba(10,6,18,.5); border: 1px solid {{strBorder}}">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <span style="display: flex; flex-direction: column; gap: 2px">
+              <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700">Strength
+                <sc-if value="{{auto.strength}}" hint-placeholder-val="{{false}}"><span style="height: 20px; padding: 0 7px; border-radius: 6px; display: flex; align-items: center; font-size: 11px; font-weight: 800; color: #c7a8ff; background: rgba(167,127,240,.18)">AUTO</span></sc-if>
+              </span>
+              <span style="font-size: 12.5px; color: #a99bc2">How much this role helps its side</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 4px">
+              <button class="press" onClick="{{strDown}}" aria-label="Lower strength" style="width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,.06); color: #ece6f6; font-size: 22px">−</button>
+              <span style="width: 54px; text-align: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 26px; color: {{dr.strColor}}">{{dr.strText}}</span>
+              <button class="press" onClick="{{strUp}}" aria-label="Raise strength" style="width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(255,255,255,.06); color: #ece6f6; font-size: 22px">+</button>
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; font-size: 11.5px; line-height: 1.35; color: #a99bc2; text-align: center">
+            <span style="padding: 6px 4px; border-radius: 8px; background: rgba(224,71,95,.1)"><span style="color: #ff8a9b; font-weight: 800">−6</span><br>Werewolf</span>
+            <span style="padding: 6px 4px; border-radius: 8px; background: rgba(232,211,160,.08)"><span style="color: #f0dfb4; font-weight: 800">+1</span><br>Villager</span>
+            <span style="padding: 6px 4px; border-radius: 8px; background: rgba(127,178,255,.1)"><span style="color: #a9cbff; font-weight: 800">+7</span><br>Seer</span>
+          </div>
+        </div>
+
+        <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 700">
+          <span style="display: flex; align-items: center; gap: 8px">What does this role do?
+            <sc-if value="{{auto.desc}}" hint-placeholder-val="{{false}}"><span style="height: 20px; padding: 0 7px; border-radius: 6px; display: flex; align-items: center; font-size: 11px; font-weight: 800; color: #c7a8ff; background: rgba(167,127,240,.18)">AUTO</span></sc-if>
+          </span>
+          <textarea rows="4" onChange="{{setDesc}}" value="{{dr.desc}}" placeholder="Explain it the way you’d say it out loud at the table." style="padding: 12px 14px; border-radius: 14px; border: 1px solid {{descBorder}}; background: rgba(10,6,18,.6); color: #ece6f6; font-size: 15px; line-height: 1.45; resize: none"></textarea>
+          <span style="font-size: 12px; font-weight: 500; color: #a99bc2">This text appears on the player’s card.</span>
+        </label>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700">Symbol
+            <sc-if value="{{auto.icon}}" hint-placeholder-val="{{false}}"><span style="height: 20px; padding: 0 7px; border-radius: 6px; display: flex; align-items: center; font-size: 11px; font-weight: 800; color: #c7a8ff; background: rgba(167,127,240,.18)">AUTO</span></sc-if>
+          </span>
+          <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+            <sc-for list="{{iconOpts}}" as="ic" hint-placeholder-count="12">
+              <button class="press" onClick="{{ic.pick}}" aria-label="{{ic.label}}" aria-pressed="{{ic.on}}" style="height: 48px; border-radius: 12px; border: 1px solid {{ic.border}}; background: {{ic.bg}}; color: {{ic.fg}}; display: flex; align-items: center; justify-content: center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.d}}"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 14px; font-weight: 700">Card color</span>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <sc-for list="{{colorOpts}}" as="c" hint-placeholder-count="8">
+              <button class="press" onClick="{{c.pick}}" aria-label="{{c.label}}" aria-pressed="{{c.on}}" style="width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 2px solid {{c.ring}}; background: {{c.hex}}; box-shadow: 0 0 0 3px #150c24"></button>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{canReset}}" hint-placeholder-val="{{false}}">
+          <button class="press" onClick="{{resetRole}}" style="height: 46px; border-radius: 14px; border: 1px solid rgba(236,230,246,.16); background: transparent; color: #c4b8da; font-size: 14px; font-weight: 700">{{resetLabel}}</button>
+        </sc-if>
+      </div>
+
+      <div style="padding: 12px 20px 30px; border-top: 1px solid rgba(236,230,246,.08)">
+        <button class="press" onClick="{{saveRole}}" disabled="{{draftEmpty}}" style="width: 100%; height: 58px; border-radius: 16px; border: none; background: {{dr.color}}; color: #12091c; font-size: 17px; font-weight: 700; opacity: {{addOpacity}}">{{saveLabel}}</button>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ================= HOUSE RULES SHEET ================= -->
+  <sc-if value="{{rulesOpen}}" hint-placeholder-val="{{false}}">
+    <div class="fade" onClick="{{closeRules}}" style="position: absolute; inset: 0; background: rgba(5,3,10,.66); backdrop-filter: blur(3px)"></div>
+    <section class="sheet" aria-label="House rules" style="position: absolute; left: 0; right: 0; bottom: 0; height: 792px; border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #221632 0%, #120a20 100%); border-top: 1px solid rgba(232,211,160,.35); box-shadow: 0 -20px 60px rgba(0,0,0,.6); display: flex; flex-direction: column">
+      <div style="padding: 10px 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px">
+        <span style="width: 40px; height: 5px; border-radius: 999px; background: rgba(236,230,246,.25)"></span>
+        <div style="width: 100%; display: flex; align-items: center; gap: 12px">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #e8d3a0">Your table, your rules</span>
+            <h2 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 22px">House rules</h2>
+          </span>
+          <button class="press" onClick="{{closeRules}}" aria-label="Close" style="width: 44px; height: 44px; flex: none; border-radius: 12px; border: none; background: rgba(255,255,255,.06); color: #ece6f6; display: flex; align-items: center; justify-content: center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
+        <span style="width: 100%; font-size: 13px; line-height: 1.45; color: #a99bc2">These change the host guide and reminders. Not sure? The defaults are a classic game.</span>
+      </div>
+
+      <div class="scroll" style="flex: 1; min-height: 0; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 18px">
+        <sc-for list="{{ruleGroups}}" as="grp" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="display: flex; align-items: center; gap: 8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{grp.color}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{grp.icon}}"></path></svg>
+              <span style="font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: {{grp.color}}">{{grp.label}}</span>
+            </span>
+            <sc-for list="{{grp.items}}" as="r" hint-placeholder-count="3">
+              <div style="padding: 12px 14px; border-radius: 16px; background: rgba(10,6,18,.5); border: 1px solid {{r.border}}; display: flex; flex-direction: column; gap: 10px">
+                <sc-if value="{{r.isToggle}}" hint-placeholder-val="{{true}}">
+                  <button class="press" onClick="{{r.flip}}" role="switch" aria-checked="{{r.on}}" style="width: 100%; padding: 0; border: none; background: transparent; color: #ece6f6; text-align: left; display: flex; align-items: center; gap: 12px">
+                    <span style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+                      <span style="font-size: 15px; font-weight: 700">{{r.label}}</span>
+                      <span style="font-size: 12.5px; line-height: 1.45; color: #a99bc2">{{r.desc}}</span>
+                    </span>
+                    <span style="position: relative; width: 48px; height: 28px; flex: none; border-radius: 999px; background: {{r.track}}; transition: background-color .25s ease">
+                      <span style="position: absolute; top: 3px; left: {{r.knob}}; width: 22px; height: 22px; border-radius: 50%; background: #f6f1ff; box-shadow: 0 2px 6px rgba(0,0,0,.35); transition: left .25s ease"></span>
+                    </span>
+                  </button>
+                </sc-if>
+                <sc-if value="{{r.isChoice}}" hint-placeholder-val="{{false}}">
+                  <span style="display: flex; flex-direction: column; gap: 3px">
+                    <span style="font-size: 15px; font-weight: 700">{{r.label}}</span>
+                    <span style="font-size: 12.5px; line-height: 1.45; color: #a99bc2">{{r.desc}}</span>
+                  </span>
+                  <div role="radiogroup" aria-label="{{r.label}}" style="display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: rgba(0,0,0,.3)">
+                    <sc-for list="{{r.opts}}" as="o" hint-placeholder-count="3">
+                      <button class="press" role="radio" aria-checked="{{o.on}}" onClick="{{o.pick}}" style="flex: 1; min-height: 38px; padding: 4px 6px; border-radius: 9px; border: none; background: {{o.bg}}; color: {{o.fg}}; font-size: 12.5px; font-weight: 700; line-height: 1.2">{{o.label}}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="padding: 12px 20px 30px; border-top: 1px solid rgba(236,230,246,.08); display: flex; gap: 10px">
+        <button class="press" onClick="{{resetRules}}" style="height: 56px; padding: 0 16px; flex: none; border-radius: 16px; border: 1px solid rgba(236,230,246,.18); background: transparent; color: #c4b8da; font-size: 14px; font-weight: 700">Classic rules</button>
+        <button class="press" onClick="{{closeRules}}" style="flex: 1; height: 56px; border-radius: 16px; border: none; background: #e8d3a0; color: #1c140a; font-size: 16px; font-weight: 700">Save rules</button>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ================= MARK PLAYERS SHEET ================= -->
+  <sc-if value="{{markOpen}}" hint-placeholder-val="{{false}}">
+    <div class="fade" onClick="{{closeMark}}" style="position: absolute; inset: 0; background: rgba(5,3,10,.66); backdrop-filter: blur(3px)"></div>
+    <section class="sheet" aria-label="Mark players" style="position: absolute; left: 0; right: 0; bottom: 0; height: 780px; border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #1d1131 0%, #120a20 100%); border-top: 1px solid rgba(199,168,255,.3); box-shadow: 0 -20px 60px rgba(0,0,0,.6); display: flex; flex-direction: column">
+      <div style="padding: 10px 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px">
+        <span style="width: 40px; height: 5px; border-radius: 999px; background: rgba(236,230,246,.25)"></span>
+        <div style="width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px">
+          <span style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 22px">Mark players</h2>
+            <span style="font-size: 12.5px; color: #a99bc2">Only you can see roles here.</span>
+          </span>
+          <button class="press" onClick="{{toggleHide}}" aria-pressed="{{hideRoles}}" style="height: 40px; padding: 0 12px; flex: none; border-radius: 12px; border: 1px solid rgba(236,230,246,.16); background: rgba(255,255,255,.05); color: #ece6f6; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{hideIcon}}"></path></svg>
+            {{hideLabel}}
+          </button>
+        </div>
+      </div>
+      <ul class="scroll" style="flex: 1; min-height: 0; list-style: none; margin: 0; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{dealt}}" as="d" hint-placeholder-count="10">
+          <li style="padding: 12px; border-radius: 18px; background: {{d.rowBg}}; border: 1px solid {{d.rowBorder}}; display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: center; gap: 10px; opacity: {{d.opacity}}">
+              <span style="width: 34px; height: 34px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-weight: 700; font-size: 14px; color: #12091c; background: {{d.color}}">{{d.initial}}</span>
+              <span style="flex: 1; font-weight: 700; font-size: 15.5px; text-decoration: {{d.strike}}">{{d.name}}</span>
+              <span style="height: 28px; padding: 0 10px 0 6px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: {{d.roleColor}}; background: {{d.roleSoft}}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{d.roleIcon}}"></path></svg>
+                {{d.roleName}}
+              </span>
+            </div>
+            <div role="group" aria-label="Status of {{d.name}}" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 12px; background: rgba(0,0,0,.28)">
+              <sc-for list="{{d.opts}}" as="o" hint-placeholder-count="4">
+                <button class="press" onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="height: 40px; padding: 0 2px; border-radius: 9px; border: none; background: {{o.bg}}; color: {{o.fg}}; font-size: 12.5px; font-weight: 700">{{o.label}}</button>
+              </sc-for>
+            </div>
+          </li>
+        </sc-for>
+      </ul>
+      <div style="padding: 12px 20px 30px; border-top: 1px solid rgba(236,230,246,.08)">
+        <button class="press" onClick="{{closeMark}}" style="width: 100%; height: 56px; border-radius: 16px; border: none; background: #e9dcff; color: #160b28; font-size: 17px; font-weight: 700">Done</button>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ================= DOPPELGÄNGER SHEET ================= -->
+  <sc-if value="{{dgOpen}}" hint-placeholder-val="{{false}}">
+    <div class="fade" style="position: absolute; inset: 0; background: rgba(5,3,10,.7); backdrop-filter: blur(3px)"></div>
+    <section class="sheet" aria-label="Update the Doppelgänger" style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 28px 28px 0 0; background: linear-gradient(180deg, #23192f 0%, #120a20 100%); border-top: 1px solid rgba(154,167,184,.5); box-shadow: 0 -20px 60px rgba(0,0,0,.6); padding: 10px 20px 30px; display: flex; flex-direction: column; gap: 16px">
+      <span style="align-self: center; width: 40px; height: 5px; border-radius: 999px; background: rgba(236,230,246,.25)"></span>
+      <span style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #c6d0dc">Doppelgänger check</span>
+        <h2 style="margin: 0; font-family: 'Cinzel', serif; font-weight: 600; font-size: 22px; line-height: 1.25">Did {{dg.dgName}} copy {{dg.dead}}?</h2>
+        <span style="font-size: 13.5px; line-height: 1.5; color: #c4b8da">On the first night, the Doppelgänger chose someone to copy. If it was {{dg.dead}}, {{dg.dgName}} now takes over their role.</span>
+      </span>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px; border-radius: 18px; background: rgba(0,0,0,.25)">
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+          <span style="width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(154,167,184,.18); border: 1px solid rgba(154,167,184,.55)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c6d0dc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{dg.dgIcon}}"></path></svg>
+          </span>
+          <span style="font-size: 13px; font-weight: 700">{{dg.dgName}}</span>
+        </span>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a99bc2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14 M13 6l6 6-6 6"></path></svg>
+        <span style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+          <span style="width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{dg.soft}}; border: 1px solid {{dg.edge}}; box-shadow: 0 0 24px {{dg.soft}}">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{dg.color}}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{dg.icon}}"></path></svg>
+          </span>
+          <span style="font-size: 13px; font-weight: 700; color: {{dg.color}}">{{dg.roleName}}</span>
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 700">New role for {{dg.dgName}}</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{dgChoices}}" as="c" hint-placeholder-count="6">
+            <button class="press" onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 38px; padding: 0 12px 0 8px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.icon}}"></path></svg>
+              {{c.name}}
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <span style="display: flex; gap: 8px; font-size: 12.5px; line-height: 1.45; color: #a99bc2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px"><path d="M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z M11 18h2"></path></svg>
+        {{dg.dgName}}’s phone card changes to the new role right away. No one else is told.
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <button class="press" onClick="{{dgConfirm}}" style="height: 56px; border-radius: 16px; border: none; background: {{dg.color}}; color: #12091c; font-size: 16px; font-weight: 700">Yes — {{dg.dgName}} becomes the {{dg.roleName}}</button>
+        <button class="press" onClick="{{dgSkip}}" style="height: 48px; border-radius: 14px; border: 1px solid rgba(236,230,246,.18); background: rgba(255,255,255,.05); color: #ece6f6; font-size: 14px; font-weight: 700">No, they copied someone else</button>
+      </div>
+    </section>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"screen":{"editor":"enum","options":["players","roles","play"],"default":"players"},"phase":{"editor":"enum","options":["night","day"],"default":"night"},"sheet":{"editor":"boolean","default":false},"scenario":{"editor":"enum","options":["night1","mark","cub","doppel","end","edit","rules"],"default":"night1"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  catalog() {
+    const V = 'Village', W = 'Werewolves', L = 'Loner';
+    const I = {
+      wolf: 'M4 3l3.5 5.5L12 7l4.5 1.5L20 3l-.5 9-3.5 5-4 4-4-4-3.5-5z M9 12.5l1.5 1 M15 12.5l-1.5 1 M10.5 17.5h3L12 19z',
+      lantern: 'M9 4h6 M12 2v2 M7.5 7h9l-.8 11.5H8.3z M6.5 20.5h11 M12 10.5c1.3 1.3 1.3 3 0 4.5-1.3-1.5-1.3-3.2 0-4.5z',
+      brick: 'M3 20h18 M4 20V8h16v12 M4 12h16 M4 16h16 M9 8v4 M15 8v4 M12 12v4 M8 16v4 M16 16v4',
+      eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
+      shieldCross: 'M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z M12 8.5v7 M8.5 12h7',
+      flask: 'M9 3h6 M10 3v5.5L5 18.2A1.9 1.9 0 0 0 6.7 21h10.6a1.9 1.9 0 0 0 1.7-2.8L14 8.5V3 M7.5 15h9',
+      bow: 'M6 3c7 2.5 7 15.5 0 18 M6 3v18 M3 12h17 M17 9l3 3-3 3',
+      shieldStar: 'M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z M12 8l1.2 2.6 2.8.3-2.1 1.9.6 2.8L12 14.2l-2.5 1.4.6-2.8L8 10.9l2.8-.3z',
+      heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z M3 21L21 3 M16 3h5v5',
+      crown: 'M3 18h18 M4 18L3 7l5 4 4-7 4 7 5-4-1 11',
+      sash: 'M6 3h12v18l-6-3-6 3z M9 8h6 M9 11.5h6',
+      dumbbell: 'M6 7v10 M18 7v10 M3 9.5v5 M21 9.5v5 M6 12h12',
+      eyeSmall: 'M3 13s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5z M12 11a2 2 0 1 0 0 4a2 2 0 1 0 0-4z M12 2v3 M6.5 4l1.2 2 M17.5 4l-1.2 2',
+      moonClaw: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z M8 9.5l2 4.5 M11.5 8.5l2 4.5',
+      mask: 'M3 6c3 1.5 6 1.5 9 0 3 1.5 6 1.5 9 0v5c0 5-4 9-9 9s-9-4-9-9z M7.5 11h2.5 M14 11h2.5 M9 16c2 1 4 1 6 0',
+      jester: 'M4 19l3-13 5 6 5-6 3 13z M4 19h16 M7 6a1 1 0 1 0 0-.01 M17 6a1 1 0 1 0 0-.01',
+      door: 'M6 21V4.5L16 3v18 M3 21h18 M13 12.5h.01 M16 5h3v16',
+      paw: 'M5.5 8a1.5 2 0 1 0 0 4a1.5 2 0 1 0 0-4z M9.5 4a1.5 2 0 1 0 0 4a1.5 2 0 1 0 0-4z M14.5 4a1.5 2 0 1 0 0 4a1.5 2 0 1 0 0-4z M18.5 8a1.5 2 0 1 0 0 4a1.5 2 0 1 0 0-4z M12 12c-3 0-5.5 3-5.5 5.5 0 1.8 1.5 2.5 3 2.5 1 0 1.6-.5 2.5-.5s1.5.5 2.5.5c1.5 0 3-.7 3-2.5C17.5 15 15 12 12 12z',
+      dagger: 'M12 2l2 4v9h-4V6z M7 15h10 M12 15v7',
+      orb: 'M12 3a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M6 21h12 M8.5 17l-1 4 M15.5 17l1 4 M9 9a3 3 0 0 1 3-3',
+      skull: 'M12 3a7 7 0 0 0-7 7c0 2.6 1.3 4.3 3 5.3V19h8v-3.7c1.7-1 3-2.7 3-5.3a7 7 0 0 0-7-7z M8.5 11a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M13.5 11a1 1 0 1 0 2 0a1 1 0 1 0-2 0z',
+      twin: 'M8 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z M16 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z M2 20c0-3.3 2.7-6 6-6 1.6 0 3 .6 4 1.6 1-1 2.4-1.6 4-1.6 3.3 0 6 2.7 6 6'
+    };
+    const r = (key, name, team, kind, strength, color, rgb, icon, blurb, extra) => ({ key, name, team, kind, strength, color, rgb, icon: I[icon], blurb, ...(extra || {}) });
+    return [
+      r('werewolf', 'Werewolf', W, 'count', -6, '#e0475f', '224,71,95', 'wolf', 'Wakes with the pack each night to eliminate a player.', { plural: 'Werewolves', countHint: 'Usually 1 for every 4–5 players' }),
+      r('villager', 'Villager', V, 'count', 1, '#e8d3a0', '232,211,160', 'lantern', 'No power. Talks, suspects and votes.', { plural: 'Villagers', countHint: 'Fills the rest of the table' }),
+      r('mason', 'Mason', V, 'pair', 2, '#d9b48a', '217,180,138', 'brick', 'Masons know each other.', { plural: 'Masons', countHint: 'Pairs only — 0, 2, 3 or 4' }),
+      r('seer', 'Seer', V, 'unique', 7, '#7fb2ff', '127,178,255', 'eye', 'Each night, learns if one player is a werewolf.'),
+      r('healer', 'Healer', V, 'unique', 5, '#62d4a6', '98,212,166', 'shieldCross', 'Each night, protects one player from the wolves.'),
+      r('witch', 'Witch', V, 'unique', 4, '#c98bf2', '201,139,242', 'flask', 'One potion to save, one poison. Each used once.'),
+      r('hunter', 'Hunter', V, 'unique', 3, '#f2a65a', '242,166,90', 'bow', 'When eliminated, takes one player down too.'),
+      r('bodyguard', 'Bodyguard', V, 'unique', 3, '#8fd3e8', '143,211,232', 'shieldStar', 'Guards one player a night, never twice in a row.'),
+      r('apprentice', 'Apprentice Seer', V, 'unique', 4, '#a6c8ff', '166,200,255', 'eyeSmall', 'Becomes the Seer if the Seer dies.'),
+      r('prince', 'Prince', V, 'unique', 3, '#f2d06b', '242,208,107', 'crown', 'Can’t be voted out — reveals the card instead.'),
+      r('toughguy', 'Tough Guy', V, 'unique', 3, '#f29a7a', '242,154,122', 'dumbbell', 'Survives a wolf attack until the next day ends.'),
+      r('mayor', 'Mayor', V, 'unique', 2, '#b8c4ff', '184,196,255', 'sash', 'Once revealed, their vote counts twice.'),
+      r('idiot', 'Village Idiot', V, 'unique', 2, '#d8e08a', '216,224,138', 'jester', 'Must always vote to eliminate someone.'),
+      r('oldhag', 'Old Hag', V, 'unique', 1, '#9fd6b8', '159,214,184', 'door', 'Banishes one player from the next day.'),
+      r('lycan', 'Lycan', V, 'unique', -1, '#c48aa0', '196,138,160', 'moonClaw', 'A villager who looks like a wolf to the Seer.'),
+      r('cursed', 'Cursed', V, 'unique', -3, '#a58ad6', '165,138,214', 'mask', 'Turns into a werewolf if the wolves attack.'),
+      r('cupid', 'Cupid', V, 'unique', -3, '#f08fb8', '240,143,184', 'heart', 'Links two lovers who die together.'),
+      r('wolfcub', 'Wolf Cub', W, 'unique', -8, '#ff6f61', '255,111,97', 'paw', 'If killed, the wolves take two victims next night.'),
+      r('minion', 'Minion', W, 'unique', -6, '#d14a7a', '209,74,122', 'dagger', 'Knows the wolves; the wolves don’t know them.'),
+      r('sorceress', 'Sorceress', W, 'unique', -3, '#b45cc7', '180,92,199', 'orb', 'Each night, searches for the Seer.'),
+      r('tanner', 'Tanner', L, 'unique', -2, '#c9a27a', '201,162,122', 'skull', 'Wins only if the village votes them out.'),
+      r('doppelganger', 'Doppelgänger', L, 'unique', -2, '#9aa7b8', '154,167,184', 'twin', 'Copies a player on night one and takes their role if they die.')
+    ];
+  }
+  icons() {
+    return [
+      { key: 'star', label: 'Star', d: 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z' },
+      { key: 'heart', label: 'Heart and arrow', d: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z M3 21L21 3 M16 3h5v5' },
+      { key: 'crown', label: 'Crown', d: 'M3 18h18 M4 18L3 7l5 4 4-7 4 7 5-4-1 11' },
+      { key: 'key', label: 'Key', d: 'M7.5 11a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M10.4 12.6L20 3 M16 7l3 3 M13.5 9.5l2 2' },
+      { key: 'dagger', label: 'Dagger', d: 'M12 2l2 4v9h-4V6z M7 15h10 M12 15v7' },
+      { key: 'skull', label: 'Skull', d: 'M12 3a7 7 0 0 0-7 7c0 2.6 1.3 4.3 3 5.3V19h8v-3.7c1.7-1 3-2.7 3-5.3a7 7 0 0 0-7-7z M8.5 11a1 1 0 1 0 2 0a1 1 0 1 0-2 0z M13.5 11a1 1 0 1 0 2 0a1 1 0 1 0-2 0z' },
+      { key: 'orb', label: 'Crystal ball', d: 'M12 3a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M6 21h12 M8.5 17l-1 4 M15.5 17l1 4 M9 9a3 3 0 0 1 3-3' },
+      { key: 'feather', label: 'Feather', d: 'M20 4C11 4 6 10 6 18v2 M6 18L16 8 M9 15h6 M8 10c2.5-4 6.5-6 12-6' },
+      { key: 'wolf', label: 'Wolf', d: 'M4 3l3.5 5.5L12 7l4.5 1.5L20 3l-.5 9-3.5 5-4 4-4-4-3.5-5z M9 12.5l1.5 1 M15 12.5l-1.5 1 M10.5 17.5h3L12 19z' },
+      { key: 'eye', label: 'Eye', d: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z' },
+      { key: 'shield', label: 'Shield', d: 'M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z' },
+      { key: 'cross', label: 'Holy cross', d: 'M12 3v18 M6.5 8.5h11' },
+      { key: 'flask', label: 'Potion', d: 'M9 3h6 M10 3v5.5L5 18.2A1.9 1.9 0 0 0 6.7 21h10.6a1.9 1.9 0 0 0 1.7-2.8L14 8.5V3 M7.5 15h9' },
+      { key: 'bow', label: 'Bow', d: 'M6 3c7 2.5 7 15.5 0 18 M6 3v18 M3 12h17 M17 9l3 3-3 3' },
+      { key: 'moon', label: 'Moon', d: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z' },
+      { key: 'mask', label: 'Mask', d: 'M3 6c3 1.5 6 1.5 9 0 3 1.5 6 1.5 9 0v5c0 5-4 9-9 9s-9-4-9-9z M7.5 11h2.5 M14 11h2.5 M9 16c2 1 4 1 6 0' },
+      { key: 'flame', label: 'Flame', d: 'M12 3c3 4 6 6.5 6 11a6 6 0 0 1-12 0c0-3 1.5-5 3-7 .8 2 1.8 3 3 3 0-2.5-1-4.5 0-7z' }
+    ];
+  }
+  kb() {
+    // Mock of the online lookup: in the real app this is a web / wiki search on the server.
+    return [
+      { name: 'Little Girl', aliases: ['girl'], source: 'Werewolves of Millers Hollow', team: 'Village', strength: 4, icon: 'eye', color: '#f08fb8', rgb: '240,143,184', desc: 'When the werewolves wake, you may secretly peek through your fingers. If they catch you looking, they can choose you as their victim instead.' },
+      { name: 'Fortune Teller', aliases: ['fortune'], source: 'Werewolf fan wiki', team: 'Village', strength: 3, icon: 'orb', color: '#8fd3e8', rgb: '143,211,232', desc: 'Once per game, when the host wakes you at night, point at a player. The host shows you their exact role.' },
+      { name: 'Aura Seer', aliases: ['aura'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'star', color: '#a6c8ff', rgb: '127,178,255', desc: 'Each night, point at one player. The host nods if they have a special power, and shakes if they are a plain Villager or Werewolf.' },
+      { name: 'Priest', aliases: ['cleric'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'cross', color: '#e8d3a0', rgb: '232,211,160', desc: 'Once per game, at night, bless one player. The first time they would be eliminated, they survive instead.' },
+      { name: 'Pacifist', aliases: [], source: 'Ultimate Werewolf', team: 'Village', strength: -1, icon: 'feather', color: '#62d4a6', rgb: '98,212,166', desc: 'You must always vote to keep players alive — you can never vote to eliminate anyone.' },
+      { name: 'Troublemaker', aliases: ['trouble maker'], source: 'Ultimate Werewolf', team: 'Village', strength: -3, icon: 'mask', color: '#f2a65a', rgb: '242,166,90', desc: 'Once per game, at night, tell the host to stir up trouble. The next day the village must hold two votes and eliminate two players.' },
+      { name: 'Drunk', aliases: ['the drunk'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'flask', color: '#e8d3a0', rgb: '232,211,160', desc: 'You play as a plain Villager until the third night, when the host secretly hands you your real role.' },
+      { name: 'Ghost', aliases: [], source: 'Ultimate Werewolf', team: 'Village', strength: 2, icon: 'skull', color: '#8fd3e8', rgb: '143,211,232', desc: 'You are eliminated on the first night. Each day after, you may give the village one letter as a clue — never a whole name.' },
+      { name: 'Diseased', aliases: ['disease', 'sick'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'flask', color: '#d8e08a', rgb: '216,224,138', desc: 'If the werewolves eliminate you, they catch your sickness and cannot attack anyone the following night.' },
+      { name: 'Spellcaster', aliases: ['spell caster'], source: 'Ultimate Werewolf', team: 'Village', strength: 1, icon: 'star', color: '#c98bf2', rgb: '201,139,242', desc: 'Each night, point at one player. They are silenced and may not speak at all during the next day.' },
+      { name: 'Alpha Wolf', aliases: ['alpha'], source: 'Ultimate Werewolf', team: 'Werewolves', strength: -9, icon: 'wolf', color: '#e0475f', rgb: '224,71,95', desc: 'You wake with the werewolves. Once per game, instead of eliminating the victim, you can turn them into a werewolf.' },
+      { name: 'Big Bad Wolf', aliases: ['big bad'], source: 'Ultimate Werewolf', team: 'Werewolves', strength: -9, icon: 'wolf', color: '#ff6f61', rgb: '255,111,97', desc: 'You wake with the werewolves. While no werewolf has been eliminated, you also eliminate a player sitting next to the victim.' },
+      { name: 'Vampire', aliases: ['vampires'], source: 'Ultimate Werewolf', team: 'Loner', strength: -7, icon: 'dagger', color: '#b45cc7', rgb: '180,92,199', desc: 'Each night the vampires choose a victim, who is eliminated the next time anyone votes for them. Vampires win when they outnumber everyone else.' },
+      { name: 'Fool', aliases: ['the fool'], source: 'Werewolf fan wiki', team: 'Village', strength: 1, icon: 'eye', color: '#d8e08a', rgb: '216,224,138', desc: 'You think you are the Seer and wake like one — but the host’s answers to you are random. You don’t know you’re the Fool.' },
+      { name: 'Arsonist', aliases: [], source: 'Werewolf fan wiki', team: 'Loner', strength: -4, icon: 'flame', color: '#f2a65a', rgb: '242,166,90', desc: 'Each night, douse one player in oil, or set every doused player on fire at once. You win if you are the last one standing.' }
+    ];
+  }
+  lookup(text, all) {
+    const n = text.toLowerCase().trim().replace(/^the\s+/, '');
+    if (n.length < 3) return null;
+    const have = all.find(r => r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n));
+    if (have) return { existing: true, key: have.key, name: have.name };
+    const kb = this.kb();
+    return kb.find(k => k.name.toLowerCase() === n) || kb.find(k => k.aliases.indexOf(n) >= 0) || (n.length >= 4 ? kb.find(k => k.name.toLowerCase().indexOf(n) === 0) : null) || null;
+  }
+  colors() {
+    return [
+      { hex: '#8fd3e8', rgb: '143,211,232', label: 'Frost' }, { hex: '#f08fb8', rgb: '240,143,184', label: 'Rose' },
+      { hex: '#e0475f', rgb: '224,71,95', label: 'Blood' }, { hex: '#f2a65a', rgb: '242,166,90', label: 'Ember' },
+      { hex: '#e8d3a0', rgb: '232,211,160', label: 'Gold' }, { hex: '#62d4a6', rgb: '98,212,166', label: 'Sage' },
+      { hex: '#7fb2ff', rgb: '127,178,255', label: 'Moon' }, { hex: '#c98bf2', rgb: '201,139,242', label: 'Violet' }
+    ];
+  }
+  scenario() {
+    const k = this.props.scenario || 'night1';
+    const n = (round, phase) => ({ how: 'night', round, phase });
+    if (k === 'mark') return { phase: 'day', round: 2, status: { Felix: n(2, 'night') }, markOpen: true };
+    if (k === 'cub') return { phase: 'day', round: 2, status: { Felix: n(2, 'night'), Noa: { how: 'voted', round: 2, phase: 'day' } } };
+    if (k === 'doppel') return { phase: 'day', round: 2, status: { Ivy: n(2, 'night') }, dg: { dead: 'Ivy', choice: 'seer' } };
+    if (k === 'end') return { phase: 'day', round: 4, status: { Ivy: n(2, 'night'), Noa: { how: 'voted', round: 2, phase: 'day' }, Theo: n(3, 'night'), Ezra: n(3, 'night'), Ren: { how: 'voted', round: 3, phase: 'day' }, Hana: n(4, 'night') }, dismissAll: true };
+    if (k === 'rules') return { phase: 'night', round: 1, status: {}, rulesOpen: true };
+    return { phase: 'night', round: 1, status: {} };
+  }
+  str(v) { return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v); }
+  strStyle(v) {
+    return {
+      strFg: v > 0 ? '#8fe0b8' : (v < 0 ? '#ff8a9b' : '#c4b8da'),
+      strBg: v > 0 ? 'rgba(98,212,166,.14)' : (v < 0 ? 'rgba(224,71,95,.16)' : 'rgba(255,255,255,.08)')
+    };
+  }
+  renderVals() {
+    const s = this.state || {};
+    const init = this.scenario();
+    const st = (k, def) => (s[k] !== undefined ? s[k] : (init[k] !== undefined ? init[k] : def));
+
+    // ---------- house rules ----------
+    const ruleDefaults = { peaceful: false, wolfPick: 'majority', seerSees: 'wolf', selfHeal: true, skipVote: true, tie: 'none', reveal: true, silentDead: true, showRoles: true };
+    const rules = { ...ruleDefaults, ...(s.rules || {}) };
+    const setRule = (k, v) => this.setState({ rules: { ...rules, [k]: v } });
+    const tgl = (k, label, desc) => ({ isToggle: true, isChoice: false, label, desc, on: rules[k], track: rules[k] ? '#e8d3a0' : 'rgba(255,255,255,.16)', knob: rules[k] ? '23px' : '3px', border: rules[k] !== ruleDefaults[k] ? 'rgba(232,211,160,.45)' : 'rgba(236,230,246,.08)', flip: () => setRule(k, !rules[k]) });
+    const chc = (k, label, desc, opts) => ({ isToggle: false, isChoice: true, label, desc, border: rules[k] !== ruleDefaults[k] ? 'rgba(232,211,160,.45)' : 'rgba(236,230,246,.08)', opts: opts.map(([v, l]) => ({ label: l, on: rules[k] === v, bg: rules[k] === v ? '#e8d3a0' : 'transparent', fg: rules[k] === v ? '#1c140a' : '#c4b8da', pick: () => setRule(k, v) })) });
+    const ruleGroups = [
+      { label: 'At night', color: '#c7a8ff', icon: 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z', items: [
+        tgl('peaceful', 'Peaceful first night', 'On night 1 the werewolves only meet each other — nobody is eliminated.'),
+        chc('wolfPick', 'How the werewolves choose', 'What happens when the pack points at different players.', [['majority', 'Most points wins'], ['unanimous', 'Must all agree']]),
+        chc('seerSees', 'What the Seer learns', 'How much the host reveals when the Seer checks a player.', [['wolf', 'Werewolf or not'], ['role', 'Exact role']]),
+        tgl('selfHeal', 'Healer can protect themselves', 'Turn off for a harder game: the Healer must always save someone else.')
+      ] },
+      { label: 'Day & voting', color: '#ffc98a', icon: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M2 12h2 M20 12h2', items: [
+        tgl('skipVote', 'Village may skip the vote', 'If most players agree, nobody is voted out that day.'),
+        chc('tie', 'If the vote is tied', 'What to do when two players get the same number of votes.', [['none', 'No one is out'], ['revote', 'Vote again'], ['host', 'Host decides']])
+      ] },
+      { label: 'When someone is out', color: '#ff8a9b', icon: 'M12 3a7 7 0 0 0-7 7c0 2.6 1.3 4.3 3 5.3V19h8v-3.7c1.7-1 3-2.7 3-5.3a7 7 0 0 0-7-7z', items: [
+        tgl('reveal', 'Reveal their card', 'Everyone learns the role of a player who is killed or voted out.'),
+        tgl('silentDead', 'The dead stay silent', 'Players who are out may not talk, hint or react until the game ends.')
+      ] },
+      { label: 'Players’ phones', color: '#a6eedd', icon: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z M11 18h2', items: [
+        tgl('showRoles', 'Show this round’s roles in the game guide', 'Players can read which roles are in the deck. Turn off for a mystery game.')
+      ] }
+    ];
+    const ruleShort = { peaceful: 'Peaceful first night', wolfPick: 'Wolves must all agree', seerSees: 'Seer sees exact role', selfHeal: 'No self-heal', skipVote: 'No skipping votes', tie: rules.tie === 'revote' ? 'Ties: vote again' : 'Ties: host decides', reveal: 'Cards stay hidden', silentDead: 'The dead may talk', showRoles: 'Mystery role list' };
+    const changed = Object.keys(ruleDefaults).filter(k => rules[k] !== ruleDefaults[k]).map(k => ruleShort[k]);
+    const rulesSummary = changed.length ? changed.slice(0, 2).join(' · ') + (changed.length > 2 ? ' · +' + (changed.length - 2) + ' more' : '') : 'Classic rules · tap to customize';
+    const screen = s.screen || this.props.screen || 'players';
+    const sheetOpen = s.sheet !== undefined ? s.sheet : (!!this.props.sheet && screen === 'roles');
+    const phase = st('phase', this.props.phase || 'night');
+    const night = phase === 'night';
+    const round = st('round', 1);
+
+    // ---------- players ----------
+    const palette = { Mira: '#c9a7ff', Jun: '#ff9fb0', Theo: '#9fd0ff', Sora: '#8fe0b8', Ezra: '#ffc98a', Hana: '#f2b6e6', Felix: '#b8c4ff', Noa: '#e8d3a0', Ivy: '#a6eedd', Ren: '#ffb38a' };
+    const kicked = s.kicked || [];
+    const names = Object.keys(palette).filter(x => kicked.indexOf(x) < 0);
+    const n = names.length;
+    const players = names.map(nm => ({ name: nm, initial: nm[0], color: palette[nm], kick: () => this.setState({ kicked: kicked.concat([nm]) }) }));
+
+    // ---------- deck ----------
+    const custom = s.custom || [];
+    const edits = s.edits || {};
+    const applyEdit = r => (edits[r.key] ? { ...r, ...edits[r.key] } : r);
+    const all = this.catalog().map(applyEdit).concat(custom.map(applyEdit));
+    const byKey = {}; all.forEach(r => { byKey[r.key] = r; });
+    const openEdit = (r) => this.setState({ sheet: true, editing: r.key, draft: { name: r.name, team: r.team, strength: r.strength, desc: r.blurb, iconD: r.icon, color: r.color, rgb: r.rgb, auto: {}, search: 'idle' } });
+    const counts = s.counts || { werewolf: 2, villager: 2, mason: 0 };
+    const picked = s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'];
+    const setCount = (k, v) => this.setState({ counts: { ...counts, [k]: v } });
+    const counted = all.filter(r => r.kind !== 'unique').map(r => {
+      const c = counts[r.key] || 0;
+      const pair = r.kind === 'pair';
+      return {
+        ...r, count: c, strText: this.str(r.strength), ...this.strStyle(r.strength),
+        soft: 'rgba(' + r.rgb + ',.16)', edge: 'rgba(' + r.rgb + ',.45)',
+        border: c > 0 ? 'rgba(' + r.rgb + ',.4)' : 'rgba(236,230,246,.07)',
+        bg: c > 0 ? 'rgba(' + r.rgb + ',.08)' : 'rgba(20,12,34,.66)',
+        countFg: c > 0 ? '#f6f1ff' : '#7f7397',
+        edit: () => openEdit(r),
+        inc: () => setCount(r.key, pair ? (c === 0 ? 2 : Math.min(4, c + 1)) : Math.min(16, c + 1)),
+        dec: () => setCount(r.key, pair ? (c <= 2 ? 0 : c - 1) : Math.max(r.key === 'werewolf' ? 1 : 0, c - 1))
+      };
+    });
+    const uniques = all.filter(r => r.kind === 'unique').map(r => {
+      const on = picked.indexOf(r.key) >= 0;
+      return {
+        ...r, on, off: !on, strText: this.str(r.strength), ...this.strStyle(r.strength),
+        soft: 'rgba(' + r.rgb + ',.16)', edge: 'rgba(' + r.rgb + ',.4)',
+        border: on ? r.color : 'rgba(236,230,246,.08)',
+        bg: on ? 'rgba(' + r.rgb + ',.14)' : 'rgba(20,12,34,.66)',
+        glow: on ? '0 0 22px rgba(' + r.rgb + ',.22)' : 'none',
+        edit: () => openEdit(r),
+        toggle: () => this.setState({ picked: on ? picked.filter(k => k !== r.key) : picked.concat([r.key]) })
+      };
+    });
+    const mkGroup = (label, dot, fg, items) => ({ label, dot, fg, items, picked: items.filter(i => i.on).length + ' added' });
+    const groups = [
+      mkGroup('Village side', '#8fe0b8', '#a6eedd', uniques.filter(r => r.team === 'Village' && !r.custom)),
+      mkGroup('Wolf side', '#e0475f', '#ff8a9b', uniques.filter(r => r.team === 'Werewolves' && !r.custom)),
+      mkGroup('On their own', '#c9a27a', '#e3c7a5', uniques.filter(r => r.team === 'Loner' && !r.custom))
+    ];
+    const customItems = uniques.filter(r => r.custom);
+    if (customItems.length) groups.push(mkGroup('Your roles', '#c7a8ff', '#d9c6ff', customItems));
+    const total = counted.reduce((a, r) => a + r.count, 0) + uniques.filter(r => r.on).length;
+    const score = counted.reduce((a, r) => a + r.count * r.strength, 0) + uniques.filter(r => r.on).reduce((a, r) => a + r.strength, 0);
+    const wolfCards = counts.werewolf || 0;
+    const clamp = Math.max(-15, Math.min(15, score));
+    let balLabel = 'Fair game', balColor = '#e9dcff';
+    if (score > 3) { balLabel = 'Village favored'; balColor = '#8fe0b8'; }
+    if (score < -3) { balLabel = 'Wolves favored'; balColor = '#ff8a9b'; }
+    const diff = n - total;
+    let deckHint = 'Ready — ' + total + ' cards for ' + n + ' players', deckColor = '#8fe0b8';
+    if (wolfCards === 0) { deckHint = 'Add at least one Werewolf'; deckColor = '#f2a65a'; }
+    else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
+    else if (diff < 0) { deckHint = 'Remove ' + (-diff) + ' card' + (diff < -1 ? 's' : '') + ' — more cards than players'; deckColor = '#f2a65a'; }
+    const ready = diff === 0 && wolfCards > 0;
+
+    // ---------- draft ----------
+    const icons = this.icons(), colors = this.colors();
+    const iconD = (k) => (icons.find(i => i.key === k) || icons[0]).d;
+    const editScenario = this.props.scenario === 'edit';
+    const editing = s.editing !== undefined ? s.editing : (editScenario ? 'seer' : null);
+    const editingRole = editing ? byKey[editing] : null;
+    const demoDraft = editingRole
+      ? { name: editingRole.name, team: editingRole.team, strength: editingRole.strength, desc: editingRole.blurb, iconD: editingRole.icon, color: editingRole.color, rgb: editingRole.rgb, auto: {}, search: 'idle' }
+      : { name: 'Little Girl', team: 'Village', strength: 4, desc: this.kb()[0].desc, iconD: iconD('eye'), color: '#f08fb8', rgb: '240,143,184', auto: { team: true, strength: true, desc: true, icon: true }, search: 'found', found: { name: 'Little Girl', source: 'Werewolves of Millers Hollow' } };
+    const d = s.draft || demoDraft;
+    const auto = d.auto || {};
+    const setDraft = (patch, clear) => this.setState(prev => {
+      const cur = prev.draft || d;
+      const a = { ...(cur.auto || {}) }; if (clear) a[clear] = false;
+      return { draft: { ...cur, ...patch, auto: a } };
+    });
+    const dr = {
+      ...d, icon: d.iconD, displayName: d.name || 'New role', strText: this.str(d.strength),
+      strColor: this.strStyle(d.strength).strFg,
+      soft: 'rgba(' + d.rgb + ',.18)', edge: 'rgba(' + d.rgb + ',.5)', tint: 'rgba(' + d.rgb + ',.16)'
+    };
+    const teamOpts = ['Village', 'Werewolves', 'Loner'].map(t => ({
+      label: t, on: d.team === t, bg: d.team === t ? '#e9dcff' : 'transparent', fg: d.team === t ? '#160b28' : '#c4b8da',
+      pick: () => setDraft({ team: t }, 'team')
+    }));
+    const iconList = icons.some(i => i.d === d.iconD) ? icons : [{ key: 'current', label: 'Current symbol', d: d.iconD }].concat(icons.slice(0, 17));
+    const iconOpts = iconList.map(i => {
+      const on = i.d === d.iconD;
+      return {
+        ...i, on,
+        border: on ? d.color : 'rgba(236,230,246,.1)',
+        bg: on ? 'rgba(' + d.rgb + ',.16)' : 'rgba(10,6,18,.5)',
+        fg: on ? d.color : '#c4b8da',
+        pick: () => setDraft({ iconD: i.d }, 'icon')
+      };
+    });
+    const colorList = colors.some(c => c.hex === d.color) ? colors : [{ hex: d.color, rgb: d.rgb, label: 'Current color' }].concat(colors);
+    const colorOpts = colorList.map(c => ({ ...c, on: c.hex === d.color, ring: c.hex === d.color ? '#f6f1ff' : 'transparent', pick: () => setDraft({ color: c.hex, rgb: c.rgb }) }));
+
+    // online lookup (mocked)
+    const setName = (e) => {
+      const v = e.target.value;
+      const go = !editing && v.trim().length >= 3;
+      setDraft({ name: v, search: go ? 'searching' : 'idle' });
+      clearTimeout(this._lk);
+      if (!go) return;
+      this._lk = setTimeout(() => {
+        const hit = this.lookup(v, all);
+        this.setState(prev => {
+          const cur = prev.draft || d;
+          if (cur.name !== v) return null;
+          if (!hit) return { draft: { ...cur, search: 'none', auto: {} } };
+          if (hit.existing) return { draft: { ...cur, search: 'exists', existingKey: hit.key, found: { name: hit.name } } };
+          return { draft: { ...cur, search: 'found', found: { name: hit.name, source: hit.source }, team: hit.team, strength: hit.strength, desc: hit.desc, iconD: iconD(hit.icon), color: hit.color, rgb: hit.rgb, auto: { team: true, strength: true, desc: true, icon: true } } };
+        });
+      }, 900);
+    };
+    const S = { search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-4-4', globe: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z', check: 'M5 12.5l4.5 4.5L19 7.5', warn: 'M12 4l9 16H3z M12 10v4 M12 17h.01' };
+    const q = '“' + (d.name || '').trim() + '”';
+    let lk = { show: false };
+    if (!editing) {
+      if (d.search === 'searching') lk = { show: true, title: 'Searching online…', text: 'Looking up ' + q + ' in Werewolf rulebooks and fan wikis.', color: '#c7a8ff', icon: S.globe, bg: 'rgba(167,127,240,.1)', border: 'rgba(199,168,255,.25)' };
+      else if (d.search === 'found') lk = { show: true, title: 'Found “' + d.found.name + '” · ' + d.found.source, text: 'Side, strength, card text and symbol were filled in for you. Change anything you like.', color: '#8fe0b8', icon: S.check, bg: 'rgba(98,212,166,.1)', border: 'rgba(98,212,166,.3)' };
+      else if (d.search === 'none') lk = { show: true, title: 'No match found online', text: 'We couldn’t find ' + q + '. Fill in the details below — you know your table best.', color: '#f2a65a', icon: S.warn, bg: 'rgba(242,166,90,.1)', border: 'rgba(242,166,90,.3)' };
+      else if (d.search === 'exists') lk = { show: true, title: '“' + d.found.name + '” is already in your deck', text: 'Edit the existing role instead of making a copy.', color: '#e9dcff', icon: S.check, bg: 'rgba(167,127,240,.12)', border: 'rgba(199,168,255,.3)', canEditExisting: true, editExisting: () => openEdit(byKey[d.existingKey]) };
+      else lk = { show: true, title: 'Type a name to auto-fill', text: 'We’ll look the role up online and fill in the rest for you.', color: '#c4b8da', icon: S.search, bg: 'rgba(255,255,255,.04)', border: 'rgba(236,230,246,.1)' };
+    }
+    lk.searching = d.search === 'searching'; lk.notSearching = !lk.searching;
+    if (!lk.canEditExisting) { lk.canEditExisting = false; }
+
+    // ---------- the game ----------
+    const deck = [];
+    counted.forEach(r => { for (let i = 0; i < r.count; i++) deck.push(r); });
+    uniques.filter(r => r.on).forEach(r => deck.push(r));
+    const order = [3, 0, 7, 1, 5, 9, 2, 8, 4, 6, 10, 11, 12, 13, 14, 15];
+    const shuffled = order.filter(i => i < deck.length).map(i => deck[i]).concat(deck.slice(order.length));
+    const status = st('status', {});
+    const override = st('override', {});
+    const dismissed = st('dismissed', []);
+    const checks = st('checks', []);
+    const tough = st('tough', null);
+    const dgDone = st('dgDone', null);
+    const dismissAll = !!init.dismissAll && s.dismissed === undefined;
+    const hide = !!s.hide;
+
+    const baseRole = {}; names.forEach((nm, i) => { baseRole[nm] = shuffled[i] || byKey.villager; });
+    const roleOf = (nm) => (override[nm] && byKey[override[nm]]) || baseRole[nm];
+    const isOut = (nm) => !!status[nm];
+    const alive = names.filter(nm => !isOut(nm));
+    const aliveWith = (key) => alive.filter(nm => roleOf(nm).key === key);
+    const inGame = (key) => names.some(nm => roleOf(nm).key === key);
+    const isWolf = (r) => r.team === 'Werewolves' && r.key !== 'minion' && r.key !== 'sorceress';
+    const wolvesAlive = alive.filter(nm => isWolf(roleOf(nm))).length;
+    const othersAlive = alive.length - wolvesAlive;
+    const dgName = names.find(nm => baseRole[nm].key === 'doppelganger' && !override[nm] && !isOut(nm));
+
+    const mark = (nm, how) => {
+      const next = { ...status };
+      if (how === 'alive') delete next[nm]; else next[nm] = { how, round, phase };
+      const patch = { status: next };
+      if (how !== 'alive' && how !== 'removed' && dgName && nm !== dgName) {
+        patch.dg = { dead: nm, choice: roleOf(nm).key };
+        patch.markOpen = false;
+      }
+      this.setState(patch);
+    };
+    const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['night', 'Killed', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['removed', 'Left', '#b9acd2', '#1a1424']];
+    const dealt = names.map(nm => {
+      const r = roleOf(nm);
+      const cur = status[nm] ? status[nm].how : 'alive';
+      const out = cur !== 'alive';
+      return {
+        name: nm, initial: nm[0], color: palette[nm], out,
+        opacity: out ? 0.55 : 1, strike: out ? 'line-through' : 'none',
+        rowBg: out ? 'rgba(10,6,18,.5)' : 'rgba(20,12,34,.75)',
+        rowBorder: out ? 'rgba(236,230,246,.05)' : 'rgba(236,230,246,.09)',
+        roleName: hide ? 'Hidden' : r.name, roleColor: hide ? '#a99bc2' : r.color,
+        roleSoft: hide ? 'rgba(255,255,255,.06)' : 'rgba(' + r.rgb + ',.14)',
+        roleIcon: hide ? 'M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7' : r.icon,
+        opts: statusOpts.map(([k, label, col, ink]) => ({ label, on: cur === k, bg: cur === k ? col : 'transparent', fg: cur === k ? ink : '#a99bc2', pick: () => mark(nm, k) }))
+      };
+    });
+
+    // ---------- alerts ----------
+    const alerts = [];
+    const tone = (rgb, color) => ({ color, soft: 'rgba(' + rgb + ',.18)', border: 'rgba(' + rgb + ',.45)', bg: 'linear-gradient(160deg, rgba(' + rgb + ',.16), rgba(18,10,31,.88))', glow: 'rgba(' + rgb + ',.16)' });
+    const push = (id, kicker, title, text, rgb, color, icon, action) => {
+      if (dismissAll || dismissed.indexOf(id) >= 0) return;
+      alerts.push({
+        id, kicker, title, text, icon, ...tone(rgb, color),
+        hasAction: !!action, actLabel: action ? action.label : '', act: action ? action.fn : null,
+        dismiss: () => this.setState({ dismissed: dismissed.concat([id]) })
+      });
+    };
+    const cupidIn = inGame('cupid');
+    names.filter(isOut).forEach(nm => {
+      const r = roleOf(nm); const how = status[nm].how; const k = r.key;
+      if (how === 'removed') return;
+      if (k === 'wolfcub') push('cub-' + nm, 'Wolf Cub · ' + nm, 'Next night, the wolves take TWO victims', nm + ' was the Wolf Cub. When the werewolves wake next night, tell them to choose two players instead of one.', '255,111,97', '#ff8f84', r.icon);
+      if (k === 'hunter') push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. That player is eliminated too. Mark them in the list.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
+      if (k === 'seer') {
+        const app = aliveWith('apprentice')[0];
+        if (app) push('app-' + nm, 'Seer · ' + nm, 'The Apprentice Seer takes over', 'From tonight, wake ' + app + ' (Apprentice Seer) in the Seer’s place. They now check one player each night.', '166,200,255', '#a6c8ff', byKey.apprentice.icon);
+      }
+      if (k === 'prince' && how === 'voted') push('prince-' + nm, 'Prince · ' + nm, 'The Prince can’t be voted out', nm + ' shows their card and survives. No one else is eliminated by this vote.', '242,208,107', '#f2d06b', r.icon, { label: 'Undo — keep ' + nm + ' alive', fn: () => mark(nm, 'alive') });
+      if (k === 'toughguy' && how === 'night') push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy survives until the end of the next day. Keep ' + nm + ' in the game and mark them out at sunset.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until sunset', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, tough: nm }); } });
+      if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' } }); } });
+      if (k === 'tanner' && how === 'voted') push('tanner-' + nm, 'Tanner · ' + nm, 'The Tanner wins!', nm + ' wanted to be voted out — and got their wish. The Tanner wins alone. You can keep playing for everyone else.', '201,162,122', '#d9b48a', r.icon);
+      if (cupidIn) push('love-' + nm, 'Cupid’s lovers', 'Was ' + nm + ' one of the lovers?', 'If so, the other lover dies of heartbreak right away. Mark them out too.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark the other lover', fn: () => this.setState({ markOpen: true }) });
+    });
+    if (dgDone) {
+      const nr = byKey[dgDone.role] || byKey.villager;
+      push('dg-' + dgDone.name, 'Doppelgänger · ' + dgDone.name, dgDone.name + ' is now the ' + nr.name, 'Their phone card has changed. From now on, wake ' + dgDone.name + ' as the ' + nr.name + ' when that role is called.', '154,167,184', '#c6d0dc', nr.icon);
+    }
+
+    // ---------- night guide ----------
+    const first = round === 1;
+    const list = (key) => aliveWith(key);
+    const cubDeath = names.find(nm => roleOf(nm).key === 'wolfcub' && status[nm] && status[nm].how !== 'removed');
+    const rage = night && cubDeath && round === status[cubDeath].round + 1;
+    const wolves = alive.filter(nm => isWolf(roleOf(nm)));
+    const defs = [];
+    const add = (key, title, who, say, opts) => defs.push({ key, title, who, say, ...(opts || {}) });
+    if (first && list('doppelganger').length) add('doppelganger', 'Doppelgänger', list('doppelganger'), 'Wake the Doppelgänger. They silently point at one player to copy. Remember who — you’ll need it if that player dies.', { firstOnly: true });
+    if (first && list('cupid').length) add('cupid', 'Cupid', list('cupid'), 'Cupid points at two players. Tap both on the shoulder — they open their eyes and see each other. They are now lovers.', { firstOnly: true });
+    const agree = rules.wolfPick === 'unanimous' ? ' They must all point at the same player.' : ' If they disagree, the most-pointed player is chosen.';
+    const wolfSay = rage ? 'The Wolf Cub was killed — tonight the wolves choose TWO players to eliminate.' + agree
+      : (first && rules.peaceful ? 'Peaceful first night: the werewolves open their eyes only to see each other. No one is eliminated tonight.' : 'Werewolves open their eyes, find each other and silently choose one player to eliminate.' + agree);
+    if (wolves.length) add('werewolf', 'Werewolves', wolves, wolfSay, { rage, peaceful: first && rules.peaceful });
+    if (first && list('minion').length) add('minion', 'Minion', list('minion'), 'Werewolves raise a thumb with eyes closed. The Minion opens their eyes to see who they are.', { firstOnly: true });
+    if (first && list('mason').length) add('mason', 'Masons', list('mason'), 'Masons open their eyes and look at each other, then close them.', { firstOnly: true });
+    const seerSay = rules.seerSees === 'role' ? 'The Seer points at one player. Quietly show them that player’s exact role on your phone.' : 'The Seer points at one player. Nod for werewolf, shake for not.' + (inGame('lycan') ? ' The Lycan counts as a werewolf here.' : '');
+    if (list('seer').length) add('seer', 'Seer', list('seer'), seerSay);
+    if (!list('seer').length && list('apprentice').length && names.some(nm => roleOf(nm).key === 'seer')) add('apprentice', 'Apprentice Seer', list('apprentice'), 'The Seer is gone, so the Apprentice now points at one player. Nod for werewolf, shake for not.');
+    if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'The Sorceress points at one player. Nod if that player is the Seer.');
+    if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard — not the same player as last night.');
+    if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
+    if (list('witch').length) add('witch', 'Witch', list('witch'), 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.');
+    if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'The Old Hag points at one player. That player must sit out all of tomorrow.');
+    custom.forEach(c => { if (list(c.key).length) add(c.key, c.name, list(c.key), c.blurb); });
+    const ck = (key) => round + '-' + key;
+    const nightSteps = defs.map((x, i) => {
+      const r = byKey[x.key] || byKey.werewolf;
+      const done = checks.indexOf(ck(x.key)) >= 0;
+      const tag = x.rage ? 'Two victims!' : (x.peaceful ? 'Peaceful night' : (x.firstOnly ? 'First night only' : ''));
+      return {
+        num: done ? '✓' : String(i + 1), title: x.title, who: x.who.join(', '), say: x.say, icon: r.icon, color: r.color, done,
+        hasTag: !!tag, tag, tagFg: x.rage ? '#ffd0cb' : '#e9dcff', tagBg: x.rage ? 'rgba(255,111,97,.3)' : 'rgba(167,127,240,.25)',
+        numBg: done ? '#62d4a6' : 'rgba(' + r.rgb + ',.2)', numFg: done ? '#0d2a20' : r.color,
+        border: x.rage ? 'rgba(255,111,97,.6)' : (done ? 'rgba(98,212,166,.3)' : 'rgba(236,230,246,.08)'),
+        bg: x.rage ? 'rgba(255,111,97,.1)' : 'rgba(10,6,18,.45)', opacity: done ? 0.6 : 1, strike: done ? 'line-through' : 'none',
+        tick: () => this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) })
+      };
+    });
+    const doneCount = nightSteps.filter(x => x.done).length;
+
+    // ---------- day guide ----------
+    const nightDeaths = names.filter(nm => status[nm] && status[nm].phase === 'night' && status[nm].round === round && status[nm].how !== 'removed');
+    const daySteps = [
+      { num: '1', title: 'Announce the night', text: nightDeaths.length ? 'Say who was eliminated: ' + nightDeaths.join(', ') + '.' + (rules.reveal ? ' Reveal their card to everyone.' : ' Keep their card secret.') + (rules.silentDead ? ' Ask them to stay silent from now on.' : ' They may still listen and react, but not vote.') : 'If no one was marked, say: “Everyone survived the night.”' },
+      { num: '2', title: 'Let the village talk', text: 'Give everyone 2–5 minutes to share suspicions and accuse.' },
+      { num: '3', title: 'Hold the vote', text: 'Count hands for the most-accused player.' + (rules.skipVote ? ' The village may also vote to skip — then no one is out.' : ' Someone must be voted out.') + ({ none: ' On a tie, no one is out today.', revote: ' On a tie, vote again between the tied players.', host: ' On a tie, you decide.' })[rules.tie] + ' Then tap Mark players → Voted.' }
+    ];
+    if (tough && !isOut(tough)) daySteps.push({ num: '4', title: 'At sunset', text: 'Mark ' + tough + ' as Killed — the Tough Guy’s extra day is over.' });
+    const dr2 = (key, text) => { const r = byKey[key]; return aliveWith(key).length ? [{ name: r.name + ' (' + aliveWith(key).join(', ') + ')', text, color: r.color, icon: r.icon }] : []; };
+    const dayRules = [].concat(
+      dr2('prince', 'if voted out, they reveal and survive.'),
+      dr2('mayor', 'once revealed, their vote counts twice.'),
+      dr2('idiot', 'must always vote to eliminate someone.'),
+      dr2('hunter', 'if voted out, they shoot one player right away.'),
+      dr2('tanner', 'wins if voted out — watch for suspicious acting.'),
+      dr2('oldhag', 'the player they banished last night can’t talk or vote.')
+    );
+
+    // ---------- game end ----------
+    const anyOut = names.some(isOut);
+    const villageWins = anyOut && wolvesAlive === 0;
+    const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive >= othersAlive;
+    const gameOver = villageWins || wolvesWin;
+    const endTips = [];
+    if (inGame('hunter') && aliveWith('hunter').length === 0 && names.some(nm => roleOf(nm).key === 'hunter' && status[nm] && status[nm].round === round)) endTips.push('The Hunter just fell — let them take their shot first. It can change the result.');
+    if (wolvesWin && (inGame('minion') || inGame('sorceress'))) endTips.push('The Minion and Sorceress win with the werewolves.');
+    if (villageWins && (inGame('minion') || inGame('sorceress'))) endTips.push('The Minion and Sorceress lose with the werewolves.');
+    if (inGame('tanner')) endTips.push('A Tanner who was voted out has already won on their own.');
+    if (cupidIn) endTips.push('If the two lovers are the last ones standing, they win together.');
+    if (inGame('doppelganger')) endTips.push('The Doppelgänger wins with the team of the role they copied.');
+    endTips.push('Ask everyone to show their cards and enjoy the reveal!');
+    const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
+
+    const stepKeys = ['players', 'roles', 'play'];
+    const idx = stepKeys.indexOf(screen);
+    const steps = [['players', '1 · Players'], ['roles', '2 · Roles'], ['play', '3 · Play']].map(([k, label], i) => ({
+      label, current: i === idx, locked: k === 'play' && screen !== 'play',
+      bar: i < idx ? '#a77ff0' : (i === idx ? '#e9dcff' : 'rgba(236,230,246,.14)'),
+      fg: i === idx ? '#f6f1ff' : (i < idx ? '#c7a8ff' : '#8f82a8'),
+      go: () => this.setState({ screen: k, sheet: false })
+    }));
+
+    // doppelgänger sheet
+    const dgState = st('dg', null);
+    const dgOpen = screen === 'play' && !!dgState && !!names.find(nm => baseRole[nm].key === 'doppelganger');
+    const dgWho = names.find(nm => baseRole[nm].key === 'doppelganger') || '';
+    const dgRole = dgState ? (byKey[dgState.choice] || byKey.villager) : byKey.villager;
+    const inPlayKeys = [];
+    names.forEach(nm => { const k = baseRole[nm].key; if (k !== 'doppelganger' && inPlayKeys.indexOf(k) < 0) inPlayKeys.push(k); });
+    const dgChoices = inPlayKeys.map(k => {
+      const r = byKey[k]; const on = dgState && dgState.choice === k;
+      return { name: r.name, icon: r.icon, on, border: on ? r.color : 'rgba(236,230,246,.14)', bg: on ? 'rgba(' + r.rgb + ',.2)' : 'rgba(255,255,255,.04)', fg: on ? r.color : '#c4b8da', pick: () => this.setState({ dg: { ...dgState, choice: k } }) };
+    });
+
+    const inPlayDay = screen === 'play' && !night;
+    return {
+      steps,
+      ruleGroups, rulesSummary,
+      rulesOpen: screen === 'players' && !!st('rulesOpen', false),
+      openRules: () => this.setState({ rulesOpen: true }),
+      closeRules: () => this.setState({ rulesOpen: false }),
+      resetRules: () => this.setState({ rules: {} }),
+      isPlayers: screen === 'players', isRoles: screen === 'roles', isPlay: screen === 'play', sheetOpen,
+      go: { players: () => this.setState({ screen: 'players' }), roles: () => this.setState({ screen: 'roles' }) },
+      skyBg: inPlayDay
+        ? 'radial-gradient(130% 70% at 75% 4%, #b0607a 0%, #6a3462 34%, #2a1238 70%, #120a1c 100%)'
+        : 'radial-gradient(120% 70% at 80% 6%, #3b2163 0%, #1a0f2e 42%, #0a0612 78%)',
+      orbBg: inPlayDay ? 'radial-gradient(circle, #ffe9c4, #f2a65a 70%)' : 'radial-gradient(circle at 38% 36%, #fffaf0, #ece2c6 45%, #c9bc9c)',
+      orbGlow: inPlayDay ? '0 0 90px 40px rgba(242,166,90,.4)' : '0 0 60px 20px rgba(241,233,210,.18)',
+      orbTop: inPlayDay ? '120px' : '50px',
+      starOpacity: inPlayDay ? 0 : 1,
+
+      roomLangs: [['en', 'English'], ['zh', '中文'], ['ko', '한국어'], ['ja', '日本語'], ['fr', 'Français'], ['th', 'ไทย'], ['es', 'Español']].map(([code, native]) => {
+        const on = (s.roomLang || 'en') === code;
+        return { code, native, on, border: on ? 'rgba(233,220,255,.85)' : 'rgba(236,230,246,.14)', bg: on ? '#e9dcff' : 'rgba(255,255,255,.04)', fg: on ? '#160b28' : '#d8cfe8', pick: () => this.setState({ roomLang: code }) };
+      }),
+      players, playerCount: n, tooFew: n < 5,
+      playersCtaOpacity: n < 5 ? 0.45 : 1,
+      playersHint: n < 5 ? 'You need at least 5 players to start' : n + ' players are in. Late arrivals can still join.',
+
+      counted, groups, totalCards: total, scoreText: this.str(score),
+      balLabel, balColor, balPos: Math.round((clamp + 15) / 30 * 100) + '%',
+      deckHint, deckColor, cantDeal: !ready, dealOpacity: ready ? 1 : 0.45,
+      beginnerSet: () => {
+        const w = Math.max(1, Math.round(n / 4));
+        this.setState({ counts: { werewolf: w, villager: Math.max(0, n - w - 2), mason: 0 }, picked: ['seer', 'healer'] });
+      },
+      deal: () => this.setState({ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false }),
+      openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
+      closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
+
+      dr, teamOpts, iconOpts, colorOpts, lk, auto,
+      sheetTitle: editingRole ? 'Edit ' + editingRole.name : 'Create a role',
+      sheetKicker: editingRole ? (editingRole.custom ? 'Your role' : 'Role details') : 'New role',
+      saveLabel: editingRole ? 'Save changes' : 'Add to the deck',
+      strBorder: auto.strength ? 'rgba(199,168,255,.45)' : 'rgba(236,230,246,.1)',
+      descBorder: auto.desc ? 'rgba(199,168,255,.55)' : 'rgba(236,230,246,.16)',
+      setName,
+      setDesc: (e) => setDraft({ desc: e.target.value }, 'desc'),
+      strUp: () => setDraft({ strength: Math.min(9, d.strength + 1) }, 'strength'),
+      strDown: () => setDraft({ strength: Math.max(-9, d.strength - 1) }, 'strength'),
+      draftEmpty: !d.name, addOpacity: d.name ? 1 : 0.45,
+      canReset: !!editingRole && (!!editingRole.custom || !!edits[editing]),
+      resetLabel: editingRole && editingRole.custom ? 'Delete this role' : 'Reset to the original',
+      resetRole: () => {
+        if (editingRole.custom) this.setState({ custom: custom.filter(c => c.key !== editing), picked: picked.filter(k => k !== editing), sheet: false });
+        else { const nx = { ...edits }; delete nx[editing]; this.setState({ edits: nx, sheet: false }); }
+      },
+      saveRole: () => {
+        if (editingRole) {
+          const patch = { name: d.name, team: d.team, strength: d.strength, blurb: d.desc, icon: d.iconD, color: d.color, rgb: d.rgb };
+          if (editingRole.kind !== 'unique' && d.name !== editingRole.name) patch.plural = d.name + 's';
+          this.setState({ edits: { ...edits, [editing]: { ...(edits[editing] || {}), ...patch } }, sheet: false });
+          return;
+        }
+        const key = 'c' + Date.now();
+        const role = { key, name: d.name, team: d.team, kind: 'unique', strength: d.strength, color: d.color, rgb: d.rgb, blurb: d.desc || 'Custom role.', icon: d.iconD, custom: true };
+        this.setState({ custom: custom.concat([role]), picked: picked.concat([key]), sheet: false });
+      },
+
+      // play
+      dealt, hideRoles: hide,
+      hideLabel: hide ? 'Show' : 'Hide', hideIcon: hide ? 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z' : 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6',
+      toggleHide: () => this.setState({ hide: !hide }),
+      aliveCount: alive.length, outCount: n - alive.length, wolvesAlive, othersAlive,
+      markOpen: screen === 'play' && !!st('markOpen', false) && !dgOpen,
+      openMark: () => this.setState({ markOpen: true }),
+      closeMark: () => this.setState({ markOpen: false }),
+      alerts,
+      showNightGuide: night && !gameOver, showDayGuide: !night && !gameOver,
+      nightIntro: first
+        ? 'First night. Say “Everyone, close your eyes.” Then call each role below in order and give each about 10 seconds. Tap a step when it’s done.'
+        : 'Say “Night falls — everyone, close your eyes.” Call each role in order. Players who are out are skipped for you.',
+      nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
+      daySteps, dayRules, hasDayRules: dayRules.length > 0,
+      gameOver,
+      endTitle: villageWins ? 'The village wins!' : 'The werewolves win!',
+      endText: villageWins ? 'Every werewolf has been found and eliminated.' : (wolfNames.join(' and ') + ' now equal the rest of the village. Nobody can outvote them.'),
+      endTips,
+      endColor: villageWins ? '#8fe0b8' : '#ff8a9b',
+      endBorder: villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
+      endGlow: villageWins ? 'rgba(98,212,166,.22)' : 'rgba(224,71,95,.25)',
+      endBg: villageWins ? 'linear-gradient(170deg, rgba(20,80,60,.6), rgba(18,10,31,.92))' : 'linear-gradient(170deg, rgba(110,20,38,.65), rgba(18,10,31,.92))',
+      endIcon: villageWins ? byKey.villager.icon : byKey.werewolf.icon,
+
+      dgOpen, dgChoices,
+      dg: {
+        dgName: dgWho, dead: dgState ? dgState.dead : '', dgIcon: byKey.doppelganger.icon,
+        roleName: dgRole.name, icon: dgRole.icon, color: dgRole.color,
+        soft: 'rgba(' + dgRole.rgb + ',.2)', edge: 'rgba(' + dgRole.rgb + ',.55)'
+      },
+      dgConfirm: () => this.setState({ override: { ...override, [dgWho]: dgState.choice }, dg: null, dgDone: { name: dgWho, role: dgState.choice } }),
+      dgSkip: () => this.setState({ dg: null }),
+
+      isNightPhase: night, isDayPhase: !night,
+      phaseTitle: (night ? 'Night ' : 'Day ') + round,
+      phaseLine: night ? 'Everyone’s eyes are closed.' : 'Everyone wakes. Talk, then vote.',
+      heroBg: night ? 'linear-gradient(170deg, rgba(60,34,104,.85), rgba(20,12,36,.85))' : 'linear-gradient(170deg, rgba(160,84,96,.7), rgba(60,26,60,.85))',
+      heroBorder: night ? 'rgba(199,168,255,.3)' : 'rgba(255,211,168,.35)',
+      heroOrb: night ? 'rgba(241,233,210,.14)' : 'rgba(242,166,90,.22)',
+      heroIcon: night ? 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z' : 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+      heroIconColor: night ? '#f1e9d2' : '#ffd3a8',
+      nightBtnBg: night ? '#e9dcff' : 'transparent', nightBtnFg: night ? '#160b28' : '#c4b8da',
+      dayBtnBg: night ? 'transparent' : '#f2a65a', dayBtnFg: night ? '#c4b8da' : '#1c0e06',
+      setNight: () => { if (!night) this.setState({ phase: 'night', round: round + 1 }); },
+      setDay: () => { if (night) this.setState({ phase: 'day', round }); },
+      endGame: () => this.setState({ screen: 'players', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false })
+    };
+  }
+}
+</script>
+</body>
+</html>
