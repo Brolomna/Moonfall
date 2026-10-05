@@ -9,5 +9,11 @@ export const playerId = {
 };
 
 export function connect(role: 'host' | 'player'): Socket {
-  return io({ auth: role === 'host' ? { role } : { role, playerId: playerId.get() }, transports: ['websocket', 'polling'] });
+  // auth is a callback so every reconnect (e.g. after the phone was locked) sends the playerId saved at join
+  const socket = io({ auth: cb => cb(role === 'host' ? { role } : { role, playerId: playerId.get() }), transports: ['websocket', 'polling'] });
+  // Phones drop the connection while locked; reconnect as soon as the page is visible again instead of waiting for the backoff
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !socket.connected) socket.connect();
+  });
+  return socket;
 }

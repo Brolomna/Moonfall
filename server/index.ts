@@ -211,7 +211,11 @@ io.on('connection', (socket: Socket) => {
   else socket.emit('player:view', null);
 
   socket.on('player:join', ({ name }: { name: string }, ack?: (r: { playerId: string; name: string }) => void) => {
-    if (me) {
+    // Same name as a seat whose phone has dropped (new browser, cleared storage…) → take that seat back, card included
+    const seat = !me && room.players.find(p => !p.connected && p.name.toLowerCase() === name.trim().slice(0, 18).toLowerCase());
+    if (seat) {
+      me = seat;
+    } else if (me) {
       me.name = room.dealt ? me.name : uniqueName(name, me.id); // names are locked once cards are dealt
     } else {
       me = { id: randomUUID(), name: uniqueName(name), color: nextColor(), connected: true };
