@@ -31,12 +31,6 @@ const room = {
   dealt: false,
 };
 
-// Testing aid: FAKE_PLAYERS=5 starts the room with that many joined (phone-less) players.
-const FAKE_NAMES = ['Luna', 'Felix', 'Iris', 'Oscar', 'Hazel', 'Milo', 'Nora', 'Theo', 'Ruby', 'Jasper'];
-for (let i = 0; i < Number(process.env.FAKE_PLAYERS || 0); i++) {
-  room.players.push({ id: `fake-${i + 1}`, name: FAKE_NAMES[i] || `Bot ${i + 1}`, color: PALETTE[i % PALETTE.length], connected: true });
-}
-
 // ---------- helpers ----------
 // Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
 const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');

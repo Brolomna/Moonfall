@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "build:web": "vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
-    "start:fake": "FAKE_PLAYERS=5 npm start",
+    "fake": "tsx scripts/fake-players.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "views": "python3 tools/dc2tsx.py design/Host.dc.html src/views/HostView.tsx HostView && python3 tools/dc2tsx.py design/Player.dc.html src/views/PlayerView.tsx PlayerView && python3 tools/wire.py src/views/HostView.tsx src/views/PlayerView.tsx"
   },
