@@ -32,6 +32,10 @@ Views use inline styles and are `// @ts-nocheck` (generated code). Role catalogs
 host-guide text and the 7-language player translations all live inside the view classes
 (`catalog()`, `roleText()`, `ui()` …).
 
+The role library (Browse role library, presets, name auto-fill) is hand-written in `src/views/roleLibrary.ts`;
+its player-phone translations are `src/views/i18n/roles.<lang>.ts` (keyed by the English role name, plus the
+newer UI lines `goalLoner` / `reconnecting`). Adding a library role means adding it in all six files.
+
 ## Conventions
 - Players are keyed by **name** (server makes names unique). Host-side maps `status`, `override` are name-keyed.
 - Never send other players' roles to a phone — `playerView()` in the server is the only place that builds player data.

@@ -2,6 +2,8 @@
 // Generated from design/Player.dc.html by tools/dc2tsx.py, then hand-wired to the room server (see NET: comments).
 import React from 'react';
 import './PlayerView.css';
+import { ROLE_LIBRARY } from './roleLibrary';
+import { LIB_I18N } from './i18n';
 
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
@@ -63,7 +65,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy',
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…',
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
         guideBtn: 'Game guide', guideTitle: 'How to play', aboutHead: 'The game', aboutText: 'Moonfall is a game of hidden roles. A few players are secretly werewolves; everyone else is the village. Nobody knows who is who — except for their own card.',
@@ -325,7 +327,8 @@ export class PlayerView extends React.Component<any, any> {
     const langs = this.langList();
     const lang = langs.some(l => l.code === (s.lang || this.props.language)) ? (s.lang || this.props.language) : 'en';
     const UI = this.ui();
-    const T = { ...UI.en, ...(UI[lang] || {}) };
+    const LT = LIB_I18N[lang]; // translations for library roles + the newer UI lines
+    const T = { ...UI.en, ...(UI[lang] || {}), ...((LT && LT.ui) || {}) };
     const fmt = (str, v) => str.replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
     const RT = (this.roleText()[lang]) || {};
     const NF = { ko: ['Noto Serif KR', 'Noto Sans KR'], zh: ['Noto Serif SC', 'Noto Sans SC'], ja: ['Noto Serif JP', 'Noto Sans JP'], th: ['Noto Serif Thai', 'Noto Sans Thai'] };
@@ -339,9 +342,14 @@ export class PlayerView extends React.Component<any, any> {
     const defs = this.props.roleDefs || {};
     Object.keys(defs).forEach(k => { all[k] = { ...(all[k] || {}), ...defs[k] }; });
     const loc = (k) => {
-      const r = all[k]; const t = defs[k] && defs[k].edited ? null : RT[k]; // NET: host-written text wins
-      const goal = k === 'tanner' ? T.goalTanner : (k === 'doppelganger' ? T.goalDopp : (r.team === 'Werewolves' ? T.goalWolves : T.goalVillage));
-      return { ...r, name: t ? t[0] : r.name, motto: t ? t[1] : r.motto, desc: t ? t[2] : r.desc, goal };
+      const r = all[k]; const d = defs[k] || {};
+      // NET: host-written text wins; untouched library roles use this phone's language
+      const lib = d.lib && !d.edited ? d.lib : null;
+      const t = d.edited ? null : (lib ? (LT && LT.roles[lib]) || null : RT[k]);
+      const enMotto = lib ? ((ROLE_LIBRARY.find(e => e.name === lib) || {}).motto || '') : r.motto;
+      const wantsOut = k === 'tanner' || lib === 'Fool' || lib === 'Jester';
+      const goal = wantsOut ? T.goalTanner : (k === 'doppelganger' ? T.goalDopp : (r.team === 'Werewolves' ? T.goalWolves : (r.team === 'Loner' ? T.goalLoner : T.goalVillage)));
+      return { ...r, name: t ? t[0] : r.name, motto: t ? t[1] : enMotto, desc: t ? t[2] : r.desc, goal };
     };
     const key = all[this.props.role] ? this.props.role : 'werewolf';
     const R = loc(key);
@@ -1122,6 +1130,11 @@ export class PlayerView extends React.Component<any, any> {
               </div>
             </section>
           </>
+        ) : null}
+        {(this.props.offline) ? (
+          <div className="offline" role="status" style={{ fontFamily: v.fB }}>
+            {v.T.reconnecting}
+          </div>
         ) : null}
       </div>
     );

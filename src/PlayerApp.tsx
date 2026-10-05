@@ -44,10 +44,10 @@ export function PlayerApp() {
             showRoles={view?.showRoles}
             playerCount={view?.playerCount}
             onJoin={join}
+            offline={!online}
           />
         )}
       </PhoneFrame>
-      {!online && <div className="offline">Reconnecting…</div>}
     </>
   );
 }

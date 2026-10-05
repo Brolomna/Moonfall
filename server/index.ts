@@ -106,8 +106,8 @@ function playerView(p: Player) {
   for (const k of keys) {
     const custom = (sh.custom || []).find((c: any) => c.key === k);
     const edit = (sh.edits || {})[k];
-    const src = custom || edit;
-    if (!src) continue;
+    if (!custom && !edit) continue;
+    const src = { ...(custom || {}), ...(edit || {}) }; // host edits apply to their own roles too
     roleDefs[k] = {
       ...(src.name ? { name: src.name } : {}),
       ...(src.team ? { team: src.team } : {}),
@@ -115,7 +115,9 @@ function playerView(p: Player) {
       ...(src.icon ? { icon: src.icon } : {}),
       ...(src.blurb ? { desc: src.blurb } : {}),
       ...(custom ? { motto: '', custom: true } : {}),
-      edited: true,
+      ...(custom && custom.lib ? { lib: custom.lib } : {}), // library role → the phone shows it in its own language
+      // host-written text wins over the phone's translations; untouched library roles stay translatable
+      edited: !!edit || (!!custom && !custom.lib),
     };
   }
 
