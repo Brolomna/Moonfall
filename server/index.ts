@@ -18,9 +18,12 @@ const PROD = process.env.NODE_ENV === 'production';
 const WEB_PORT = PROD ? PORT : Number(process.env.WEB_PORT || 5173);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-type Player = { id: string; name: string; color: string; connected: boolean };
+type Player = { id: string; name: string; color: string; connected: boolean; fake?: boolean };
 type Shared = Record<string, any>;
 
+// Names for test players the host adds from the invite screen (they have no phone).
+const FAKE_NAMES = ['Luna', 'Felix', 'Iris', 'Oscar', 'Hazel', 'Milo', 'Nora', 'Theo', 'Ruby', 'Jasper',
+  'Ivy', 'Leo', 'Clara', 'Finn', 'Mabel', 'Otto', 'Wren', 'Silas', 'Juno', 'Arlo'];
 const PALETTE = ['#c9a7ff', '#ff9fb0', '#9fd0ff', '#8fe0b8', '#ffc98a', '#f2b6e6', '#b8c4ff', '#e8d3a0', '#a6eedd', '#ffb38a',
   '#d8e08a', '#f29a7a', '#8fd3e8', '#c48aa0', '#f2d06b', '#b45cc7', '#9fd6b8', '#f08fb8', '#a58ad6', '#ffd3a8'];
 
@@ -133,7 +136,7 @@ function playerView(p: Player) {
 
 function hostView() {
   return {
-    players: room.players.map(({ name, color, connected }) => ({ name, color, connected })),
+    players: room.players.map(({ name, color, connected, fake }) => ({ name, color, connected, fake: !!fake })),
     assign: room.assign,
     dealt: room.dealt,
   };
@@ -181,6 +184,19 @@ io.on('connection', (socket: Socket) => {
       room.players = room.players.filter(x => x !== p);
       delete room.assign[p.name];
       io.to(`p:${p.id}`).emit('player:kicked');
+      pushAll();
+    });
+    socket.on('host:fake', (count: number) => {
+      const n = Math.max(0, Math.min(20, Math.floor(Number(count)) || 0));
+      for (let i = 0; i < n; i++) {
+        const name = uniqueName(FAKE_NAMES[room.players.filter(p => p.fake).length % FAKE_NAMES.length]);
+        room.players.push({ id: `fake-${randomUUID()}`, name, color: nextColor(), connected: true, fake: true });
+      }
+      pushAll();
+    });
+    socket.on('host:unfake', () => {
+      room.players.filter(p => p.fake).forEach(p => delete room.assign[p.name]);
+      room.players = room.players.filter(p => !p.fake);
       pushAll();
     });
     socket.on('host:deal', (keys: string[]) => {

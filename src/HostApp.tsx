@@ -3,7 +3,7 @@ import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HostView } from './views/HostView';
 
-type RoomInfo = { players: { name: string; color: string; connected: boolean }[]; assign: Record<string, string>; dealt: boolean };
+type RoomInfo = { players: { name: string; color: string; connected: boolean; fake?: boolean }[]; assign: Record<string, string>; dealt: boolean };
 
 export function HostApp() {
   const socket = useMemo(() => connect('host'), []);
@@ -35,6 +35,8 @@ export function HostApp() {
             onKick={(name: string) => socket.emit('host:kick', name)}
             onDeal={(keys: string[]) => socket.emit('host:deal', keys)}
             onEnd={() => socket.emit('host:end')}
+            onAddFake={(count: number) => socket.emit('host:fake', count)}
+            onRemoveFakes={() => socket.emit('host:unfake')}
           />
         )}
       </PhoneFrame>

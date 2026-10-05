@@ -526,6 +526,12 @@ export class HostView extends React.Component<any, any> {
         return { code, native, on, border: on ? 'rgba(233,220,255,.85)' : 'rgba(236,230,246,.14)', bg: on ? '#e9dcff' : 'rgba(255,255,255,.04)', fg: on ? '#160b28' : '#d8cfe8', pick: () => this.setState({ roomLang: code }) };
       }),
       players, playerCount: n, tooFew: n < 5,
+      // Test players (added by the server, no phone) — handy for trying the game alone
+      fakeInput: this.state.fakeN || '', fakeValid: +this.state.fakeN >= 1 && +this.state.fakeN <= 20,
+      fakeHave: netPlayers.filter(p => p.fake).length,
+      setFake: e => this.setState({ fakeN: e.target.value.replace(/\D/g, '').slice(0, 2) }),
+      addFake: e => { e.preventDefault(); const k = +this.state.fakeN; if (k >= 1 && k <= 20 && this.props.onAddFake) { this.props.onAddFake(k); this.setState({ fakeN: '' }); } },
+      removeFakes: () => this.props.onRemoveFakes && this.props.onRemoveFakes(),
       playersCtaOpacity: n < 5 ? 0.45 : 1,
       playersHint: n < 5 ? 'You need at least 5 players to start' : n + ' players are in. Late arrivals can still join.',
 
@@ -708,6 +714,32 @@ export class HostView extends React.Component<any, any> {
                       </React.Fragment>
                     ))}
                   </div>
+                </section>
+                <section aria-label="Test players" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px 16px', borderRadius: '20px', background: 'rgba(22,13,38,.72)', border: '1px solid rgba(190,165,235,.16)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c7a8ff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+                      <path d="M9 7a3 3 0 1 0 0 6a3 3 0 1 0 0-6z M3.5 20c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5 M18 8v6 M15 11h6" />
+                    </svg>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: '700' }}>
+                        Test players
+                      </span>
+                      <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>
+                        Pretend players with no phone, for trying the game alone. Remove them before a real game.
+                      </span>
+                    </span>
+                  </span>
+                  <form onSubmit={v.addFake} style={{ display: 'flex', gap: '8px', margin: '0' }}>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="How many test players" placeholder="How many? (1–20)" value={v.fakeInput} onChange={v.setFake} style={{ flex: '1', minWidth: '0', height: '42px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontWeight: '600', fontFamily: 'inherit', outline: 'none' }} />
+                    <button type="submit" className="press" disabled={!v.fakeValid} style={{ height: '42px', padding: '0 18px', borderRadius: '14px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '14px', fontWeight: '800', letterSpacing: '.06em', opacity: v.fakeValid ? 1 : 0.45 }}>
+                      ADD
+                    </button>
+                  </form>
+                  {v.fakeHave > 0 && (
+                    <button className="press" onClick={v.removeFakes} style={{ alignSelf: 'flex-start', padding: '0', border: 'none', background: 'none', color: '#ff9fb0', fontSize: '13px', fontWeight: '700' }}>
+                      Remove all {v.fakeHave} test player{v.fakeHave > 1 ? 's' : ''}
+                    </button>
+                  )}
                 </section>
                 <button className="press" onClick={v.openRules} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', borderRadius: '20px', border: '1px solid rgba(232,211,160,.28)', background: 'linear-gradient(150deg, rgba(232,211,160,.1), rgba(22,13,38,.85))', color: '#ece6f6', textAlign: 'left' }}>
                   <span style={{ width: '44px', height: '44px', flex: 'none', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(232,211,160,.14)', border: '1px solid rgba(232,211,160,.35)' }}>
