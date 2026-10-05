@@ -2,10 +2,11 @@
 // Generated from design/Host.dc.html by tools/dc2tsx.py, then hand-wired to the room server (see NET: comments).
 import React from 'react';
 import './HostView.css';
+import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset'];
 
   constructor(props) {
     super(props);
@@ -94,36 +95,21 @@ export class HostView extends React.Component<any, any> {
       { key: 'flame', label: 'Flame', d: 'M12 3c3 4 6 6.5 6 11a6 6 0 0 1-12 0c0-3 1.5-5 3-7 .8 2 1.8 3 3 3 0-2.5-1-4.5 0-7z' }
     ];
   }
-  kb() {
-    // Mock of the online lookup: in the real app this is a web / wiki search on the server.
-    return [
-      { name: 'Little Girl', aliases: ['girl'], source: 'Werewolves of Millers Hollow', team: 'Village', strength: 4, icon: 'eye', color: '#f08fb8', rgb: '240,143,184', desc: 'When the werewolves wake, you may secretly peek through your fingers. If they catch you looking, they can choose you as their victim instead.' },
-      { name: 'Fortune Teller', aliases: ['fortune'], source: 'Werewolf fan wiki', team: 'Village', strength: 3, icon: 'orb', color: '#8fd3e8', rgb: '143,211,232', desc: 'Once per game, when the host wakes you at night, point at a player. The host shows you their exact role.' },
-      { name: 'Aura Seer', aliases: ['aura'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'star', color: '#a6c8ff', rgb: '127,178,255', desc: 'Each night, point at one player. The host nods if they have a special power, and shakes if they are a plain Villager or Werewolf.' },
-      { name: 'Priest', aliases: ['cleric'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'cross', color: '#e8d3a0', rgb: '232,211,160', desc: 'Once per game, at night, bless one player. The first time they would be eliminated, they survive instead.' },
-      { name: 'Pacifist', aliases: [], source: 'Ultimate Werewolf', team: 'Village', strength: -1, icon: 'feather', color: '#62d4a6', rgb: '98,212,166', desc: 'You must always vote to keep players alive — you can never vote to eliminate anyone.' },
-      { name: 'Troublemaker', aliases: ['trouble maker'], source: 'Ultimate Werewolf', team: 'Village', strength: -3, icon: 'mask', color: '#f2a65a', rgb: '242,166,90', desc: 'Once per game, at night, tell the host to stir up trouble. The next day the village must hold two votes and eliminate two players.' },
-      { name: 'Drunk', aliases: ['the drunk'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'flask', color: '#e8d3a0', rgb: '232,211,160', desc: 'You play as a plain Villager until the third night, when the host secretly hands you your real role.' },
-      { name: 'Ghost', aliases: [], source: 'Ultimate Werewolf', team: 'Village', strength: 2, icon: 'skull', color: '#8fd3e8', rgb: '143,211,232', desc: 'You are eliminated on the first night. Each day after, you may give the village one letter as a clue — never a whole name.' },
-      { name: 'Diseased', aliases: ['disease', 'sick'], source: 'Ultimate Werewolf', team: 'Village', strength: 3, icon: 'flask', color: '#d8e08a', rgb: '216,224,138', desc: 'If the werewolves eliminate you, they catch your sickness and cannot attack anyone the following night.' },
-      { name: 'Spellcaster', aliases: ['spell caster'], source: 'Ultimate Werewolf', team: 'Village', strength: 1, icon: 'star', color: '#c98bf2', rgb: '201,139,242', desc: 'Each night, point at one player. They are silenced and may not speak at all during the next day.' },
-      { name: 'Alpha Wolf', aliases: ['alpha'], source: 'Ultimate Werewolf', team: 'Werewolves', strength: -9, icon: 'wolf', color: '#e0475f', rgb: '224,71,95', desc: 'You wake with the werewolves. Once per game, instead of eliminating the victim, you can turn them into a werewolf.' },
-      { name: 'Big Bad Wolf', aliases: ['big bad'], source: 'Ultimate Werewolf', team: 'Werewolves', strength: -9, icon: 'wolf', color: '#ff6f61', rgb: '255,111,97', desc: 'You wake with the werewolves. While no werewolf has been eliminated, you also eliminate a player sitting next to the victim.' },
-      { name: 'Vampire', aliases: ['vampires'], source: 'Ultimate Werewolf', team: 'Loner', strength: -7, icon: 'dagger', color: '#b45cc7', rgb: '180,92,199', desc: 'Each night the vampires choose a victim, who is eliminated the next time anyone votes for them. Vampires win when they outnumber everyone else.' },
-      { name: 'Fool', aliases: ['the fool'], source: 'Werewolf fan wiki', team: 'Village', strength: 1, icon: 'eye', color: '#d8e08a', rgb: '216,224,138', desc: 'You think you are the Seer and wake like one — but the host’s answers to you are random. You don’t know you’re the Fool.' },
-      { name: 'Arsonist', aliases: [], source: 'Werewolf fan wiki', team: 'Loner', strength: -4, icon: 'flame', color: '#f2a65a', rgb: '242,166,90', desc: 'Each night, douse one player in oil, or set every doused player on fire at once. You win if you are the last one standing.' }
-    ];
-  }
   lookup(text, all, self, hidden) {
     const n = text.toLowerCase().trim().replace(/^the\s+/, '');
     if (n.length < 3) return null;
     const have = all.find(r => r.key !== self && (r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n)));
     if (have) return { existing: true, key: have.key, name: have.name };
-    const kb = this.kb();
-    const hit = kb.find(k => k.name.toLowerCase() === n) || kb.find(k => k.aliases.indexOf(n) >= 0) || (n.length >= 4 ? kb.find(k => k.name.toLowerCase().indexOf(n) === 0) : null);
-    if (hit) return hit;
+    const lib = findLib(n);
+    if (lib && lib.builtin) {
+      // a library name for a built-in role (e.g. Sorcerer → Sorceress)
+      const b = all.find(r => r.key === lib.builtin);
+      if (b && b.key !== self) return { existing: true, key: b.key, name: b.name };
+    } else if (lib) {
+      return { name: lib.name, source: 'Role library · ' + lib.cat, team: lib.team, strength: lib.s, desc: lib.desc, icon: lib.icon, color: lib.color, rgb: rgbOf(lib.color), night: lib.night || false, wolf: lib.wolf };
+    }
     // a built-in role the host deleted (or the original of one being edited) → fill from the built-in card
-    const orig = this.catalog().find(r => (hidden.indexOf(r.key) >= 0 || r.key === self) && (r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n)));
+    const orig = this.catalog().find(r => (hidden.indexOf(r.key) >= 0 || r.key === self) && (r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n) || (lib && lib.builtin === r.key)));
     return orig ? { name: orig.name, source: 'Moonfall’s built-in roles', team: orig.team, strength: orig.strength, desc: orig.blurb, iconPath: orig.icon, color: orig.color, rgb: orig.rgb } : null;
   }
   colors() {
@@ -207,10 +193,14 @@ export class HostView extends React.Component<any, any> {
     const hidden = s.hidden || [];
     const visible = all.filter(r => hidden.indexOf(r.key) < 0);
     const KEEP = ['werewolf', 'villager']; // every deck needs these, so they can't be deleted
+    const isWolfRole = (r) => r.team === 'Werewolves' && r.wolf !== false && r.key !== 'minion' && r.key !== 'sorceress';
+    const needWolves = Math.max(1, Math.round(n / 4));
     const openEdit = (r) => this.setState({ sheet: true, editing: r.key, draft: { name: r.name, team: r.team, strength: r.strength, desc: r.blurb, iconD: r.icon, color: r.color, rgb: r.rgb, auto: {}, search: 'idle' } });
     const counts = s.counts || { werewolf: 2, villager: 2, mason: 0 };
     const picked = s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'];
     const setCount = (k, v) => this.setState({ counts: { ...counts, [k]: v } });
+    const wolfPicks = picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && isWolfRole(byKey[k])).length;
+    const wolfMin = wolfPicks >= needWolves ? 0 : 1; // 0 basic Werewolves only when the special wolves cover the pack
     const counted = visible.filter(r => r.kind !== 'unique').map(r => {
       const c = counts[r.key] || 0;
       const pair = r.kind === 'pair';
@@ -222,7 +212,8 @@ export class HostView extends React.Component<any, any> {
         countFg: c > 0 ? '#f6f1ff' : '#7f7397',
         edit: () => openEdit(r),
         inc: () => setCount(r.key, pair ? (c === 0 ? 2 : Math.min(4, c + 1)) : Math.min(16, c + 1)),
-        dec: () => setCount(r.key, pair ? (c <= 2 ? 0 : c - 1) : Math.max(r.key === 'werewolf' ? 1 : 0, c - 1))
+        dec: () => setCount(r.key, pair ? (c <= 2 ? 0 : c - 1) : Math.max(r.key === 'werewolf' ? Math.min(wolfMin, c) : 0, c - 1)),
+        ...(r.key === 'werewolf' ? { countHint: wolfMin === 0 ? 'Can be 0 — your ' + wolfPicks + ' wolf role' + (wolfPicks > 1 ? 's hunt' : ' hunts') + ' instead' : r.countHint + '. Pick ' + needWolves + ' wolf role' + (needWolves > 1 ? 's' : '') + ' to go down to 0.' } : {})
       };
     });
     const uniques = visible.filter(r => r.kind === 'unique').map(r => {
@@ -239,11 +230,11 @@ export class HostView extends React.Component<any, any> {
     });
     const mkGroup = (label, dot, fg, items) => ({ label, dot, fg, items, picked: items.filter(i => i.on).length + ' added' });
     const groups = [
-      mkGroup('Village side', '#8fe0b8', '#a6eedd', uniques.filter(r => r.team === 'Village' && !r.custom)),
-      mkGroup('Wolf side', '#e0475f', '#ff8a9b', uniques.filter(r => r.team === 'Werewolves' && !r.custom)),
-      mkGroup('On their own', '#c9a27a', '#e3c7a5', uniques.filter(r => r.team === 'Loner' && !r.custom))
+      mkGroup('Village side', '#8fe0b8', '#a6eedd', uniques.filter(r => r.team === 'Village' && (!r.custom || r.lib))),
+      mkGroup('Wolf side', '#e0475f', '#ff8a9b', uniques.filter(r => r.team === 'Werewolves' && (!r.custom || r.lib))),
+      mkGroup('On their own', '#c9a27a', '#e3c7a5', uniques.filter(r => r.team === 'Loner' && (!r.custom || r.lib)))
     ];
-    const customItems = uniques.filter(r => r.custom);
+    const customItems = uniques.filter(r => r.custom && !r.lib);
     if (customItems.length) groups.push(mkGroup('Your roles', '#c7a8ff', '#d9c6ff', customItems));
     const total = counted.reduce((a, r) => a + r.count, 0) + uniques.filter(r => r.on).length;
     const score = counted.reduce((a, r) => a + r.count * r.strength, 0) + uniques.filter(r => r.on).reduce((a, r) => a + r.strength, 0);
@@ -254,10 +245,10 @@ export class HostView extends React.Component<any, any> {
     if (score < -3) { balLabel = 'Wolves favored'; balColor = '#ff8a9b'; }
     const diff = n - total;
     let deckHint = 'Ready — ' + total + ' cards for ' + n + ' players', deckColor = '#8fe0b8';
-    if (wolfCards === 0) { deckHint = 'Add at least one Werewolf'; deckColor = '#f2a65a'; }
+    if (wolfCards === 0 && wolfPicks < needWolves) { deckHint = wolfPicks ? 'With 0 Werewolf cards, pick ' + needWolves + ' wolf roles (' + wolfPicks + ' picked)' : 'Add at least one Werewolf'; deckColor = '#f2a65a'; }
     else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
     else if (diff < 0) { deckHint = 'Remove ' + (-diff) + ' card' + (diff < -1 ? 's' : '') + ' — more cards than players'; deckColor = '#f2a65a'; }
-    const ready = diff === 0 && wolfCards > 0;
+    const ready = diff === 0 && (wolfCards > 0 || wolfPicks >= needWolves);
 
     // ---------- draft ----------
     const icons = this.icons(), colors = this.colors();
@@ -267,7 +258,7 @@ export class HostView extends React.Component<any, any> {
     const editingRole = editing ? byKey[editing] : null;
     const demoDraft = editingRole
       ? { name: editingRole.name, team: editingRole.team, strength: editingRole.strength, desc: editingRole.blurb, iconD: editingRole.icon, color: editingRole.color, rgb: editingRole.rgb, auto: {}, search: 'idle' }
-      : { name: 'Little Girl', team: 'Village', strength: 4, desc: this.kb()[0].desc, iconD: iconD('eye'), color: '#f08fb8', rgb: '240,143,184', auto: { team: true, strength: true, desc: true, icon: true }, search: 'found', found: { name: 'Little Girl', source: 'Werewolves of Millers Hollow' } };
+      : { name: 'Little Girl', team: 'Village', strength: 4, desc: findLib('Little Girl').desc, iconD: iconD('eye'), color: '#f08fb8', rgb: '240,143,184', auto: { team: true, strength: true, desc: true, icon: true }, search: 'found', found: { name: 'Little Girl', source: 'Werewolves of Millers Hollow' } };
     const d = s.draft || demoDraft;
     const auto = d.auto || {};
     const setDraft = (patch, clear) => this.setState(prev => {
@@ -310,9 +301,9 @@ export class HostView extends React.Component<any, any> {
         this.setState(prev => {
           const cur = prev.draft || d;
           if (cur.name !== v) return null;
-          if (!hit) return { draft: { ...cur, search: 'none', auto: {} } };
+          if (!hit) return { draft: { ...cur, search: 'none', auto: {}, night: undefined, wolf: undefined } };
           if (hit.existing) return { draft: { ...cur, search: 'exists', existingKey: hit.key, found: { name: hit.name } } };
-          return { draft: { ...cur, search: 'found', found: { name: hit.name, source: hit.source }, team: hit.team, strength: hit.strength, desc: hit.desc, iconD: hit.iconPath || iconD(hit.icon), color: hit.color, rgb: hit.rgb, auto: { team: true, strength: true, desc: true, icon: true } } };
+          return { draft: { ...cur, search: 'found', found: { name: hit.name, source: hit.source }, team: hit.team, strength: hit.strength, desc: hit.desc, iconD: hit.iconPath || iconD(hit.icon), color: hit.color, rgb: hit.rgb, night: hit.night, wolf: hit.wolf, auto: { team: true, strength: true, desc: true, icon: true } } };
         });
       }, 900);
     };
@@ -329,6 +320,90 @@ export class HostView extends React.Component<any, any> {
     }
     lk.searching = d.search === 'searching'; lk.notSearching = !lk.searching;
     if (!lk.canEditExisting) { lk.canEditExisting = false; }
+
+    // ---------- role library ----------
+    const libKey = (e) => 'lib-' + e.name.toLowerCase().replace(/[^a-z]+/g, '-');
+    const libRole = (e) => ({ key: libKey(e), name: e.name, team: e.team, kind: 'unique', strength: e.s, color: e.color, rgb: rgbOf(e.color), blurb: e.desc, icon: iconD(e.icon), custom: true, lib: e.name, night: e.night || false, ...(e.wolf === false ? { wolf: false } : {}) });
+    const libCustom = (e) => custom.find(c => c.lib === e.name) || custom.find(c => c.name.toLowerCase() === e.name.toLowerCase());
+    const libCat = s.libCat || 'Village';
+    const libQ = (s.libQ || '').trim().toLowerCase();
+    const libRows = ROLE_LIBRARY.filter(e => (libQ ? (e.name + ' ' + e.desc).toLowerCase().indexOf(libQ) >= 0 : e.cat === libCat)).map(e => {
+      const b = e.builtin && byKey[e.builtin];
+      const mine = !e.builtin && libCustom(e);
+      const r = b || mine || { name: e.name, strength: e.s, color: e.color, rgb: rgbOf(e.color), icon: iconD(e.icon), blurb: e.desc, team: e.team };
+      let on = false, label = 'Add', act = null;
+      if (b && b.kind !== 'unique') {
+        // Werewolf / Villager / Mason are counted on the roles screen
+        if (hidden.indexOf(b.key) >= 0) { label = 'Restore'; act = () => this.setState({ hidden: hidden.filter(k => k !== b.key) }); }
+        else { on = true; label = 'Count'; }
+      } else if (b) {
+        on = hidden.indexOf(b.key) < 0 && picked.indexOf(b.key) >= 0;
+        act = on ? () => this.setState({ picked: picked.filter(k => k !== b.key) })
+          : () => this.setState({ hidden: hidden.filter(k => k !== b.key), picked: picked.concat([b.key]) });
+      } else if (mine) {
+        on = picked.indexOf(mine.key) >= 0;
+        // turning a library role off removes it from the list again; your own same-named role is only unpicked
+        act = on ? () => this.setState(mine.lib ? { custom: custom.filter(c => c.key !== mine.key), picked: picked.filter(k => k !== mine.key) } : { picked: picked.filter(k => k !== mine.key) })
+          : () => this.setState({ picked: picked.concat([mine.key]) });
+      } else {
+        act = () => { const nr = libRole(e); this.setState({ custom: custom.concat([nr]), picked: picked.concat([nr.key]) }); };
+      }
+      if (on && label === 'Add') label = 'Added';
+      const side = { Village: 'Village', Werewolves: 'Wolves', Loner: 'Alone' }[r.team] || r.team;
+      return {
+        name: r.name, desc: r.blurb, icon: r.icon, color: r.color, soft: 'rgba(' + r.rgb + ',.16)', edge: on ? r.color : 'rgba(236,230,246,.08)',
+        bg: on ? 'rgba(' + r.rgb + ',.12)' : 'rgba(20,12,34,.66)', strText: this.str(r.strength), ...this.strStyle(r.strength),
+        meta: side + (libQ ? ' · ' + e.cat : '') + (e.builtin ? ' · built-in' : ''), on, label, act, canAct: !!act,
+        btnBg: on ? r.color : 'rgba(255,255,255,.06)', btnFg: on ? '#12091c' : '#ece6f6'
+      };
+    });
+    const libTabs = LIB_CATS.map(c => ({ label: c, count: ROLE_LIBRARY.filter(e => e.cat === c).length, on: !libQ && c === libCat, pick: () => this.setState({ libCat: c, libQ: '' }) }));
+
+    // ---------- presets (balanced for the current player count) ----------
+    const PRESETS = [
+      { id: 'beginner', label: 'Beginner', sub: 'Seer & Healer', special: () => 2, roles: ['Seer', 'Healer'] },
+      { id: 'classic', label: 'Classic', sub: 'The well-known roles', special: (k) => Math.max(2, Math.round(k * 0.5)), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard', 'Prince', 'Apprentice Seer'] },
+      { id: 'intermediate', label: 'Intermediate', sub: 'A few twists', special: (k) => Math.max(3, Math.round(k * 0.65)), wolfRoles: (w) => (w >= 2 ? ['Wolf Cub'] : []), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Lycan', 'Tanner', 'Apprentice Seer', 'Prince', 'Cursed', 'Little Girl', 'Mayor'] },
+      { id: 'advanced', label: 'Advanced', sub: 'Chaos & secrets', special: (k) => k - 1, wolfRoles: (w) => ['Alpha Werewolf', 'Wolf Cub', 'Shadow Wolf'].slice(0, w - 1), roles: ['Seer', 'Doctor', 'Witch', 'Hunter', 'Minion', 'Cursed', 'Doppelgänger', 'Cupid', 'Aura Seer', 'Tough Guy', 'Little Girl', 'Sorcerer', 'Revealer', 'Old Hag', 'Spellcaster', 'Tanner'] },
+      { id: 'wolfpack', label: 'Wolf Pack', sub: 'No plain Werewolves', special: (k) => Math.max(2, Math.round(k * 0.6)), wolfRoles: (w) => ['Alpha Werewolf', 'Wolf King', 'Shadow Wolf', 'Nightmare Wolf', 'Fire Wolf', 'Wolf Cub'].slice(0, w), roles: ['Seer', 'Witch', 'Bodyguard', 'Hunter', 'Detective', 'Elder', 'Tracker', 'Prince', 'Medium', 'Mayor'] },
+    ];
+    const libEntry = (nm) => ROLE_LIBRARY.find(e => e.name === nm);
+    const strengthOf = (nm) => { const e = libEntry(nm); return e.builtin && byKey[e.builtin] ? byKey[e.builtin].strength : e.s; };
+    const applyPreset = (p) => {
+      const N = Math.max(5, n), W = Math.max(1, Math.round(N / 4));
+      const wolfRoles = p.wolfRoles ? p.wolfRoles(W) : [];
+      const slots = N - W;
+      const specials = p.roles.slice(0, Math.min(p.special(slots), slots));
+      let villagers = slots - specials.length;
+      const score = () => (W - wolfRoles.length) * byKey.werewolf.strength + villagers * byKey.villager.strength
+        + wolfRoles.concat(specials).reduce((a, nm) => a + strengthOf(nm), 0);
+      // nudge toward a fair game (−3…+3) by trading Villagers for light balancing roles
+      const tipWolf = ['Lycan', 'Tanner', 'Cursed', 'Pacifist'], tipVillage = ['Hunter', 'Mayor', 'Prince', 'Elder', 'Diseased'];
+      for (let i = 0; i < 8; i++) {
+        const sc = score();
+        if (sc >= -3 && sc <= 3) break;
+        const pool = sc > 3 ? tipWolf : tipVillage;
+        const add = pool.find(nm => specials.indexOf(nm) < 0);
+        if (villagers > 0 && add) { specials.push(add); villagers--; continue; }
+        // no Villager left to trade: swap the role pushing hardest the wrong way for a Villager
+        const worst = specials.filter(nm => nm !== 'Seer').sort((a, b) => (sc > 3 ? strengthOf(b) - strengthOf(a) : strengthOf(a) - strengthOf(b)))[0];
+        if (!worst) break;
+        specials.splice(specials.indexOf(worst), 1); villagers++;
+      }
+      // turn the names into roles: built-ins come back if deleted, library roles are added once
+      let nextHidden = hidden.slice();
+      const nextCustom = custom.filter(c => !c.lib); // library roles from an earlier preset or the library are replaced
+      const keys = wolfRoles.concat(specials).map(nm => {
+        const e = libEntry(nm);
+        if (e.builtin) { nextHidden = nextHidden.filter(k => k !== e.builtin); return e.builtin; }
+        const had = custom.find(c => c.lib === e.name);
+        const role = had || libRole(e);
+        if (!nextCustom.find(c => c.key === role.key)) nextCustom.push(role);
+        return role.key;
+      });
+      this.setState({ counts: { werewolf: W - wolfRoles.length, villager: villagers, mason: 0 }, picked: keys, custom: nextCustom, hidden: nextHidden, preset: p.id });
+    };
+    const presets = PRESETS.map(p => ({ label: p.label, sub: p.sub, on: s.preset === p.id, apply: () => applyPreset(p) }));
 
     // ---------- the game ----------
     const deck = [];
@@ -351,7 +426,7 @@ export class HostView extends React.Component<any, any> {
     const alive = names.filter(nm => !isOut(nm));
     const aliveWith = (key) => alive.filter(nm => roleOf(nm).key === key);
     const inGame = (key) => names.some(nm => roleOf(nm).key === key);
-    const isWolf = (r) => r.team === 'Werewolves' && r.key !== 'minion' && r.key !== 'sorceress';
+    const isWolf = isWolfRole;
     const wolvesAlive = alive.filter(nm => isWolf(roleOf(nm))).length;
     const othersAlive = alive.length - wolvesAlive;
     const dgName = names.find(nm => baseRole[nm].key === 'doppelganger' && !override[nm] && !isOut(nm));
@@ -448,7 +523,11 @@ export class HostView extends React.Component<any, any> {
     if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
     if (list('witch').length) add('witch', 'Witch', list('witch'), 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.');
     if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'The Old Hag points at one player. That player must sit out all of tomorrow.');
-    custom.forEach(c => { if (list(c.key).length) add(c.key, c.name, list(c.key), c.blurb); });
+    custom.forEach(c => {
+      const when = c.night === undefined ? 'every' : c.night; // library roles say when they wake; hand-made ones wake every night
+      if (!list(c.key).length || !when || when === 'wolves' || (when === 'first' && !first)) return;
+      add(c.key, c.name, list(c.key), c.blurb, when === 'first' ? { firstOnly: true } : undefined);
+    });
     const ck = (key) => round + '-' + key;
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
@@ -594,6 +673,10 @@ export class HostView extends React.Component<any, any> {
       counted, groups, totalCards: total, scoreText: this.str(score),
       balLabel, balColor, balPos: Math.round((clamp + 15) / 30 * 100) + '%',
       deckHint, deckColor, cantDeal: !ready, dealOpacity: ready ? 1 : 0.45,
+      presets, presetPlayers: Math.max(5, n),
+      libOpen: screen === 'roles' && !!s.libOpen, openLib: () => this.setState({ libOpen: true }), closeLib: () => this.setState({ libOpen: false, libQ: '' }),
+      libTabs, libRows, libQuery: s.libQ || '', setLibQ: e => this.setState({ libQ: e.target.value }), libTotal: ROLE_LIBRARY.length,
+      libEmpty: !libRows.length,
       beginnerSet: () => {
         const w = Math.max(1, Math.round(n / 4));
         this.setState({ counts: { werewolf: w, villager: Math.max(0, n - w - 2), mason: 0 }, picked: ['seer', 'healer'] });
@@ -639,7 +722,8 @@ export class HostView extends React.Component<any, any> {
           return;
         }
         const key = 'c' + Date.now();
-        const role = { key, name: d.name, team: d.team, kind: 'unique', strength: d.strength, color: d.color, rgb: d.rgb, blurb: d.desc || 'Custom role.', icon: d.iconD, custom: true };
+        // hand-made roles wake every night unless the lookup said otherwise
+        const role = { key, name: d.name, team: d.team, kind: 'unique', strength: d.strength, color: d.color, rgb: d.rgb, blurb: d.desc || 'Custom role.', icon: d.iconD, custom: true, night: d.night === undefined ? 'every' : d.night, ...(d.wolf === false ? { wolf: false } : {}) };
         this.setState({ custom: custom.concat([role]), picked: picked.concat([key]), sheet: false });
       },
 
@@ -889,19 +973,30 @@ export class HostView extends React.Component<any, any> {
                     One card per player. Cards are shuffled and dealt at random.
                   </p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 12px 12px 16px', borderRadius: '18px', background: 'rgba(232,211,160,.08)', border: '1px solid rgba(232,211,160,.25)' }}>
-                  <span style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <section aria-label="Presets" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', borderRadius: '18px', background: 'rgba(232,211,160,.08)', border: '1px solid rgba(232,211,160,.25)' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span style={{ fontSize: '14px', fontWeight: '700', color: '#f6e7c1' }}>
-                      New to Werewolf?
+                      Quick presets
                     </span>
                     <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#cbbfa0' }}>
-                      Werewolves, Villagers, a Seer and a Healer.
+                      A balanced deck for {v.presetPlayers} players. Tweak anything afterwards.
                     </span>
                   </span>
-                  <button className="press" onClick={v.beginnerSet} style={{ height: '44px', padding: '0 14px', flex: 'none', borderRadius: '12px', border: 'none', background: '#e8d3a0', color: '#1c140a', fontSize: '14px', fontWeight: '700' }}>
-                    Use simple set
-                  </button>
-                </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px' }}>
+                    {((v.presets) || []).map((p: any, $index: number) => (
+                      <React.Fragment key={$index}>
+                        <button className="press" onClick={p.apply} aria-pressed={p.on} style={{ minHeight: '52px', padding: '8px 10px', borderRadius: '12px', border: `1px solid ${p.on ? '#e8d3a0' : 'rgba(232,211,160,.22)'}`, background: p.on ? '#e8d3a0' : 'rgba(0,0,0,.18)', color: p.on ? '#1c140a' : '#f6e7c1', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '800' }}>
+                            {p.label}
+                          </span>
+                          <span style={{ fontSize: '11.5px', fontWeight: '600', opacity: 0.8 }}>
+                            {p.sub}
+                          </span>
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </section>
                 <section aria-label="Game balance" style={{ padding: '14px 16px', borderRadius: '20px', background: 'rgba(22,13,38,.8)', border: '1px solid rgba(190,165,235,.18)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
@@ -1001,6 +1096,12 @@ export class HostView extends React.Component<any, any> {
                     Tap to add. Each one is a single card. Tap the pencil to edit any role.
                   </span>
                 </div>
+                <button className="press" onClick={v.openLib} style={{ height: '52px', flex: 'none', borderRadius: '16px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(167,127,240,.12)', color: '#e9dcff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h5v16H4z M10 4h4v16h-4z M15.5 4.5l4-1 3.5 15.5-4 1z" />
+                  </svg>
+                  {' '}Browse role library ({v.libTotal} roles)
+                </button>
                 {((v.groups) || []).map((g: any, $index: number) => (
                   <React.Fragment key={$index}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1691,6 +1792,81 @@ export class HostView extends React.Component<any, any> {
                 </button>
                 <button className="press" onClick={v.closeRules} style={{ flex: '1', height: '56px', borderRadius: '16px', border: 'none', background: '#e8d3a0', color: '#1c140a', fontSize: '16px', fontWeight: '700' }}>
                   Save rules
+                </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.libOpen) ? (
+          <>
+            <div className="fade" onClick={v.closeLib} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Role library" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', height: '792px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1d1131 0%, #120a20 100%)', borderTop: '1px solid rgba(199,168,255,.3)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ alignSelf: 'center', width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                    Role library
+                  </h2>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>
+                    Add any role to your deck. Added roles appear on the roles screen.
+                  </span>
+                </span>
+                <input type="search" aria-label="Search roles" placeholder="Search all roles…" value={v.libQuery} onChange={v.setLibQ} style={{ height: '44px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+                <div role="tablist" aria-label="Role categories" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '4px', padding: '4px', borderRadius: '14px', background: 'rgba(10,6,18,.6)', border: '1px solid rgba(236,230,246,.1)' }}>
+                  {((v.libTabs) || []).map((t: any, $index: number) => (
+                    <React.Fragment key={$index}>
+                      <button className="press" role="tab" aria-selected={t.on} onClick={t.pick} style={{ height: '44px', padding: '0 2px', borderRadius: '10px', border: 'none', background: t.on ? '#e9dcff' : 'transparent', color: t.on ? '#160b28' : '#c4b8da', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px' }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: '800' }}>
+                          {t.label}
+                        </span>
+                        <span style={{ fontSize: '10.5px', fontWeight: '700', opacity: 0.7 }}>
+                          {t.count}
+                        </span>
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+              <ul className="scroll" style={{ flex: '1', minHeight: '0', listStyle: 'none', margin: '0', padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(v.libEmpty) ? (
+                  <li style={{ padding: '24px 0', textAlign: 'center', fontSize: '14px', color: '#a99bc2' }}>
+                    No roles match. Try “Create your own role” instead.
+                  </li>
+                ) : null}
+                {((v.libRows) || []).map((r: any, $index: number) => (
+                  <React.Fragment key={$index}>
+                    <li style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '16px', background: r.bg, border: `1px solid ${r.edge}` }}>
+                      <span style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: r.soft, color: r.color }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d={r.icon} />
+                        </svg>
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '15px', fontWeight: '700' }}>
+                            {r.name}
+                          </span>
+                          <span style={{ fontSize: '11.5px', fontWeight: '800', padding: '1px 6px', borderRadius: '6px', color: r.strFg, background: r.strBg }}>
+                            {r.strText}
+                          </span>
+                        </span>
+                        <span style={{ fontSize: '11.5px', fontWeight: '700', letterSpacing: '.04em', color: '#8f82a8' }}>
+                          {r.meta}
+                        </span>
+                        <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#c4b8da' }}>
+                          {r.desc}
+                        </span>
+                      </span>
+                      <button className="press" onClick={r.act} disabled={!r.canAct} aria-pressed={r.on} aria-label={`${r.label} ${r.name}`} style={{ height: '38px', minWidth: '72px', padding: '0 10px', flex: 'none', borderRadius: '11px', border: 'none', background: r.btnBg, color: r.btnFg, fontSize: '13px', fontWeight: '800', opacity: r.canAct ? 1 : 0.6 }}>
+                        {r.label}
+                      </button>
+                    </li>
+                  </React.Fragment>
+                ))}
+              </ul>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
+                <button className="press" onClick={v.closeLib} style={{ width: '100%', height: '56px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
+                  Done
                 </button>
               </div>
             </section>
