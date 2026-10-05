@@ -5,7 +5,7 @@ import './HostView.css';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log'];
 
   constructor(props) {
     super(props);
@@ -348,16 +348,24 @@ export class HostView extends React.Component<any, any> {
     const othersAlive = alive.length - wolvesAlive;
     const dgName = names.find(nm => baseRole[nm].key === 'doppelganger' && !override[nm] && !isOut(nm));
 
-    const mark = (nm, how) => {
+    // ---------- history (storyteller timeline) ----------
+    const log = st('log', []);
+    const ev = (t, extra) => ({ t, round, phase, ...(extra || {}) });
+    // Re-marking someone in the same phase is a correction: replace their entry instead of stacking another
+    const unlog = (lg, nm) => lg.filter(e => !(e.name === nm && e.round === round && e.phase === phase && ['out', 'back', 'tough', 'cursed', 'prince'].indexOf(e.t) >= 0));
+    const markPatch = (nm, how) => {
       const next = { ...status };
       if (how === 'alive') delete next[nm]; else next[nm] = { how, round, phase };
-      const patch = { status: next };
+      const lg = unlog(log, nm);
+      const fixedHere = lg.length !== log.length;
+      const patch = { status: next, log: how !== 'alive' ? lg.concat([ev('out', { how, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]) };
       if (how !== 'alive' && how !== 'removed' && dgName && nm !== dgName) {
         patch.dg = { dead: nm, choice: roleOf(nm).key };
         patch.markOpen = false;
       }
-      this.setState(patch);
+      return patch;
     };
+    const mark = (nm, how) => this.setState(markPatch(nm, how));
     const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['night', 'Killed', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['removed', 'Left', '#b9acd2', '#1a1424']];
     const dealt = names.map(nm => {
       const r = roleOf(nm);
@@ -396,9 +404,9 @@ export class HostView extends React.Component<any, any> {
         const app = aliveWith('apprentice')[0];
         if (app) push('app-' + nm, 'Seer · ' + nm, 'The Apprentice Seer takes over', 'From tonight, wake ' + app + ' (Apprentice Seer) in the Seer’s place. They now check one player each night.', '166,200,255', '#a6c8ff', byKey.apprentice.icon);
       }
-      if (k === 'prince' && how === 'voted') push('prince-' + nm, 'Prince · ' + nm, 'The Prince can’t be voted out', nm + ' shows their card and survives. No one else is eliminated by this vote.', '242,208,107', '#f2d06b', r.icon, { label: 'Undo — keep ' + nm + ' alive', fn: () => mark(nm, 'alive') });
-      if (k === 'toughguy' && how === 'night') push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy survives until the end of the next day. Keep ' + nm + ' in the game and mark them out at sunset.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until sunset', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, tough: nm }); } });
-      if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' } }); } });
+      if (k === 'prince' && how === 'voted') push('prince-' + nm, 'Prince · ' + nm, 'The Prince can’t be voted out', nm + ' shows their card and survives. No one else is eliminated by this vote.', '242,208,107', '#f2d06b', r.icon, { label: 'Undo — keep ' + nm + ' alive', fn: () => { const pt = markPatch(nm, 'alive'); this.setState({ ...pt, log: pt.log.concat([ev('prince', { name: nm })]) }); } });
+      if (k === 'toughguy' && how === 'night') push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy survives until the end of the next day. Keep ' + nm + ' in the game and mark them out at sunset.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until sunset', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, tough: nm, log: unlog(log, nm).concat([ev('tough', { name: nm })]) }); } });
+      if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' }, log: unlog(log, nm).concat([ev('cursed', { name: nm })]) }); } });
       if (k === 'tanner' && how === 'voted') push('tanner-' + nm, 'Tanner · ' + nm, 'The Tanner wins!', nm + ' wanted to be voted out — and got their wish. The Tanner wins alone. You can keep playing for everyone else.', '201,162,122', '#d9b48a', r.icon);
       if (cupidIn) push('love-' + nm, 'Cupid’s lovers', 'Was ' + nm + ' one of the lovers?', 'If so, the other lover dies of heartbreak right away. Mark them out too.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark the other lover', fn: () => this.setState({ markOpen: true }) });
     });
@@ -481,6 +489,45 @@ export class HostView extends React.Component<any, any> {
     endTips.push('Ask everyone to show their cards and enjoy the reveal!');
     const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
 
+    // ---------- history view ----------
+    const who = (e) => e.name + (hide || !e.role ? '' : ' (' + e.role + ')');
+    const evLine = (e) => ({
+      out: { night: who(e) + ' was killed', voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
+      back: e.name + ' is back in the game',
+      tough: e.name + ' was attacked but, as the Tough Guy, lives until sunset',
+      cursed: e.name + ' was attacked and, being Cursed, turned into a Werewolf',
+      prince: e.name + ' revealed the Prince and survived the vote',
+      dg: e.name + ' (Doppelgänger) became the ' + e.role,
+      note: e.text,
+    }[e.t]);
+    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
+    const chapters = [];
+    log.forEach((e, i) => {
+      if (e.t === 'start' || e.t === 'phase') {
+        chapters.push({ title: (e.phase === 'night' ? 'Night ' : 'Day ') + e.round, night: e.phase === 'night', sub: e.t === 'start' ? e.players + ' players · ' + (hide ? 'cards dealt' : e.text) : '', items: [] });
+        return;
+      }
+      if (!chapters.length) chapters.push({ title: 'Night 1', night: true, sub: '', items: [] });
+      chapters[chapters.length - 1].items.push({ text: evLine(e), color: evColor(e), note: e.t === 'note', del: e.t === 'note' ? () => this.setState({ log: log.filter((_, j) => j !== i) }) : null });
+    });
+    chapters.forEach((c, i) => {
+      c.empty = !c.items.length;
+      c.emptyText = i === chapters.length - 1 ? 'Nothing yet.' : c.night ? 'A quiet night — no one died.' : 'No one was voted out.';
+      c.icon = c.night ? 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z' : 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4';
+      c.tint = c.night ? '#c7a8ff' : '#f2c58a';
+    });
+    const outcome = gameOver ? (villageWins ? 'The village wins! Every werewolf has been found.' : 'The werewolves win! ' + wolfNames.join(' and ') + ' now rule the village.') : '';
+    const storyText = ['Moonfall — the story so far', '']
+      .concat(...chapters.map(c => [c.title + (c.sub ? ' — ' + c.sub : '')].concat(c.empty ? ['  ' + c.emptyText] : c.items.map(it => '  • ' + it.text), [''])))
+      .concat(outcome ? ['The end: ' + outcome] : []).join('\n').trim();
+    const copyStory = () => {
+      const done = () => { this.setState({ copied: true }); clearTimeout(this.copiedTimer); this.copiedTimer = setTimeout(() => this.setState({ copied: false }), 1800); };
+      // navigator.clipboard needs https; on the local Wi-Fi (http) fall back to a hidden textarea
+      if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(storyText).then(done, () => {}); return; }
+      const ta = document.createElement('textarea'); ta.value = storyText; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { /* ignore */ } ta.remove();
+    };
+
     const stepKeys = ['players', 'roles', 'play'];
     const idx = stepKeys.indexOf(screen);
     const steps = [['players', '1 · Players'], ['roles', '2 · Roles'], ['play', '3 · Play']].map(([k, label], i) => ({
@@ -542,7 +589,12 @@ export class HostView extends React.Component<any, any> {
         const w = Math.max(1, Math.round(n / 4));
         this.setState({ counts: { werewolf: w, villager: Math.max(0, n - w - 2), mason: 0 }, picked: ['seer', 'healer'] });
       },
-      deal: () => (this.props.onDeal && this.props.onDeal(deck.map(r => r.key)), this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false })),
+      deal: () => {
+        const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
+        const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
+        this.props.onDeal && this.props.onDeal(deck.map(r => r.key));
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start] });
+      },
       openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
       closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
 
@@ -591,6 +643,10 @@ export class HostView extends React.Component<any, any> {
       nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
       daySteps, dayRules, hasDayRules: dayRules.length > 0,
       gameOver,
+      histOpen: screen === 'play' && !!s.histOpen, openHist: () => this.setState({ histOpen: true }), closeHist: () => this.setState({ histOpen: false }),
+      chapters, outcome, hasOutcome: !!outcome, copyStory, copyLabel: s.copied ? 'Copied!' : 'Copy as text',
+      noteInput: s.noteDraft || '', setNote: e => this.setState({ noteDraft: e.target.value }),
+      addNote: e => { e.preventDefault(); const t = (s.noteDraft || '').trim(); if (t) this.setState({ log: log.concat([ev('note', { text: t })]), noteDraft: '' }); },
       endTitle: villageWins ? 'The village wins!' : 'The werewolves win!',
       endText: villageWins ? 'Every werewolf has been found and eliminated.' : (wolfNames.join(' and ') + ' now equal the rest of the village. Nobody can outvote them.'),
       endTips,
@@ -606,7 +662,7 @@ export class HostView extends React.Component<any, any> {
         roleName: dgRole.name, icon: dgRole.icon, color: dgRole.color,
         soft: 'rgba(' + dgRole.rgb + ',.2)', edge: 'rgba(' + dgRole.rgb + ',.55)'
       },
-      dgConfirm: () => this.setState({ override: { ...override, [dgWho]: dgState.choice }, dg: null, dgDone: { name: dgWho, role: dgState.choice } }),
+      dgConfirm: () => this.setState({ override: { ...override, [dgWho]: dgState.choice }, dg: null, dgDone: { name: dgWho, role: dgState.choice }, log: log.concat([ev('dg', { name: dgWho, role: dgRole.name })]) }),
       dgSkip: () => this.setState({ dg: null }),
 
       isNightPhase: night, isDayPhase: !night,
@@ -619,8 +675,8 @@ export class HostView extends React.Component<any, any> {
       heroIconColor: night ? '#f1e9d2' : '#ffd3a8',
       nightBtnBg: night ? '#e9dcff' : 'transparent', nightBtnFg: night ? '#160b28' : '#c4b8da',
       dayBtnBg: night ? 'transparent' : '#f2a65a', dayBtnFg: night ? '#c4b8da' : '#1c0e06',
-      setNight: () => { if (!night) this.setState({ phase: 'night', round: round + 1 }); },
-      setDay: () => { if (night) this.setState({ phase: 'day', round }); },
+      setNight: () => { if (!night) this.setState({ phase: 'night', round: round + 1, log: log.concat([{ t: 'phase', round: round + 1, phase: 'night' }]) }); },
+      setDay: () => { if (night) this.setState({ phase: 'day', round, log: log.concat([{ t: 'phase', round, phase: 'day' }]) }); },
       endGame: () => (this.props.onEnd && this.props.onEnd(), this.setState({ /* NET */ screen: 'players', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false }))
     };
   }
@@ -1104,7 +1160,10 @@ export class HostView extends React.Component<any, any> {
                           </React.Fragment>
                         ))}
                       </ul>
-                      <button className="press" onClick={v.endGame} style={{ marginTop: '6px', width: '100%', height: '52px', borderRadius: '14px', border: 'none', background: v.endColor, color: '#12091c', fontSize: '16px', fontWeight: '700' }}>
+                      <button className="press" onClick={v.openHist} style={{ marginTop: '6px', width: '100%', height: '48px', borderRadius: '14px', border: `1px solid ${v.endColor}`, background: 'rgba(0,0,0,.2)', color: v.endColor, fontSize: '15px', fontWeight: '700' }}>
+                        Read the story of this game
+                      </button>
+                      <button className="press" onClick={v.endGame} style={{ width: '100%', height: '52px', borderRadius: '14px', border: 'none', background: v.endColor, color: '#12091c', fontSize: '16px', fontWeight: '700' }}>
                         Start a new game
                       </button>
                     </section>
@@ -1273,8 +1332,14 @@ export class HostView extends React.Component<any, any> {
                   </>
                 ) : null}
               </div>
-              <div style={{ padding: '12px 20px 30px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.88) 40%)' }}>
-                <button className="press" onClick={v.endGame} style={{ width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.35)', background: 'rgba(224,71,95,.08)', color: '#ffb3bf', fontSize: '15px', fontWeight: '700' }}>
+              <div style={{ padding: '12px 20px 30px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.88) 40%)', display: 'flex', gap: '8px' }}>
+                <button className="press" onClick={v.openHist} style={{ height: '48px', padding: '0 16px', flex: 'none', borderRadius: '14px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(199,168,255,.1)', color: '#e9dcff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7 M3 4v4h4 M12 7v5l3 2" />
+                  </svg>
+                  {' '}History
+                </button>
+                <button className="press" onClick={v.endGame} style={{ flex: '1', minWidth: '0', height: '48px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.35)', background: 'rgba(224,71,95,.08)', color: '#ffb3bf', fontSize: '15px', fontWeight: '700' }}>
                   End game & start over
                 </button>
               </div>
@@ -1597,6 +1662,98 @@ export class HostView extends React.Component<any, any> {
                 </button>
                 <button className="press" onClick={v.closeRules} style={{ flex: '1', height: '56px', borderRadius: '16px', border: 'none', background: '#e8d3a0', color: '#1c140a', fontSize: '16px', fontWeight: '700' }}>
                   Save rules
+                </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.histOpen) ? (
+          <>
+            <div className="fade" onClick={v.closeHist} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Game history" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', height: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1d1131 0%, #120a20 100%)', borderTop: '1px solid rgba(199,168,255,.3)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                      The story so far
+                    </h2>
+                    <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>
+                      Only you can see this. Read it out at the end.
+                    </span>
+                  </span>
+                  <button className="press" onClick={v.copyStory} style={{ height: '40px', padding: '0 12px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13px', fontWeight: '700' }}>
+                    {v.copyLabel}
+                  </button>
+                </div>
+              </div>
+              <ol className="scroll" style={{ flex: '1', minHeight: '0', listStyle: 'none', margin: '0', padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {((v.chapters) || []).map((c: any, $index: number) => (
+                  <React.Fragment key={$index}>
+                    <li style={{ display: 'flex', gap: '12px' }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 'none' }}>
+                        <span style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.06)', border: `1px solid ${c.tint}` }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c.tint} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d={c.icon} />
+                          </svg>
+                        </span>
+                        <span style={{ flex: '1', width: '2px', minHeight: '14px', background: 'rgba(236,230,246,.1)' }} />
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '6px', paddingBottom: '14px' }}>
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: '2px', minHeight: '32px', justifyContent: 'center' }}>
+                          <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '17px', color: c.tint }}>
+                            {c.title}
+                          </span>
+                          {(c.sub) ? (
+                            <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>
+                              {c.sub}
+                            </span>
+                          ) : null}
+                        </span>
+                        {(c.empty) ? (
+                          <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '16px', color: '#a99bc2' }}>
+                            {c.emptyText}
+                          </span>
+                        ) : null}
+                        {((c.items) || []).map((it: any, $i: number) => (
+                          <React.Fragment key={$i}>
+                            <span style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '9px 10px', borderRadius: '12px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(236,230,246,.07)' }}>
+                              <span style={{ width: '8px', height: '8px', marginTop: '6px', flex: 'none', borderRadius: '50%', background: it.color }} />
+                              <span style={{ flex: '1', minWidth: '0', fontSize: '14px', lineHeight: '1.45', color: '#ece6f6', fontStyle: it.note ? 'italic' : 'normal' }}>
+                                {it.text}
+                              </span>
+                              {(it.del) ? (
+                                <button className="press" onClick={it.del} aria-label="Delete note" style={{ width: '28px', height: '28px', margin: '-4px -4px -4px 0', flex: 'none', border: 'none', borderRadius: '8px', background: 'transparent', color: '#8f82a8', fontSize: '18px', lineHeight: '1' }}>
+                                  ×
+                                </button>
+                              ) : null}
+                            </span>
+                          </React.Fragment>
+                        ))}
+                      </span>
+                    </li>
+                  </React.Fragment>
+                ))}
+                {(v.hasOutcome) ? (
+                  <li style={{ padding: '14px 16px', borderRadius: '16px', background: `linear-gradient(160deg, rgba(232,211,160,.16), rgba(18,10,31,.9))`, border: '1px solid rgba(232,211,160,.4)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: '#e8d3a0' }}>
+                      The end
+                    </span>
+                    <span style={{ fontSize: '15px', lineHeight: '1.45', color: '#f6f1ff', fontWeight: '600' }}>
+                      {v.outcome}
+                    </span>
+                  </li>
+                ) : null}
+              </ol>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <form onSubmit={v.addNote} style={{ display: 'flex', gap: '8px', margin: '0' }}>
+                  <input type="text" aria-label="Add a note to this phase" placeholder="Add a note, e.g. Healer saved Theo" value={v.noteInput} onChange={v.setNote} maxLength={140} style={{ flex: '1', minWidth: '0', height: '46px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '14.5px', fontFamily: 'inherit', outline: 'none' }} />
+                  <button type="submit" className="press" disabled={!v.noteInput.trim()} style={{ height: '46px', padding: '0 16px', flex: 'none', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.08)', color: '#ece6f6', fontSize: '14px', fontWeight: '700', opacity: v.noteInput.trim() ? 1 : 0.45 }}>
+                    Add
+                  </button>
+                </form>
+                <button className="press" onClick={v.closeHist} style={{ width: '100%', height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
+                  Done
                 </button>
               </div>
             </section>
