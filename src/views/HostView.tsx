@@ -5,7 +5,7 @@ import './HostView.css';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden'];
 
   constructor(props) {
     super(props);
@@ -114,13 +114,17 @@ export class HostView extends React.Component<any, any> {
       { name: 'Arsonist', aliases: [], source: 'Werewolf fan wiki', team: 'Loner', strength: -4, icon: 'flame', color: '#f2a65a', rgb: '242,166,90', desc: 'Each night, douse one player in oil, or set every doused player on fire at once. You win if you are the last one standing.' }
     ];
   }
-  lookup(text, all) {
+  lookup(text, all, self, hidden) {
     const n = text.toLowerCase().trim().replace(/^the\s+/, '');
     if (n.length < 3) return null;
-    const have = all.find(r => r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n));
+    const have = all.find(r => r.key !== self && (r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n)));
     if (have) return { existing: true, key: have.key, name: have.name };
     const kb = this.kb();
-    return kb.find(k => k.name.toLowerCase() === n) || kb.find(k => k.aliases.indexOf(n) >= 0) || (n.length >= 4 ? kb.find(k => k.name.toLowerCase().indexOf(n) === 0) : null) || null;
+    const hit = kb.find(k => k.name.toLowerCase() === n) || kb.find(k => k.aliases.indexOf(n) >= 0) || (n.length >= 4 ? kb.find(k => k.name.toLowerCase().indexOf(n) === 0) : null);
+    if (hit) return hit;
+    // a built-in role the host deleted (or the original of one being edited) → fill from the built-in card
+    const orig = this.catalog().find(r => (hidden.indexOf(r.key) >= 0 || r.key === self) && (r.name.toLowerCase() === n || (r.plural && r.plural.toLowerCase() === n)));
+    return orig ? { name: orig.name, source: 'Moonfall’s built-in roles', team: orig.team, strength: orig.strength, desc: orig.blurb, iconPath: orig.icon, color: orig.color, rgb: orig.rgb } : null;
   }
   colors() {
     return [
@@ -200,11 +204,14 @@ export class HostView extends React.Component<any, any> {
     const applyEdit = r => (edits[r.key] ? { ...r, ...edits[r.key] } : r);
     const all = this.catalog().map(applyEdit).concat(custom.map(applyEdit));
     const byKey = {}; all.forEach(r => { byKey[r.key] = r; });
+    const hidden = s.hidden || [];
+    const visible = all.filter(r => hidden.indexOf(r.key) < 0);
+    const KEEP = ['werewolf', 'villager']; // every deck needs these, so they can't be deleted
     const openEdit = (r) => this.setState({ sheet: true, editing: r.key, draft: { name: r.name, team: r.team, strength: r.strength, desc: r.blurb, iconD: r.icon, color: r.color, rgb: r.rgb, auto: {}, search: 'idle' } });
     const counts = s.counts || { werewolf: 2, villager: 2, mason: 0 };
     const picked = s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'];
     const setCount = (k, v) => this.setState({ counts: { ...counts, [k]: v } });
-    const counted = all.filter(r => r.kind !== 'unique').map(r => {
+    const counted = visible.filter(r => r.kind !== 'unique').map(r => {
       const c = counts[r.key] || 0;
       const pair = r.kind === 'pair';
       return {
@@ -218,7 +225,7 @@ export class HostView extends React.Component<any, any> {
         dec: () => setCount(r.key, pair ? (c <= 2 ? 0 : c - 1) : Math.max(r.key === 'werewolf' ? 1 : 0, c - 1))
       };
     });
-    const uniques = all.filter(r => r.kind === 'unique').map(r => {
+    const uniques = visible.filter(r => r.kind === 'unique').map(r => {
       const on = picked.indexOf(r.key) >= 0;
       return {
         ...r, on, off: !on, strText: this.str(r.strength), ...this.strStyle(r.strength),
@@ -294,29 +301,30 @@ export class HostView extends React.Component<any, any> {
     // online lookup (mocked)
     const setName = (e) => {
       const v = e.target.value;
-      const go = !editing && v.trim().length >= 3;
+      const go = v.trim().length >= 3 && !(editingRole && v.trim().toLowerCase() === editingRole.name.toLowerCase());
       setDraft({ name: v, search: go ? 'searching' : 'idle' });
       clearTimeout(this._lk);
       if (!go) return;
       this._lk = setTimeout(() => {
-        const hit = this.lookup(v, all);
+        const hit = this.lookup(v, visible, editing, hidden);
         this.setState(prev => {
           const cur = prev.draft || d;
           if (cur.name !== v) return null;
           if (!hit) return { draft: { ...cur, search: 'none', auto: {} } };
           if (hit.existing) return { draft: { ...cur, search: 'exists', existingKey: hit.key, found: { name: hit.name } } };
-          return { draft: { ...cur, search: 'found', found: { name: hit.name, source: hit.source }, team: hit.team, strength: hit.strength, desc: hit.desc, iconD: iconD(hit.icon), color: hit.color, rgb: hit.rgb, auto: { team: true, strength: true, desc: true, icon: true } } };
+          return { draft: { ...cur, search: 'found', found: { name: hit.name, source: hit.source }, team: hit.team, strength: hit.strength, desc: hit.desc, iconD: hit.iconPath || iconD(hit.icon), color: hit.color, rgb: hit.rgb, auto: { team: true, strength: true, desc: true, icon: true } } };
         });
       }, 900);
     };
     const S = { search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-4-4', globe: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z', check: 'M5 12.5l4.5 4.5L19 7.5', warn: 'M12 4l9 16H3z M12 10v4 M12 17h.01' };
     const q = '“' + (d.name || '').trim() + '”';
     let lk = { show: false };
-    if (!editing) {
+    {
       if (d.search === 'searching') lk = { show: true, title: 'Searching online…', text: 'Looking up ' + q + ' in Werewolf rulebooks and fan wikis.', color: '#c7a8ff', icon: S.globe, bg: 'rgba(167,127,240,.1)', border: 'rgba(199,168,255,.25)' };
       else if (d.search === 'found') lk = { show: true, title: 'Found “' + d.found.name + '” · ' + d.found.source, text: 'Side, strength, card text and symbol were filled in for you. Change anything you like.', color: '#8fe0b8', icon: S.check, bg: 'rgba(98,212,166,.1)', border: 'rgba(98,212,166,.3)' };
       else if (d.search === 'none') lk = { show: true, title: 'No match found online', text: 'We couldn’t find ' + q + '. Fill in the details below — you know your table best.', color: '#f2a65a', icon: S.warn, bg: 'rgba(242,166,90,.1)', border: 'rgba(242,166,90,.3)' };
       else if (d.search === 'exists') lk = { show: true, title: '“' + d.found.name + '” is already in your deck', text: 'Edit the existing role instead of making a copy.', color: '#e9dcff', icon: S.check, bg: 'rgba(167,127,240,.12)', border: 'rgba(199,168,255,.3)', canEditExisting: true, editExisting: () => openEdit(byKey[d.existingKey]) };
+      else if (editing) lk = { show: true, title: 'Rename to auto-fill', text: 'Type another role’s name and its side, strength, card text and symbol are filled in for you.', color: '#c4b8da', icon: S.search, bg: 'rgba(255,255,255,.04)', border: 'rgba(236,230,246,.1)' };
       else lk = { show: true, title: 'Type a name to auto-fill', text: 'We’ll look the role up online and fill in the rest for you.', color: '#c4b8da', icon: S.search, bg: 'rgba(255,255,255,.04)', border: 'rgba(236,230,246,.1)' };
     }
     lk.searching = d.search === 'searching'; lk.notSearching = !lk.searching;
@@ -422,7 +430,8 @@ export class HostView extends React.Component<any, any> {
     const rage = night && cubDeath && round === status[cubDeath].round + 1;
     const wolves = alive.filter(nm => isWolf(roleOf(nm)));
     const defs = [];
-    const add = (key, title, who, say, opts) => defs.push({ key, title, who, say, ...(opts || {}) });
+    const renamed = (key) => { const o = this.catalog().find(r => r.key === key); return o && edits[key] && edits[key].name && edits[key].name !== o.name; };
+    const add = (key, title, who, say, opts) => defs.push({ key, title: renamed(key) ? byKey[key].name : title, who, say: renamed(key) ? byKey[key].blurb : say, ...(opts || {}) });
     if (first && list('doppelganger').length) add('doppelganger', 'Doppelgänger', list('doppelganger'), 'Wake the Doppelgänger. They silently point at one player to copy. Remember who — you’ll need it if that player dies.', { firstOnly: true });
     if (first && list('cupid').length) add('cupid', 'Cupid', list('cupid'), 'Cupid points at two players. Tap both on the shoulder — they open their eyes and see each other. They are now lovers.', { firstOnly: true });
     const agree = rules.wolfPick === 'unanimous' ? ' They must all point at the same player.' : ' If they disagree, the most-pointed player is chosen.';
@@ -609,12 +618,19 @@ export class HostView extends React.Component<any, any> {
       strUp: () => setDraft({ strength: Math.min(9, d.strength + 1) }, 'strength'),
       strDown: () => setDraft({ strength: Math.max(-9, d.strength - 1) }, 'strength'),
       draftEmpty: !d.name, addOpacity: d.name ? 1 : 0.45,
-      canReset: !!editingRole && (!!editingRole.custom || !!edits[editing]),
-      resetLabel: editingRole && editingRole.custom ? 'Delete this role' : 'Reset to the original',
-      resetRole: () => {
+      canReset: !!editingRole && !editingRole.custom && !!edits[editing],
+      resetLabel: 'Reset to the original',
+      resetRole: () => { const nx = { ...edits }; delete nx[editing]; this.setState({ edits: nx, sheet: false }); },
+      canDelete: !!editingRole && KEEP.indexOf(editing) < 0,
+      deleteLabel: 'Delete ' + (editingRole ? editingRole.name : 'this role'),
+      deleteRole: () => {
+        clearTimeout(this._lk);
         if (editingRole.custom) this.setState({ custom: custom.filter(c => c.key !== editing), picked: picked.filter(k => k !== editing), sheet: false });
-        else { const nx = { ...edits }; delete nx[editing]; this.setState({ edits: nx, sheet: false }); }
+        else this.setState({ hidden: hidden.concat([editing]), picked: picked.filter(k => k !== editing), counts: { ...counts, [editing]: 0 }, sheet: false });
       },
+      hasHidden: hidden.length > 0,
+      restoreLabel: 'Restore deleted: ' + hidden.map(k => byKey[k] ? byKey[k].name : k).join(', '),
+      restoreRoles: () => this.setState({ hidden: [] }),
       saveRole: () => {
         if (editingRole) {
           const patch = { name: d.name, team: d.team, strength: d.strength, blurb: d.desc, icon: d.iconD, color: d.color, rgb: d.rgb };
@@ -1054,6 +1070,11 @@ export class HostView extends React.Component<any, any> {
                   </svg>
                   {' '}Create your own role
                 </button>
+                {(v.hasHidden) ? (
+                  <button className="press" onClick={v.restoreRoles} style={{ padding: '4px 0', border: 'none', background: 'none', color: '#c7a8ff', fontSize: '13px', fontWeight: '700', textAlign: 'center' }}>
+                    {v.restoreLabel}
+                  </button>
+                ) : null}
               </div>
               <div style={{ padding: '12px 20px 30px', display: 'flex', flexDirection: 'column', gap: '10px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.9) 40%)' }}>
                 <span style={{ textAlign: 'center', fontSize: '13px', fontWeight: '600', color: v.deckColor }}>
@@ -1561,6 +1582,14 @@ export class HostView extends React.Component<any, any> {
                       {v.resetLabel}
                     </button>
                   </>
+                ) : null}
+                {(v.canDelete) ? (
+                  <button className="press" onClick={v.deleteRole} style={{ height: '46px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.35)', background: 'rgba(224,71,95,.08)', color: '#ffb3bf', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3" />
+                    </svg>
+                    {' '}{v.deleteLabel}
+                  </button>
                 ) : null}
               </div>
               <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
