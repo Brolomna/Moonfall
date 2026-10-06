@@ -86,5 +86,6 @@ export default {
     evCursed: "{name}は噛まれて人狼になりました",
     evPrince: "{name}は王子だと明かし、投票を生き延びました",
     evDg: "{name}は{role}になりました",
+    evSaved: "{name}は襲われましたが、救われました",
   },
 };

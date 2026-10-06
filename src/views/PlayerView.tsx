@@ -66,7 +66,7 @@ export class PlayerView extends React.Component<any, any> {
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
         goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…',
-        specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}",
+        specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
         guideBtn: 'Game guide', guideTitle: 'How to play', aboutHead: 'The game', aboutText: 'Moonfall is a game of hidden roles. A few players are secretly werewolves; everyone else is the village. Nobody knows who is who — except for their own card.',
@@ -419,9 +419,14 @@ export class PlayerView extends React.Component<any, any> {
           return;
         }
         if (!chapters.length) chapters.push({ title: phaseN('night', 1), night: true, sub: '', items: [] });
-        const text = e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) })
+        const actRole = (k) => (k && all[k] ? loc(k).name : e.by || '');
+        const text = e.t === 'act' ? (e.kind === 'witch'
+            ? actRole(e.key) + ' → ' + ([e.save ? '💧 ' + e.save : '', e.poison ? '☠ ' + e.poison : ''].filter(Boolean).join(' · ') || '—')
+            : actRole(e.key) + ' → ' + ((e.targets || []).join(' & ') || '—'))
+          : e.t === 'saved' ? fmt(T.evSaved, { name: e.name })
+          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) })
           : fmt({ back: T.evBack, tough: T.evTough, cursed: T.evCursed, prince: T.evPrince, dg: T.evDg }[e.t] || '{name}', { name: e.name, role: roleNameOf(e.name) });
-        const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
+        const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ act: '#a6c8ff', saved: '#62d4a6', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
         chapters[chapters.length - 1].items.push({ text, color, note: e.t === 'note' });
         events++;
       });

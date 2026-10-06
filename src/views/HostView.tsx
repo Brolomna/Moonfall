@@ -6,7 +6,7 @@ import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy'];
 
   constructor(props) {
     super(props);
@@ -443,7 +443,8 @@ export class HostView extends React.Component<any, any> {
       const lg = unlog(log, nm);
       const fixedHere = lg.length !== log.length;
       const patch = { status: next, log: how !== 'alive' ? lg.concat([ev('out', { how, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]) };
-      if (how !== 'alive' && how !== 'removed' && dgName && nm !== dgName) {
+      const dgCopy0 = st('dgCopy', null);
+      if (how !== 'alive' && how !== 'removed' && dgName && nm !== dgName && (!dgCopy0 || dgCopy0 === nm)) {
         patch.dg = { dead: nm, choice: roleOf(nm).key };
         patch.markOpen = false;
       }
@@ -509,7 +510,11 @@ export class HostView extends React.Component<any, any> {
       if (k === 'toughguy' && how === 'night') push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy survives until the end of the next day. Keep ' + nm + ' in the game and mark them out at sunset.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until sunset', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, tough: nm, log: unlog(log, nm).concat([ev('tough', { name: nm })]) }); } });
       if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' }, log: unlog(log, nm).concat([ev('cursed', { name: nm })]) }); } });
       if (k === 'tanner' && how === 'voted') push('tanner-' + nm, 'Tanner · ' + nm, 'The Tanner wins!', nm + ' wanted to be voted out — and got their wish. The Tanner wins alone. You can keep playing for everyone else.', '201,162,122', '#d9b48a', r.icon);
-      if (cupidIn) push('love-' + nm, 'Cupid’s lovers', 'Was ' + nm + ' one of the lovers?', 'If so, the other lover dies of heartbreak right away. Mark them out too.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark the other lover', fn: () => this.setState({ markOpen: true }) });
+      const lv = st('lovers', null);
+      if (cupidIn && lv && lv.indexOf(nm) >= 0) {
+        const mate = lv.find(x => x !== nm);
+        if (mate && !isOut(mate)) push('love-' + nm, 'Cupid’s lovers', mate + ' dies of heartbreak', nm + ' and ' + mate + ' were lovers. ' + mate + ' is eliminated right away.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark ' + mate + ' out', fn: () => mark(mate, 'night') });
+      } else if (cupidIn && !lv) push('love-' + nm, 'Cupid’s lovers', 'Was ' + nm + ' one of the lovers?', 'If so, the other lover dies of heartbreak right away. Mark them out too.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark the other lover', fn: () => this.setState({ markOpen: true }) });
     });
     if (dgDone) {
       const nr = byKey[dgDone.role] || byKey.villager;
@@ -547,7 +552,12 @@ export class HostView extends React.Component<any, any> {
     if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'The Sorceress points at one player. Nod if that player is the Seer.');
     if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard (not themselves). If the wolves attack that player, the Bodyguard dies instead.');
     if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
-    if (list('witch').length) add('witch', 'Witch', list('witch'), 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.');
+    const wu = st('witch', {}); const saveLeft = !wu.save || wu.save === round, poisonLeft = !wu.poison || wu.poison === round;
+    if (list('witch').length) add('witch', 'Witch', list('witch'),
+      saveLeft && poisonLeft ? 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.'
+        : saveLeft ? 'Point at tonight’s victim. The poison is used up — the Witch may only save them, or do nothing.'
+          : poisonLeft ? 'The healing potion is used up — don’t show the victim. The Witch may poison someone, or do nothing.'
+            : 'Both potions are used up. Call the Witch anyway, wait a few seconds in silence, then move on.');
     if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'The Old Hag points at one player. That player must sit out all of tomorrow.');
     custom.forEach(c => {
       const when = c.night === undefined ? 'every' : c.night; // library roles say when they wake; hand-made ones wake every night
@@ -555,6 +565,32 @@ export class HostView extends React.Component<any, any> {
       add(c.key, c.name, list(c.key), c.blurb, when === 'first' ? { firstOnly: true } : undefined);
     });
     const ck = (key) => round + '-' + key;
+    // ---------- night actions (recorded per step, resolved when the host taps Day) ----------
+    const acts = st('acts', []);
+    const witchUsed = st('witch', {}); // { save: round, poison: round } — each potion works once per game
+    const actOf = (key, rd) => acts.find(a => a.round === (rd || round) && a.key === key);
+    const roleLabel = (key) => (byKey[key] ? byKey[key].name : key);
+    // what a step asks for: kind, how many players, who can be picked
+    const actSpec = (x) => {
+      if (x.ghost) return null; // fake call: nothing to record
+      const actors = x.who.filter(nm => !isOut(nm));
+      const others = alive.filter(nm => actors.indexOf(nm) < 0);
+      if (x.key === 'werewolf') return x.peaceful ? null : { kind: 'kill', count: x.rage ? 2 : 1, pool: alive.filter(nm => !isWolf(roleOf(nm))), ask: x.rage ? 'Who did the wolves choose? Pick two — the Wolf Cub was killed.' : 'Who did the wolves choose to eliminate?' };
+      if (x.key === 'seer') return { kind: 'check', count: 1, pool: others, ask: 'Who did the Seer point at?' };
+      if (x.key === 'sorceress') return { kind: 'seek', count: 1, pool: others, ask: 'Who did the Sorceress point at?' };
+      if (x.key === 'bodyguard') return { kind: 'guard', count: 1, pool: others, ask: 'Who is the Bodyguard guarding tonight?' };
+      if (x.key === 'healer') return { kind: 'protect', count: 1, pool: rules.selfHeal ? alive : others, ask: 'Who is the Healer protecting tonight?' };
+      if (x.key === 'witch') return (witchUsed.save && witchUsed.save !== round && witchUsed.poison && witchUsed.poison !== round) ? null : { kind: 'witch', count: 0, pool: alive, ask: 'What does the Witch do?' };
+      if (x.key === 'oldhag') return { kind: 'banish', count: 1, pool: others, ask: 'Who does the Old Hag banish from tomorrow?' };
+      if (x.key === 'doppelganger') return { kind: 'copy', count: 1, pool: others, ask: 'Who did the Doppelgänger copy?' };
+      if (x.key === 'cupid') return { kind: 'lovers', count: 2, pool: alive, ask: 'Which two players did Cupid make lovers?' };
+      if (x.key === 'minion' || x.key === 'mason') return null; // they only look — nothing to record
+      return { kind: 'choose', count: 1, optional: true, pool: others, ask: 'Who did the ' + x.title + ' choose?' };
+    };
+    const openAct = (x) => {
+      const a = actOf(x.key);
+      this.setState({ nightAct: x.key, pick: a ? (a.targets || []) : [], wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null });
+    };
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
       const done = checks.indexOf(ck(x.key)) >= 0;
@@ -565,9 +601,71 @@ export class HostView extends React.Component<any, any> {
         numBg: done ? '#62d4a6' : 'rgba(' + r.rgb + ',.2)', numFg: done ? '#0d2a20' : r.color,
         border: x.rage ? 'rgba(255,111,97,.6)' : (done ? 'rgba(98,212,166,.3)' : 'rgba(236,230,246,.08)'),
         bg: x.rage ? 'rgba(255,111,97,.1)' : 'rgba(10,6,18,.45)', opacity: done ? 0.6 : 1, strike: done ? 'line-through' : 'none',
-        tick: () => this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) })
+        // steps with a choice open the picker; the rest just tick as before
+        tick: () => (actSpec(x) ? openAct(x) : this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) })),
+        chosen: (() => { const a = actOf(x.key); if (!a) return ''; if (x.key === 'witch') return [a.save ? 'Saved ' + a.save : '', a.poison ? 'Poisoned ' + a.poison : ''].filter(Boolean).join(' · ') || 'Did nothing'; return a.targets && a.targets.length ? '→ ' + a.targets.join(' & ') + (a.result ? ' · ' + a.result : '') : '→ no one'; })()
       };
     });
+
+    // the open picker
+    const actX = s.nightAct ? defs.find(d => d.key === s.nightAct) : null;
+    const spec = actX ? actSpec(actX) : null;
+    const pick = s.pick || [];
+    const seerResult = (nm) => {
+      const r = roleOf(nm);
+      if (rules.seerSees === 'role') return r.name;
+      const looksWolf = (isWolf(r) && !(r.lib === 'Shadow Wolf')) || r.key === 'lycan';
+      return looksWolf ? 'a werewolf — nod' : 'not a werewolf — shake';
+    };
+    const tonightVictims = (actOf('werewolf') || { targets: [] }).targets.filter(nm => !isOut(nm));
+    const witchCanSave = !witchUsed.save || witchUsed.save === round, witchCanPoison = !witchUsed.poison || witchUsed.poison === round;
+    const rowOf = (nm, sel, toggle) => { const r = roleOf(nm); return { name: nm, initial: nm[0], color: palette[nm], roleName: hide ? 'Hidden' : r.name, roleColor: hide ? '#a99bc2' : r.color, roleSoft: hide ? 'rgba(255,255,255,.06)' : 'rgba(' + r.rgb + ',.14)', sel, toggle }; };
+    let actView = null;
+    if (actX && spec) {
+      const single = spec.count <= 1;
+      const choose = (nm) => this.setState({ pick: single ? (pick[0] === nm ? [] : [nm]) : (pick.indexOf(nm) >= 0 ? pick.filter(p => p !== nm) : pick.length < spec.count ? pick.concat([nm]) : pick.slice(1).concat([nm])) });
+      const result = (spec.kind === 'check' && pick[0]) ? 'Show the Seer: ' + pick[0] + ' is ' + seerResult(pick[0]) + '.'
+        : (spec.kind === 'seek' && pick[0]) ? (roleOf(pick[0]).key === 'seer' ? 'Nod — ' + pick[0] + ' is the Seer.' : 'Shake — ' + pick[0] + ' is not the Seer.') : '';
+      const ready = spec.kind === 'witch' ? true : (pick.length === spec.count || (spec.optional && pick.length === 0));
+      const record = () => {
+        const a = { round, key: actX.key, kind: spec.kind };
+        if (spec.kind === 'witch') { a.save = witchCanSave ? s.wSave || null : null; a.poison = witchCanPoison ? s.wPoison || null : null; }
+        else { a.targets = pick.slice(); if (spec.kind === 'check' && pick[0]) a.result = seerResult(pick[0]).replace(/ — (nod|shake)$/, ''); if (spec.kind === 'seek' && pick[0]) a.result = roleOf(pick[0]).key === 'seer' ? 'the Seer' : 'not the Seer'; }
+        const nextActs = acts.filter(b => !(b.round === round && b.key === actX.key)).concat([a]);
+        const nextLog = log.filter(e => !(e.t === 'act' && e.round === round && e.key === actX.key)).concat([ev('act', { key: actX.key, kind: spec.kind, by: roleLabel(actX.key), targets: a.targets || [], result: a.result, save: a.save, poison: a.poison })]);
+        const patch = { acts: nextActs, log: nextLog, checks: checks.indexOf(ck(actX.key)) >= 0 ? checks : checks.concat([ck(actX.key)]), nightAct: null };
+        if (spec.kind === 'witch') {
+          const w = { ...witchUsed };
+          if (w.save === round && !a.save) delete w.save; if (a.save) w.save = round;
+          if (w.poison === round && !a.poison) delete w.poison; if (a.poison) w.poison = round;
+          patch.witch = w;
+        }
+        if (spec.kind === 'lovers') patch.lovers = pick.length === 2 ? pick.slice() : null;
+        if (spec.kind === 'copy') patch.dgCopy = pick[0] || null;
+        this.setState(patch);
+      };
+      const clear = () => {
+        const w = { ...witchUsed }; if (w.save === round) delete w.save; if (w.poison === round) delete w.poison;
+        this.setState({ acts: acts.filter(b => !(b.round === round && b.key === actX.key)), log: log.filter(e => !(e.t === 'act' && e.round === round && e.key === actX.key)), checks: checks.filter(c => c !== ck(actX.key)), nightAct: null, ...(spec.kind === 'witch' ? { witch: w } : {}), ...(spec.kind === 'lovers' ? { lovers: null } : {}), ...(spec.kind === 'copy' ? { dgCopy: null } : {}) });
+      };
+      const r0 = byKey[actX.key] || byKey.werewolf;
+      actView = {
+        title: actX.title, who: actX.who.filter(nm => !isOut(nm)).join(', '), ask: spec.ask, icon: r0.icon, color: r0.color,
+        isWitch: spec.kind === 'witch', isPick: spec.kind !== 'witch',
+        need: spec.count > 1 ? 'Pick ' + spec.count + ' · ' + pick.length + ' chosen' : '',
+        rows: spec.pool.map(nm => rowOf(nm, pick.indexOf(nm) >= 0, () => choose(nm))),
+        // witch: healing potion on tonight's victim, poison on anyone — each once per game
+        victimsText: tonightVictims.length ? 'Tonight the wolves chose ' + tonightVictims.join(' and ') + '.' : (actOf('werewolf') ? 'The wolves’ victim is already out.' : 'Record the wolves first to see their victim here.'),
+        saveUsed: !witchCanSave, poisonUsed: !witchCanPoison,
+        saveRows: tonightVictims.map(nm => rowOf(nm, s.wSave === nm, () => this.setState({ wSave: s.wSave === nm ? null : nm }))),
+        poisonRows: alive.filter(nm => roleOf(nm).key !== 'witch').map(nm => rowOf(nm, s.wPoison === nm, () => this.setState({ wPoison: s.wPoison === nm ? null : nm }))),
+        noSaveTarget: !tonightVictims.length,
+        result, hasResult: !!result, ready, record, clear, canClear: !!actOf(actX.key),
+        recordLabel: spec.kind === 'witch' ? (s.wSave || s.wPoison ? 'Use potion' + (s.wSave && s.wPoison ? 's' : '') : 'The Witch does nothing') : (spec.optional && !pick.length ? 'They chose no one' : 'Confirm'),
+        close: () => this.setState({ nightAct: null })
+      };
+    }
+
     const doneCount = nightSteps.filter(x => x.done).length;
 
     // ---------- day guide ----------
@@ -605,6 +703,19 @@ export class HostView extends React.Component<any, any> {
 
     // ---------- history view ----------
     const who = (e) => e.name + (hide || !e.role ? '' : ' (' + e.role + ')');
+    const actLine = (e) => {
+      const t = (e.targets || []).join(' and ');
+      if (e.kind === 'kill') return 'The werewolves chose ' + (t || 'no one');
+      if (e.kind === 'check') return e.by + ' checked ' + t + ' — ' + e.result;
+      if (e.kind === 'seek') return e.by + ' looked for the Seer: ' + t + ' is ' + e.result;
+      if (e.kind === 'protect') return e.by + ' protected ' + t;
+      if (e.kind === 'guard') return e.by + ' guarded ' + t;
+      if (e.kind === 'banish') return e.by + ' banished ' + t + ' from tomorrow';
+      if (e.kind === 'copy') return e.by + ' copied ' + t;
+      if (e.kind === 'lovers') return e.by + ' made ' + t + ' lovers';
+      if (e.kind === 'witch') return [e.save ? e.by + ' used the healing potion on ' + e.save : '', e.poison ? e.by + ' poisoned ' + e.poison : ''].filter(Boolean).join(' · ') || e.by + ' did nothing';
+      return e.by + ' chose ' + (t || 'no one');
+    };
     const evLine = (e) => ({
       out: { night: who(e) + ' was killed', voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
       back: e.name + ' is back in the game',
@@ -613,8 +724,10 @@ export class HostView extends React.Component<any, any> {
       prince: e.name + ' revealed the Prince and survived the vote',
       dg: e.name + ' (Doppelgänger) became the ' + e.role,
       note: e.text,
+      saved: e.name + ' was attacked but saved by the ' + e.by,
+      act: actLine(e),
     }[e.t]);
-    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
+    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { act: '#a6c8ff', saved: '#62d4a6', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
     const chapters = [];
     log.forEach((e, i) => {
       if (e.t === 'start' || e.t === 'phase') {
@@ -711,7 +824,7 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
         this.props.onDeal && this.props.onDeal(deck.map(r => r.key));
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start] });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null });
       },
       openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
       closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
@@ -802,7 +915,34 @@ export class HostView extends React.Component<any, any> {
       nightBtnBg: night ? '#e9dcff' : 'transparent', nightBtnFg: night ? '#160b28' : '#c4b8da',
       dayBtnBg: night ? 'transparent' : '#f2a65a', dayBtnFg: night ? '#c4b8da' : '#1c0e06',
       setNight: () => { if (!night) this.setState({ phase: 'night', round: round + 1, log: log.concat([{ t: 'phase', round: round + 1, phase: 'night' }]) }); },
-      setDay: () => { if (night) this.setState({ phase: 'day', round, log: log.concat([{ t: 'phase', round, phase: 'day' }]) }); },
+      setDay: () => {
+        if (!night) return;
+        // Resolve what was recorded tonight: the wolves' victims die unless the Healer protected them, the Witch saved them,
+        // or the Bodyguard guarded them (then the Bodyguard dies instead); the Witch's poison kills.
+        const get = (k) => actOf(k);
+        const heal = get('healer'), guard = get('bodyguard'), witch = get('witch'), wolvesAct = get('werewolf');
+        const deaths = [], saves = [];
+        const guardian = names.find(nm => roleOf(nm).key === 'bodyguard' && !isOut(nm));
+        ((wolvesAct && wolvesAct.targets) || []).filter(nm => !isOut(nm)).forEach(v => {
+          if (heal && heal.targets[0] === v) saves.push({ name: v, by: roleLabel('healer') });
+          else if (witch && witch.save === v) saves.push({ name: v, by: roleLabel('witch') });
+          else if (guard && guard.targets[0] === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); deaths.push(guardian); }
+          else deaths.push(v);
+        });
+        if (witch && witch.poison && !isOut(witch.poison)) deaths.push(witch.poison);
+        const dead = deaths.filter((nm, i) => deaths.indexOf(nm) === i);
+        const nextStatus = { ...status };
+        dead.forEach(nm => { nextStatus[nm] = { how: 'night', round, phase: 'night' }; });
+        const nightLog = saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
+          .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name })));
+        const patch = { phase: 'day', round, status: nextStatus, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
+        // Doppelgänger takes over the copied player's role when they die
+        const dgCopy = st('dgCopy', null);
+        const dgHit = dgName && dead.find(nm => nm !== dgName && (!dgCopy || nm === dgCopy));
+        if (dgHit) patch.dg = { dead: dgHit, choice: roleOf(dgHit).key };
+        this.setState(patch);
+      },
+      actView, actOpen: screen === 'play' && !!actView,
       endGame: () => this.setState({ confirmEnd: 'players' }),
       confirmOpen: screen === 'play' && !!s.confirmEnd,
       confirmTitle: gameOver ? 'Start a new game?' : 'End this game?',
@@ -810,7 +950,7 @@ export class HostView extends React.Component<any, any> {
       confirmYes: () => {
         const to = s.confirmEnd || 'players';
         this.props.onEnd && this.props.onEnd(); // NET
-        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false });
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null });
       },
       confirmNo: () => this.setState({ confirmEnd: null }),
       // spectator QR during the game (same join link — the server makes late joiners spectators)
@@ -1419,6 +1559,11 @@ export class HostView extends React.Component<any, any> {
                                   <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#d8cfe8' }}>
                                     {st.say}
                                   </span>
+                                  {(st.chosen) ? (
+                                    <span style={{ alignSelf: 'flex-start', padding: '3px 9px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '800', color: '#0d2a20', background: '#62d4a6' }}>
+                                      {st.chosen}
+                                    </span>
+                                  ) : null}
                                 </span>
                               </button>
                             </li>
@@ -1917,6 +2062,131 @@ export class HostView extends React.Component<any, any> {
                 <button className="press" onClick={v.closeLib} style={{ width: '100%', height: '56px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
                   Done
                 </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.actOpen) ? (
+          <>
+            <div className="fade" onClick={v.actView.close} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label={`Night action: ${v.actView.title}`} style={{ position: 'absolute', left: '0', right: '0', bottom: '0', maxHeight: '792px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1d1131 0%, #120a20 100%)', borderTop: '1px solid rgba(199,168,255,.3)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ alignSelf: 'center', width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={v.actView.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={v.actView.icon} />
+                  </svg>
+                  <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                    {v.actView.title}
+                  </h2>
+                  <span style={{ flex: '1' }} />
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>
+                    {v.actView.who}
+                  </span>
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: '#f6f1ff' }}>
+                  {v.actView.ask}
+                </span>
+                {(v.actView.need) ? (
+                  <span style={{ alignSelf: 'flex-start', padding: '3px 9px', borderRadius: '8px', fontSize: '12px', fontWeight: '800', color: '#ffd0cb', background: 'rgba(255,111,97,.25)' }}>
+                    {v.actView.need}
+                  </span>
+                ) : null}
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '0 20px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(v.actView.isPick) ? (
+                  <>
+                  {((v.actView.rows) || []).map((r: any) => (
+                    <button key={r.name} className="press" onClick={r.toggle} aria-pressed={r.sel} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '14px', border: `1.5px solid ${r.sel ? '#e9dcff' : 'rgba(236,230,246,.09)'}`, background: r.sel ? 'rgba(233,220,255,.12)' : 'rgba(20,12,34,.75)', color: '#ece6f6', textAlign: 'left' }}>
+                      <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: r.color }}>
+                        {r.initial}
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', fontWeight: '700', fontSize: '15px' }}>
+                        {r.name}
+                      </span>
+                      <span style={{ height: '26px', padding: '0 9px', flex: 'none', borderRadius: '999px', display: 'flex', alignItems: 'center', fontSize: '12px', fontWeight: '700', color: r.roleColor, background: r.roleSoft }}>
+                        {r.roleName}
+                      </span>
+                      <span style={{ width: '22px', height: '22px', flex: 'none', borderRadius: '50%', border: `2px solid ${r.sel ? '#e9dcff' : 'rgba(236,230,246,.25)'}`, background: r.sel ? '#e9dcff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#160b28', fontSize: '13px', fontWeight: '900' }}>
+                        {r.sel ? '✓' : ''}
+                      </span>
+                    </button>
+                  ))}
+                  </>
+                ) : null}
+                {(v.actView.isWitch) ? (
+                  <>
+                    <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#d8cfe8' }}>
+                      {v.actView.victimsText}
+                    </span>
+                    <span style={{ marginTop: '6px', fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#8fe0b8' }}>
+                      Healing potion {v.actView.saveUsed ? '— used up' : '— save the victim?'}
+                    </span>
+                    {(!v.actView.saveUsed && v.actView.noSaveTarget) ? (
+                      <span style={{ fontSize: '13px', fontStyle: 'italic', color: '#8f82a8' }}>
+                        No victim to save tonight.
+                      </span>
+                    ) : null}
+                    {(!v.actView.saveUsed) ? (
+                      <>
+                      {((v.actView.saveRows) || []).map((r: any) => (
+                    <button key={r.name} className="press" onClick={r.toggle} aria-pressed={r.sel} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '14px', border: `1.5px solid ${r.sel ? '#62d4a6' : 'rgba(236,230,246,.09)'}`, background: r.sel ? 'rgba(233,220,255,.12)' : 'rgba(20,12,34,.75)', color: '#ece6f6', textAlign: 'left' }}>
+                      <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: r.color }}>
+                        {r.initial}
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', fontWeight: '700', fontSize: '15px' }}>
+                        {r.name}
+                      </span>
+                      <span style={{ height: '26px', padding: '0 9px', flex: 'none', borderRadius: '999px', display: 'flex', alignItems: 'center', fontSize: '12px', fontWeight: '700', color: r.roleColor, background: r.roleSoft }}>
+                        {r.roleName}
+                      </span>
+                      <span style={{ width: '22px', height: '22px', flex: 'none', borderRadius: '50%', border: `2px solid ${r.sel ? '#62d4a6' : 'rgba(236,230,246,.25)'}`, background: r.sel ? '#62d4a6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#160b28', fontSize: '13px', fontWeight: '900' }}>
+                        {r.sel ? '✓' : ''}
+                      </span>
+                    </button>
+                  ))}
+                      </>
+                    ) : null}
+                    <span style={{ marginTop: '6px', fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#ff8a9b' }}>
+                      Poison {v.actView.poisonUsed ? '— used up' : '— eliminate someone?'}
+                    </span>
+                    {(!v.actView.poisonUsed) ? (
+                      <>
+                      {((v.actView.poisonRows) || []).map((r: any) => (
+                    <button key={r.name} className="press" onClick={r.toggle} aria-pressed={r.sel} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '14px', border: `1.5px solid ${r.sel ? '#ff8a9b' : 'rgba(236,230,246,.09)'}`, background: r.sel ? 'rgba(233,220,255,.12)' : 'rgba(20,12,34,.75)', color: '#ece6f6', textAlign: 'left' }}>
+                      <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: r.color }}>
+                        {r.initial}
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', fontWeight: '700', fontSize: '15px' }}>
+                        {r.name}
+                      </span>
+                      <span style={{ height: '26px', padding: '0 9px', flex: 'none', borderRadius: '999px', display: 'flex', alignItems: 'center', fontSize: '12px', fontWeight: '700', color: r.roleColor, background: r.roleSoft }}>
+                        {r.roleName}
+                      </span>
+                      <span style={{ width: '22px', height: '22px', flex: 'none', borderRadius: '50%', border: `2px solid ${r.sel ? '#ff8a9b' : 'rgba(236,230,246,.25)'}`, background: r.sel ? '#ff8a9b' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#160b28', fontSize: '13px', fontWeight: '900' }}>
+                        {r.sel ? '✓' : ''}
+                      </span>
+                    </button>
+                  ))}
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(v.actView.hasResult) ? (
+                  <span style={{ padding: '10px 12px', borderRadius: '12px', background: 'rgba(127,178,255,.12)', border: '1px solid rgba(127,178,255,.4)', fontSize: '14px', fontWeight: '700', color: '#cfe0ff', textAlign: 'center' }}>
+                    {v.actView.result}
+                  </span>
+                ) : null}
+                <button className="press" onClick={v.actView.record} disabled={!v.actView.ready} style={{ width: '100%', height: '54px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700', opacity: v.actView.ready ? 1 : 0.45 }}>
+                  {v.actView.recordLabel}
+                </button>
+                {(v.actView.canClear) ? (
+                  <button className="press" onClick={v.actView.clear} style={{ height: '40px', border: 'none', background: 'none', color: '#c4b8da', fontSize: '14px', fontWeight: '700' }}>
+                    Undo this step
+                  </button>
+                ) : null}
               </div>
             </section>
           </>

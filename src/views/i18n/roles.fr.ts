@@ -86,5 +86,6 @@ export default {
     evCursed: "{name} a été mordu et devient loup-garou",
     evPrince: "{name} révèle être le Prince et survit au vote",
     evDg: "{name} devient : {role}",
+    evSaved: "{name} a été attaqué mais sauvé",
   },
 };

@@ -86,5 +86,6 @@ export default {
     evCursed: "{name} 님이 물려서 늑대인간이 됐어요",
     evPrince: "{name} 님이 왕자임을 밝히고 투표에서 살아남았어요",
     evDg: "{name} 님의 역할이 {role}(으)로 바뀌었어요",
+    evSaved: "{name} 님이 공격받았지만 구출됐어요",
   },
 };

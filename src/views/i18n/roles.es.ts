@@ -86,5 +86,6 @@ export default {
     evCursed: "{name} fue mordido y se convirtió en hombre lobo",
     evPrince: "{name} reveló ser el Príncipe y sobrevivió a la votación",
     evDg: "{name} se convirtió en {role}",
+    evSaved: "{name} fue atacado, pero lo salvaron",
   },
 };
