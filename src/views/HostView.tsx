@@ -57,7 +57,7 @@ export class HostView extends React.Component<any, any> {
       r('healer', 'Healer', V, 'unique', 5, '#62d4a6', '98,212,166', 'shieldCross', 'Each night, protects one player from the wolves.'),
       r('witch', 'Witch', V, 'unique', 4, '#c98bf2', '201,139,242', 'flask', 'One potion to save, one poison. Each used once.'),
       r('hunter', 'Hunter', V, 'unique', 3, '#f2a65a', '242,166,90', 'bow', 'When eliminated, takes one player down too.'),
-      r('bodyguard', 'Bodyguard', V, 'unique', 3, '#8fd3e8', '143,211,232', 'shieldStar', 'Guards one player a night, never twice in a row.'),
+      r('bodyguard', 'Bodyguard', V, 'unique', 3, '#8fd3e8', '143,211,232', 'shieldStar', 'Guards one player a night and dies in their place if the wolves attack.'),
       r('apprentice', 'Apprentice Seer', V, 'unique', 4, '#a6c8ff', '166,200,255', 'eyeSmall', 'Becomes the Seer if the Seer dies.'),
       r('prince', 'Prince', V, 'unique', 3, '#f2d06b', '242,208,107', 'crown', 'Can’t be voted out — reveals the card instead.'),
       r('toughguy', 'Tough Guy', V, 'unique', 3, '#f29a7a', '242,154,122', 'dumbbell', 'Survives a wolf attack until the next day ends.'),
@@ -364,8 +364,8 @@ export class HostView extends React.Component<any, any> {
       { id: 'beginner', label: 'Beginner', sub: 'Seer & Healer', special: () => 2, roles: ['Seer', 'Healer'] },
       { id: 'classic', label: 'Classic', sub: 'The well-known roles', special: (k) => Math.max(2, Math.round(k * 0.5)), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard', 'Prince', 'Apprentice Seer'] },
       { id: 'intermediate', label: 'Intermediate', sub: 'A few twists', special: (k) => Math.max(3, Math.round(k * 0.65)), wolfRoles: (w) => (w >= 2 ? ['Wolf Cub'] : []), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Lycan', 'Tanner', 'Apprentice Seer', 'Prince', 'Cursed', 'Little Girl', 'Mayor'] },
-      { id: 'advanced', label: 'Advanced', sub: 'Chaos & secrets', special: (k) => k - 1, wolfRoles: (w) => ['Alpha Werewolf', 'Wolf Cub', 'Shadow Wolf'].slice(0, w - 1), roles: ['Seer', 'Doctor', 'Witch', 'Hunter', 'Minion', 'Cursed', 'Doppelgänger', 'Cupid', 'Aura Seer', 'Tough Guy', 'Little Girl', 'Sorcerer', 'Revealer', 'Old Hag', 'Spellcaster', 'Tanner'] },
-      { id: 'wolfpack', label: 'Wolf Pack', sub: 'No plain Werewolves', special: (k) => Math.max(2, Math.round(k * 0.6)), wolfRoles: (w) => ['Alpha Werewolf', 'Wolf King', 'Shadow Wolf', 'Nightmare Wolf', 'Fire Wolf', 'Wolf Cub'].slice(0, w), roles: ['Seer', 'Witch', 'Bodyguard', 'Hunter', 'Detective', 'Elder', 'Tracker', 'Prince', 'Medium', 'Mayor'] },
+      { id: 'advanced', label: 'Advanced', sub: 'Chaos & secrets', special: (k) => k - 1, wolfRoles: (w) => ['Alpha Werewolf', 'Wolf Cub', 'Shadow Wolf'].slice(0, w - 1), roles: ['Seer', 'Bodyguard', 'Witch', 'Hunter', 'Minion', 'Cursed', 'Doppelgänger', 'Cupid', 'Aura Seer', 'Tough Guy', 'Little Girl', 'Sorcerer', 'Revealer', 'Old Hag', 'Spellcaster', 'Tanner'] },
+      { id: 'wolfpack', label: 'Wolf Pack', sub: 'No plain Werewolves', special: (k) => Math.max(2, Math.round(k * 0.6)), wolfRoles: (w) => ['Alpha Werewolf', 'Wolf King', 'Shadow Wolf', 'Nightmare Wolf', 'Omega Wolf', 'Wolf Cub'].slice(0, w), roles: ['Seer', 'Witch', 'Bodyguard', 'Hunter', 'Watcher', 'Elder', 'Tracker', 'Prince', 'Medium', 'Mayor'] },
     ];
     const libEntry = (nm) => ROLE_LIBRARY.find(e => e.name === nm);
     const strengthOf = (nm) => { const e = libEntry(nm); return e.builtin && byKey[e.builtin] ? byKey[e.builtin].strength : e.s; };
@@ -428,7 +428,8 @@ export class HostView extends React.Component<any, any> {
     const inGame = (key) => names.some(nm => roleOf(nm).key === key);
     const isWolf = isWolfRole;
     const wolvesAlive = alive.filter(nm => isWolf(roleOf(nm))).length;
-    const othersAlive = alive.length - wolvesAlive;
+    const alliesAlive = alive.filter(nm => roleOf(nm).team === 'Werewolves' && !isWolf(roleOf(nm))).length; // Minion, Sorceress, Traitor…
+    const othersAlive = alive.length - wolvesAlive - alliesAlive;
     const dgName = names.find(nm => baseRole[nm].key === 'doppelganger' && !override[nm] && !isOut(nm));
 
     // ---------- history (storyteller timeline) ----------
@@ -450,21 +451,38 @@ export class HostView extends React.Component<any, any> {
     };
     const mark = (nm, how) => this.setState(markPatch(nm, how));
     const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['night', 'Killed', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['removed', 'Left', '#b9acd2', '#1a1424']];
-    const dealt = names.map(nm => {
+    // How each way out looks in the Mark players sheet: tinted card + badge, so out players stand apart
+    const OUT_LOOK = {
+      night: { label: 'Killed', bg: 'rgba(224,71,95,.13)', border: 'rgba(255,138,155,.38)', badgeBg: '#ff8a9b', badgeFg: '#2b0b14' },
+      voted: { label: 'Voted out', bg: 'rgba(242,166,90,.12)', border: 'rgba(242,166,90,.38)', badgeBg: '#f2a65a', badgeFg: '#2a1606' },
+      removed: { label: 'Left', bg: 'rgba(185,172,210,.07)', border: 'rgba(185,172,210,.22)', badgeBg: '#b9acd2', badgeFg: '#1a1424' },
+    };
+    const dealt = names.map((nm, i) => {
       const r = roleOf(nm);
-      const cur = status[nm] ? status[nm].how : 'alive';
+      const st0 = status[nm];
+      const cur = st0 ? st0.how : 'alive';
       const out = cur !== 'alive';
+      const look = OUT_LOOK[cur];
       return {
-        name: nm, initial: nm[0], color: palette[nm], out,
-        opacity: out ? 0.55 : 1, strike: out ? 'line-through' : 'none',
-        rowBg: out ? 'rgba(10,6,18,.5)' : 'rgba(20,12,34,.75)',
-        rowBorder: out ? 'rgba(236,230,246,.05)' : 'rgba(236,230,246,.09)',
+        name: nm, initial: nm[0], color: palette[nm], out, i,
+        when: st0 ? st0.round * 2 + (st0.phase === 'day' ? 1 : 0) : 0, // Night 1 < Day 1 < Night 2 …
+        opacity: out ? 0.6 : 1, strike: out ? 'line-through' : 'none',
+        rowBg: look ? look.bg : 'rgba(20,12,34,.75)',
+        rowBorder: look ? look.border : 'rgba(236,230,246,.09)',
+        badge: look ? look.label + (st0.how === 'removed' ? '' : ' · ' + (st0.phase === 'night' ? 'Night ' : 'Day ') + st0.round) : '',
+        badgeBg: look ? look.badgeBg : 'transparent', badgeFg: look ? look.badgeFg : '#12091c',
         roleName: hide ? 'Hidden' : r.name, roleColor: hide ? '#a99bc2' : r.color,
         roleSoft: hide ? 'rgba(255,255,255,.06)' : 'rgba(' + r.rgb + ',.14)',
         roleIcon: hide ? 'M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7' : r.icon,
-        opts: statusOpts.map(([k, label, col, ink]) => ({ label, on: cur === k, bg: cur === k ? col : 'transparent', fg: cur === k ? ink : '#a99bc2', pick: () => mark(nm, k) }))
+        opts: statusOpts.map(([k, label, col, ink]) => ({ label, on: cur === k, bg: cur === k ? col : 'rgba(255,255,255,.04)', fg: cur === k ? ink : '#c4b8da', pick: () => mark(nm, k) }))
       };
     });
+    const stillIn = dealt.filter(d => !d.out);
+    const outList = dealt.filter(d => d.out).sort((x, y) => x.when - y.when || x.i - y.i);
+    const markSections = [
+      { title: 'Still in the game', count: stillIn.length, items: stillIn, empty: stillIn.length ? '' : 'No one is left alive.', dot: '#62d4a6' },
+      { title: 'Out of the game', count: outList.length, items: outList, empty: outList.length ? '' : 'No one is out yet.', dot: '#ff8a9b' },
+    ];
 
     // ---------- alerts ----------
     const alerts = [];
@@ -519,7 +537,7 @@ export class HostView extends React.Component<any, any> {
     if (list('seer').length) add('seer', 'Seer', list('seer'), seerSay);
     if (!list('seer').length && list('apprentice').length && names.some(nm => roleOf(nm).key === 'seer')) add('apprentice', 'Apprentice Seer', list('apprentice'), 'The Seer is gone, so the Apprentice now points at one player. Nod for werewolf, shake for not.');
     if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'The Sorceress points at one player. Nod if that player is the Seer.');
-    if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard — not the same player as last night.');
+    if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard (not themselves). If the wolves attack that player, the Bodyguard dies instead.');
     if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
     if (list('witch').length) add('witch', 'Witch', list('witch'), 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.');
     if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'The Old Hag points at one player. That player must sit out all of tomorrow.');
@@ -565,7 +583,7 @@ export class HostView extends React.Component<any, any> {
     // ---------- game end ----------
     const anyOut = names.some(isOut);
     const villageWins = anyOut && wolvesAlive === 0;
-    const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive >= othersAlive;
+    const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive + alliesAlive >= othersAlive; // helpers vote with the pack
     const gameOver = villageWins || wolvesWin;
     const endTips = [];
     if (inGame('hunter') && aliveWith('hunter').length === 0 && names.some(nm => roleOf(nm).key === 'hunter' && status[nm] && status[nm].round === round)) endTips.push('The Hunter just fell — let them take their shot first. It can change the result.');
@@ -728,10 +746,10 @@ export class HostView extends React.Component<any, any> {
       },
 
       // play
-      dealt, hideRoles: hide,
+      dealt, markSections, hideRoles: hide,
       hideLabel: hide ? 'Show' : 'Hide', hideIcon: hide ? 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z' : 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6',
       toggleHide: () => this.setState({ hide: !hide }),
-      aliveCount: alive.length, outCount: n - alive.length, wolvesAlive, othersAlive,
+      aliveCount: alive.length, outCount: n - alive.length, wolvesAlive, othersAlive, alliesAlive, hasAllies: alliesAlive > 0,
       markOpen: screen === 'play' && !!st('markOpen', false) && !dgOpen,
       openMark: () => this.setState({ markOpen: true }),
       closeMark: () => this.setState({ markOpen: false }),
@@ -1242,6 +1260,11 @@ export class HostView extends React.Component<any, any> {
                       <span style={{ color: '#ff8a9b', fontWeight: '700' }}>
                         {v.wolvesAlive}
                       </span>
+                      {(v.hasAllies) ? (
+                        <span style={{ color: '#ff8a9b' }}>
+                          {' '}+ {v.alliesAlive} helper{v.alliesAlive > 1 ? 's' : ''}
+                        </span>
+                      ) : null}
                       {' '}· Others left{' '}
                       <span style={{ color: '#8fe0b8', fontWeight: '700' }}>
                         {v.othersAlive}
@@ -1988,33 +2011,57 @@ export class HostView extends React.Component<any, any> {
                 </div>
               </div>
               <ul className="scroll" style={{ flex: '1', minHeight: '0', listStyle: 'none', margin: '0', padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {((v.dealt) || []).map((d: any, $index: number) => (
-                  <React.Fragment key={$index}>
-                    <li style={{ padding: '12px', borderRadius: '18px', background: d.rowBg, border: `1px solid ${d.rowBorder}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: d.opacity }}>
-                        <span style={{ width: '34px', height: '34px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '14px', color: '#12091c', background: d.color }}>
-                          {d.initial}
-                        </span>
-                        <span style={{ flex: '1', fontWeight: '700', fontSize: '15.5px', textDecoration: d.strike }}>
-                          {d.name}
-                        </span>
-                        <span style={{ height: '28px', padding: '0 10px 0 6px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: '700', color: d.roleColor, background: d.roleSoft }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                            <path d={d.roleIcon} />
-                          </svg>
-                          {' '}{d.roleName}
-                        </span>
-                      </div>
-                      <div role="group" aria-label={`Status of ${d.name}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '4px', padding: '3px', borderRadius: '12px', background: 'rgba(0,0,0,.28)' }}>
-                        {((d.opts) || []).map((o: any, $index: number) => (
-                          <React.Fragment key={$index}>
-                            <button className="press" onClick={o.pick} aria-pressed={o.on} style={{ height: '40px', padding: '0 2px', borderRadius: '9px', border: 'none', background: o.bg, color: o.fg, fontSize: '12.5px', fontWeight: '700' }}>
-                              {o.label}
-                            </button>
-                          </React.Fragment>
-                        ))}
-                      </div>
+                {((v.markSections) || []).map((sec: any, $s: number) => (
+                  <React.Fragment key={$s}>
+                    <li aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: $s ? '10px 2px 0' : '0 2px', fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#a99bc2' }}>
+                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: sec.dot }} />
+                      {sec.title}
+                      <span style={{ color: '#ece6f6' }}>
+                        {sec.count}
+                      </span>
+                      <span style={{ flex: '1', height: '1px', background: 'rgba(236,230,246,.1)' }} />
                     </li>
+                    {(sec.empty) ? (
+                      <li style={{ padding: '6px 2px 4px', fontSize: '13px', fontStyle: 'italic', color: '#8f82a8' }}>
+                        {sec.empty}
+                      </li>
+                    ) : null}
+                    {((sec.items) || []).map((d: any, $index: number) => (
+                      <React.Fragment key={d.name}>
+                        <li style={{ padding: '12px', borderRadius: '18px', background: d.rowBg, border: `1px solid ${d.rowBorder}`, display: 'flex', flexDirection: 'column', gap: '10px', transition: 'background .3s ease, border-color .3s ease' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ width: '34px', height: '34px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '14px', color: '#12091c', background: d.color, opacity: d.opacity, filter: d.out ? 'grayscale(.7)' : 'none' }}>
+                              {d.initial}
+                            </span>
+                            <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <span style={{ fontWeight: '700', fontSize: '15.5px', textDecoration: d.strike, opacity: d.opacity, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {d.name}
+                              </span>
+                              {(d.out) ? (
+                                <span style={{ alignSelf: 'flex-start', padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '800', letterSpacing: '.06em', textTransform: 'uppercase', background: d.badgeBg, color: d.badgeFg }}>
+                                  {d.badge}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span style={{ height: '28px', padding: '0 10px 0 6px', flex: 'none', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: '700', color: d.roleColor, background: d.roleSoft, opacity: d.opacity }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <path d={d.roleIcon} />
+                              </svg>
+                              {' '}{d.roleName}
+                            </span>
+                          </div>
+                          <div role="group" aria-label={`Status of ${d.name}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '4px', padding: '3px', borderRadius: '12px', background: 'rgba(0,0,0,.28)' }}>
+                            {((d.opts) || []).map((o: any, $o: number) => (
+                              <React.Fragment key={$o}>
+                                <button className="press" onClick={o.pick} aria-pressed={o.on} style={{ height: '40px', padding: '0 2px', borderRadius: '9px', border: 'none', background: o.bg, color: o.fg, fontSize: '13px', fontWeight: '800' }}>
+                                  {o.label}
+                                </button>
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </li>
+                      </React.Fragment>
+                    ))}
                   </React.Fragment>
                 ))}
               </ul>
