@@ -38,5 +38,7 @@ newer UI lines `goalLoner` / `reconnecting`). Adding a library role means adding
 
 ## Conventions
 - Players are keyed by **name** (server makes names unique). Host-side maps `status`, `override` are name-keyed.
-- Never send other players' roles to a phone — `playerView()` in the server is the only place that builds player data.
+- Never send other players' roles to a player's phone — `playerView()` in the server is the only place that builds player data.
+  Exception by design: people who join after the deal are **spectators** (`room.spectators`, `spectatorView()`) and see every role,
+  the status marks and the host's log; `host:end` turns them into players for the next game.
 - Host-owned fields mirrored to the server are listed in `HostView.SHARED`.

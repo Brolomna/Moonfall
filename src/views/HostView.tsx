@@ -518,13 +518,18 @@ export class HostView extends React.Component<any, any> {
 
     // ---------- night guide ----------
     const first = round === 1;
-    const list = (key) => aliveWith(key);
+    // Everyone dealt the role, alive or out: every role is called every night, so silence never gives a death away
+    const list = (key) => names.filter(nm => roleOf(nm).key === key);
     const cubDeath = names.find(nm => roleOf(nm).key === 'wolfcub' && status[nm] && status[nm].how !== 'removed');
     const rage = night && cubDeath && round === status[cubDeath].round + 1;
     const wolves = alive.filter(nm => isWolf(roleOf(nm)));
     const defs = [];
     const renamed = (key) => { const o = this.catalog().find(r => r.key === key); return o && edits[key] && edits[key].name && edits[key].name !== o.name; };
-    const add = (key, title, who, say, opts) => defs.push({ key, title: renamed(key) ? byKey[key].name : title, who, say: renamed(key) ? byKey[key].blurb : say, ...(opts || {}) });
+    const add = (key, title, who, say, opts) => {
+      const t = renamed(key) ? byKey[key].name : title;
+      const ghost = !who.some(nm => !isOut(nm)); // everyone with this role is out — the host still calls it
+      defs.push({ key, title: t, who, ghost, say: ghost ? 'Everyone with this role is out — call “' + t + '” exactly as usual, wait about 10 seconds in silence, then move on. Give no answers.' : (renamed(key) ? byKey[key].blurb : say), ...(opts || {}) });
+    };
     if (first && list('doppelganger').length) add('doppelganger', 'Doppelgänger', list('doppelganger'), 'Wake the Doppelgänger. They silently point at one player to copy. Remember who — you’ll need it if that player dies.', { firstOnly: true });
     if (first && list('cupid').length) add('cupid', 'Cupid', list('cupid'), 'Cupid points at two players. Tap both on the shoulder — they open their eyes and see each other. They are now lovers.', { firstOnly: true });
     const agree = rules.wolfPick === 'unanimous' ? ' They must all point at the same player.' : ' If they disagree, the most-pointed player is chosen.';
@@ -534,8 +539,11 @@ export class HostView extends React.Component<any, any> {
     if (first && list('minion').length) add('minion', 'Minion', list('minion'), 'Werewolves raise a thumb with eyes closed. The Minion opens their eyes to see who they are.', { firstOnly: true });
     if (first && list('mason').length) add('mason', 'Masons', list('mason'), 'Masons open their eyes and look at each other, then close them.', { firstOnly: true });
     const seerSay = rules.seerSees === 'role' ? 'The Seer points at one player. Quietly show them that player’s exact role on your phone.' : 'The Seer points at one player. Nod for werewolf, shake for not.' + (inGame('lycan') ? ' The Lycan counts as a werewolf here.' : '');
-    if (list('seer').length) add('seer', 'Seer', list('seer'), seerSay);
-    if (!list('seer').length && list('apprentice').length && names.some(nm => roleOf(nm).key === 'seer')) add('apprentice', 'Apprentice Seer', list('apprentice'), 'The Seer is gone, so the Apprentice now points at one player. Nod for werewolf, shake for not.');
+    if (list('seer').length) {
+      const heir = !aliveWith('seer').length && aliveWith('apprentice');
+      if (heir && heir.length) add('seer', 'Seer', heir, 'The Seer is out — when you call the Seer, the Apprentice Seer wakes instead. ' + seerSay);
+      else add('seer', 'Seer', list('seer'), seerSay);
+    }
     if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'The Sorceress points at one player. Nod if that player is the Seer.');
     if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard (not themselves). If the wolves attack that player, the Bodyguard dies instead.');
     if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
@@ -550,10 +558,10 @@ export class HostView extends React.Component<any, any> {
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
       const done = checks.indexOf(ck(x.key)) >= 0;
-      const tag = x.rage ? 'Two victims!' : (x.peaceful ? 'Peaceful night' : (x.firstOnly ? 'First night only' : ''));
+      const tag = x.ghost ? '' : x.rage ? 'Two victims!' : (x.peaceful ? 'Peaceful night' : (x.firstOnly ? 'First night only' : ''));
       return {
-        num: done ? '✓' : String(i + 1), title: x.title, who: x.who.join(', '), say: x.say, icon: r.icon, color: r.color, done,
-        hasTag: !!tag, tag, tagFg: x.rage ? '#ffd0cb' : '#e9dcff', tagBg: x.rage ? 'rgba(255,111,97,.3)' : 'rgba(167,127,240,.25)',
+        num: done ? '✓' : String(i + 1), title: x.title, who: x.who.map(nm => (isOut(nm) ? nm + ' (out)' : nm)).join(', '), say: x.say, icon: r.icon, color: r.color, done,
+        hasTag: !!(x.ghost || tag), tag: x.ghost ? 'Out — fake it' : tag, tagFg: x.ghost ? '#d8cfe8' : x.rage ? '#ffd0cb' : '#e9dcff', tagBg: x.ghost ? 'rgba(185,172,210,.18)' : x.rage ? 'rgba(255,111,97,.3)' : 'rgba(167,127,240,.25)',
         numBg: done ? '#62d4a6' : 'rgba(' + r.rgb + ',.2)', numFg: done ? '#0d2a20' : r.color,
         border: x.rage ? 'rgba(255,111,97,.6)' : (done ? 'rgba(98,212,166,.3)' : 'rgba(236,230,246,.08)'),
         bg: x.rage ? 'rgba(255,111,97,.1)' : 'rgba(10,6,18,.45)', opacity: done ? 0.6 : 1, strike: done ? 'line-through' : 'none',
@@ -640,7 +648,7 @@ export class HostView extends React.Component<any, any> {
       label, current: i === idx, locked: k === 'play' && screen !== 'play',
       bar: i < idx ? '#a77ff0' : (i === idx ? '#e9dcff' : 'rgba(236,230,246,.14)'),
       fg: i === idx ? '#f6f1ff' : (i < idx ? '#c7a8ff' : '#8f82a8'),
-      go: () => this.setState({ screen: k, sheet: false })
+      go: () => (screen === 'play' && k !== 'play' ? this.setState({ confirmEnd: k }) : this.setState({ screen: k, sheet: false }))
     }));
 
     // doppelgänger sheet
@@ -756,8 +764,8 @@ export class HostView extends React.Component<any, any> {
       alerts,
       showNightGuide: night && !gameOver, showDayGuide: !night && !gameOver,
       nightIntro: first
-        ? 'First night. Say “Everyone, close your eyes.” Then call each role below in order and give each about 10 seconds. Tap a step when it’s done.'
-        : 'Say “Night falls — everyone, close your eyes.” Call each role in order. Players who are out are skipped for you.',
+        ? 'First night. Say “Everyone, close your eyes.” Then call each role below in order and give each about 10 seconds. Tap a step when it’s done. Keep calling every role on later nights, even after its player is out.'
+        : 'Say “Night falls — everyone, close your eyes.” Call every role in order — even ones that are out — so no one can tell who died.',
       nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
       daySteps, dayRules, hasDayRules: dayRules.length > 0,
       gameOver,
@@ -795,7 +803,19 @@ export class HostView extends React.Component<any, any> {
       dayBtnBg: night ? 'transparent' : '#f2a65a', dayBtnFg: night ? '#c4b8da' : '#1c0e06',
       setNight: () => { if (!night) this.setState({ phase: 'night', round: round + 1, log: log.concat([{ t: 'phase', round: round + 1, phase: 'night' }]) }); },
       setDay: () => { if (night) this.setState({ phase: 'day', round, log: log.concat([{ t: 'phase', round, phase: 'day' }]) }); },
-      endGame: () => (this.props.onEnd && this.props.onEnd(), this.setState({ /* NET */ screen: 'players', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false }))
+      endGame: () => this.setState({ confirmEnd: 'players' }),
+      confirmOpen: screen === 'play' && !!s.confirmEnd,
+      confirmTitle: gameOver ? 'Start a new game?' : 'End this game?',
+      confirmText: (gameOver ? '' : 'The game isn’t over yet. ') + 'Everyone’s card is taken back and players return to the waiting screen. Spectators join the players for the next game.',
+      confirmYes: () => {
+        const to = s.confirmEnd || 'players';
+        this.props.onEnd && this.props.onEnd(); // NET
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false });
+      },
+      confirmNo: () => this.setState({ confirmEnd: null }),
+      // spectator QR during the game (same join link — the server makes late joiners spectators)
+      qrOpen: screen === 'play' && !!s.qrOpen, openQr: () => this.setState({ qrOpen: true }), closeQr: () => this.setState({ qrOpen: false }),
+      spectators: (this.props.net && this.props.net.spectators) || 0,
     };
   }
 
@@ -1484,8 +1504,14 @@ export class HostView extends React.Component<any, any> {
                   </svg>
                   {' '}History
                 </button>
+                <button className="press" onClick={v.openQr} aria-label="Spectator QR code" style={{ height: '48px', padding: '0 14px', flex: 'none', borderRadius: '14px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(199,168,255,.1)', color: '#e9dcff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h2v2h-2z M18 14h2 M14 18h2 M18 18h2v2 M7 7h.01 M17 7h.01 M7 17h.01" />
+                  </svg>
+                  {' '}QR
+                </button>
                 <button className="press" onClick={v.endGame} style={{ flex: '1', minWidth: '0', height: '48px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.35)', background: 'rgba(224,71,95,.08)', color: '#ffb3bf', fontSize: '15px', fontWeight: '700' }}>
-                  End game & start over
+                  End game
                 </button>
               </div>
             </>
@@ -1892,6 +1918,60 @@ export class HostView extends React.Component<any, any> {
                   Done
                 </button>
               </div>
+            </section>
+          </>
+        ) : null}
+        {(v.qrOpen) ? (
+          <>
+            <div className="fade" onClick={v.closeQr} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Spectator QR code" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1d1131 0%, #120a20 100%)', borderTop: '1px solid rgba(199,168,255,.3)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '10px 24px 30px', textAlign: 'center' }}>
+              <span style={{ width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+              <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                Invite spectators
+              </h2>
+              <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.5', color: '#c4b8da' }}>
+                Anyone who scans this now watches the game — every role, who’s out and the story so far. They join as players when you start the next game.
+              </p>
+              <div style={{ padding: '12px', borderRadius: '20px', background: '#ede6f7' }}>
+                <img src={v.qrSrc} alt="QR code for spectators" style={{ display: 'block', width: '220px', height: '220px' }} />
+              </div>
+              <span style={{ fontSize: '13px', color: '#a99bc2' }}>
+                No camera? Open{' '}
+                <span style={{ color: '#ece6f6', fontWeight: '600' }}>
+                  {v.joinHost}
+                </span>
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '32px', padding: '0 12px', borderRadius: '999px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(190,165,235,.2)', fontSize: '13px', fontWeight: '700', color: '#c7a8ff' }}>
+                <span className="pulse" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#c7a8ff' }} />
+                {v.spectators} watching
+              </span>
+              <button className="press" onClick={v.closeQr} style={{ width: '100%', height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
+                Done
+              </button>
+            </section>
+          </>
+        ) : null}
+        {(v.confirmOpen) ? (
+          <>
+            <div className="fade" onClick={v.confirmNo} style={{ position: 'absolute', inset: '0', zIndex: 20, background: 'rgba(5,3,10,.72)', backdropFilter: 'blur(3px)' }} />
+            <section role="alertdialog" aria-label={v.confirmTitle} className="rise" style={{ position: 'absolute', left: '24px', right: '24px', top: '0', bottom: '0', margin: 'auto 0', height: 'fit-content', zIndex: 21, padding: '22px 20px 18px', borderRadius: '24px', background: 'linear-gradient(180deg, #2a1530 0%, #160b22 100%)', border: '1px solid rgba(224,71,95,.45)', boxShadow: '0 20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'center' }}>
+              <span style={{ alignSelf: 'center', width: '52px', height: '52px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(224,71,95,.15)', border: '1px solid rgba(224,71,95,.4)', color: '#ff8a9b' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 4l9 16H3z M12 10v4 M12 17h.01" />
+                </svg>
+              </span>
+              <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                {v.confirmTitle}
+              </h2>
+              <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.5', color: '#c4b8da' }}>
+                {v.confirmText}
+              </p>
+              <button className="press" onClick={v.confirmNo} style={{ marginTop: '4px', height: '52px', borderRadius: '14px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>
+                Keep playing
+              </button>
+              <button className="press" onClick={v.confirmYes} style={{ height: '48px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.45)', background: 'rgba(224,71,95,.12)', color: '#ffb3bf', fontSize: '15px', fontWeight: '700' }}>
+                Yes, end the game
+              </button>
             </section>
           </>
         ) : null}

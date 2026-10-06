@@ -66,6 +66,7 @@ export class PlayerView extends React.Component<any, any> {
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
         goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…',
+        specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
         guideBtn: 'Game guide', guideTitle: 'How to play', aboutHead: 'The game', aboutText: 'Moonfall is a game of hidden roles. A few players are secretly werewolves; everyone else is the village. Nobody knows who is who — except for their own card.',
@@ -389,6 +390,49 @@ export class PlayerView extends React.Component<any, any> {
     }).sort((a, b) => a.t - b.t);
     const totalCards = deck.reduce((a, d) => a + d[1], 0);
 
+    // ---------- spectator (joined after the deal): everyone's role, who is out, the story so far ----------
+    const sp = this.props.spectate; // NET
+    let spec = null;
+    if (sp) {
+      const phaseN = (ph, n) => fmt(ph === 'day' ? T.specDayN : T.specNightN, { n });
+      const roleOfP = (k) => (k && all[k] ? loc(k) : null);
+      const isWolfR = (k) => { const r = all[k]; return !!r && r.team === 'Werewolves' && r.wolf !== false && k !== 'minion' && k !== 'sorceress'; };
+      const LOOK = { night: ['#ff8a9b', 'rgba(224,71,95,.13)', 'rgba(255,138,155,.38)'], voted: ['#f2a65a', 'rgba(242,166,90,.12)', 'rgba(242,166,90,.38)'], removed: ['#b9acd2', 'rgba(185,172,210,.07)', 'rgba(185,172,210,.22)'] };
+      const rows = (sp.players || []).map((p, i) => {
+        const r = roleOfP(p.role); const st = p.status; const look = st ? LOOK[st.how] : null;
+        return {
+          name: p.name, initial: (p.name[0] || '?').toUpperCase(), color: p.color, out: !!st, i,
+          when: st ? st.round * 2 + (st.phase === 'day' ? 1 : 0) : 0,
+          roleName: r ? r.name : '—', roleColor: r ? r.color : '#a99bc2', roleSoft: r ? 'rgba(' + r.rgb + ',.16)' : 'rgba(255,255,255,.06)', roleIcon: r ? r.icon : '',
+          badge: st ? (st.how === 'removed' ? T.specLeft : (st.how === 'voted' ? T.voted : T.killed) + ' · ' + phaseN(st.phase, st.round)) : '',
+          badgeBg: look ? look[0] : 'transparent', bg: look ? look[1] : 'rgba(20,12,34,.72)', border: look ? look[2] : 'rgba(236,230,246,.09)',
+          wolf: isWolfR(p.role)
+        };
+      });
+      const aliveRows = rows.filter(r => !r.out), outRows = rows.filter(r => r.out).sort((a, b) => a.when - b.when || a.i - b.i);
+      const roleNameOf = (nm) => { const p = (sp.players || []).find(x => x.name === nm); const r = p && roleOfP(p.role); return r ? r.name : ''; };
+      const who = (nm) => nm + (roleNameOf(nm) ? ' (' + roleNameOf(nm) + ')' : '');
+      const chapters = []; let events = 0;
+      (sp.log || []).forEach(e => {
+        if (e.t === 'start' || e.t === 'phase') {
+          chapters.push({ title: phaseN(e.phase, e.round), night: e.phase === 'night', sub: e.t === 'start' ? fmt(T.specDealt, { n: e.players }) : '', items: [] });
+          return;
+        }
+        if (!chapters.length) chapters.push({ title: phaseN('night', 1), night: true, sub: '', items: [] });
+        const text = e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) })
+          : fmt({ back: T.evBack, tough: T.evTough, cursed: T.evCursed, prince: T.evPrince, dg: T.evDg }[e.t] || '{name}', { name: e.name, role: roleNameOf(e.name) });
+        const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
+        chapters[chapters.length - 1].items.push({ text, color, note: e.t === 'note' });
+        events++;
+      });
+      chapters.forEach(c => { c.tint = c.night ? '#c7a8ff' : '#f2c58a'; });
+      spec = {
+        phaseLabel: phaseN(sp.phase, sp.round), isNight: sp.phase !== 'day',
+        stats: [fmt(T.specAlive, { n: aliveRows.length }), fmt(T.specOut, { n: outRows.length }), fmt(T.specWolves, { n: aliveRows.filter(r => r.wolf).length })],
+        rows: aliveRows.concat(outRows), chapters: chapters.slice().reverse(), quiet: !events // newest first: the latest news on top
+      };
+    }
+
     const langObj = langs.find(l => l.code === lang);
     return {
       T, lang, fD, fI, fB, rc,
@@ -400,6 +444,7 @@ export class PlayerView extends React.Component<any, any> {
       join: () => this.props.onJoin && this.props.onJoin(name.trim()), // NET
       go: { card: () => this.setState({ screen: 'card', revealed: false }) },
       isJoin: screen === 'join', isWaiting: screen === 'waiting', isCard: screen === 'card',
+      isSpectate: screen === 'spectate' && !!spec, spec,
 
       // guide + language
       guideOpen: !!(s.guide !== undefined ? s.guide : this.props.guide) && screen !== 'join',
@@ -550,6 +595,92 @@ export class PlayerView extends React.Component<any, any> {
                 ) : null}
               </div>
             </>
+          ) : null}
+          {(v.isSpectate) ? (
+            <div className="rise scroll" style={{ flex: '1', minHeight: '0', overflowY: 'auto', margin: '0 -24px', padding: '44px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px', height: '30px', padding: '0 12px', borderRadius: '999px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(190,165,235,.25)', fontSize: '13px', fontWeight: '700', color: v.spec.isNight ? '#c7a8ff' : '#f2c58a' }}>
+                  <span className="pulse" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor' }} />
+                  {v.spec.phaseLabel}
+                </span>
+                <h1 style={{ margin: '0', fontFamily: v.fD, fontWeight: '600', fontSize: '28px', lineHeight: '1.2' }}>
+                  {v.T.specTitle}
+                </h1>
+                <p style={{ margin: '0', fontSize: '15px', lineHeight: '1.5', color: '#c4b8da' }}>
+                  {v.T.specSub}
+                </p>
+                <p style={{ margin: '0', padding: '9px 12px', borderRadius: '12px', background: 'rgba(224,71,95,.1)', border: '1px solid rgba(224,71,95,.3)', fontSize: '13px', lineHeight: '1.45', color: '#ffc4cd' }}>
+                  {v.T.specSecret}
+                </p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
+                {(v.spec.stats || []).map((t: any, $i: number) => (
+                  <span key={$i} style={{ padding: '10px 6px', borderRadius: '14px', background: 'rgba(20,12,34,.72)', border: '1px solid rgba(236,230,246,.09)', textAlign: 'center', fontSize: '13px', fontWeight: '700', color: $i === 2 ? '#ff8a9b' : ($i === 1 ? '#c4b8da' : '#8fe0b8') }}>
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h2 style={{ margin: '0', fontSize: '13px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#a99bc2' }}>
+                  {v.T.specPlayers}
+                </h2>
+                {(v.spec.rows || []).map((d: any) => (
+                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: d.bg, border: `1px solid ${d.border}` }}>
+                    <span style={{ width: '32px', height: '32px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: v.fD, fontWeight: '700', fontSize: '13px', color: '#12091c', background: d.color, filter: d.out ? 'grayscale(.7)' : 'none', opacity: d.out ? 0.6 : 1 }}>
+                      {d.initial}
+                    </span>
+                    <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: '700', textDecoration: d.out ? 'line-through' : 'none', opacity: d.out ? 0.65 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {d.name}
+                      </span>
+                      {(d.out) ? (
+                        <span style={{ alignSelf: 'flex-start', padding: '1px 7px', borderRadius: '999px', fontSize: '10.5px', fontWeight: '800', letterSpacing: '.04em', background: d.badgeBg, color: '#170b14' }}>
+                          {d.badge}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '26px', padding: '0 9px 0 6px', flex: 'none', maxWidth: '50%', borderRadius: '999px', fontSize: '12px', fontWeight: '700', color: d.roleColor, background: d.roleSoft, opacity: d.out ? 0.7 : 1 }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
+                        <path d={d.roleIcon} />
+                      </svg>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {d.roleName}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </section>
+              <section style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h2 style={{ margin: '0', fontSize: '13px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#a99bc2' }}>
+                  {v.T.specStory}
+                </h2>
+                {(v.spec.quiet) ? (
+                  <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '17px', color: '#a99bc2' }}>
+                    {v.T.specNothing}
+                  </span>
+                ) : null}
+                {(v.spec.chapters || []).map((c: any, $c: number) => (
+                  <div key={$c} style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '12px', borderLeft: `2px solid ${c.tint}` }}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '16px', color: c.tint }}>
+                        {c.title}
+                      </span>
+                      {(c.sub) ? (
+                        <span style={{ fontSize: '12px', color: '#a99bc2' }}>
+                          {c.sub}
+                        </span>
+                      ) : null}
+                    </span>
+                    {(c.items || []).map((it: any, $i: number) => (
+                      <span key={$i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '14px', lineHeight: '1.45', color: '#ece6f6', fontStyle: it.note ? 'italic' : 'normal' }}>
+                        <span style={{ width: '7px', height: '7px', marginTop: '7px', flex: 'none', borderRadius: '50%', background: it.color }} />
+                        {it.text}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </section>
+            </div>
           ) : null}
           {(v.isCard) ? (
             <>

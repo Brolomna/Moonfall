@@ -6,6 +6,7 @@ import { PlayerView } from './views/PlayerView';
 type View = {
   name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted';
   roomLang: string; showRoles: boolean; deck: [string, number][]; roleDefs: Record<string, unknown>; playerCount: number;
+  spectator?: boolean; // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
 export function PlayerApp() {
@@ -26,7 +27,7 @@ export function PlayerApp() {
     socket.emit('player:join', { name }, (r: { playerId: string }) => playerId.set(r.playerId));
   };
 
-  const screen = !view ? 'join' : view.dealt ? 'card' : 'waiting';
+  const screen = !view ? 'join' : view.spectator ? 'spectate' : view.dealt ? 'card' : 'waiting';
   return (
     <>
       <PhoneFrame>
@@ -45,6 +46,7 @@ export function PlayerApp() {
             playerCount={view?.playerCount}
             onJoin={join}
             offline={!online}
+            spectate={view?.spectator ? view : null}
           />
         )}
       </PhoneFrame>

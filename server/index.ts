@@ -29,6 +29,7 @@ const PALETTE = ['#c9a7ff', '#ff9fb0', '#9fd0ff', '#8fe0b8', '#ffc98a', '#f2b6e6
 
 const room = {
   players: [] as Player[],
+  spectators: [] as Player[], // joined while a game was running; they watch, and join the next game
   shared: {} as Shared, // everything the host screen owns (deck, rules, phase, marks…)
   assign: {} as Record<string, string>, // player name -> dealt role key
   dealt: false,
@@ -70,7 +71,7 @@ function routeAddress(): Promise<string | undefined> {
 
 function uniqueName(raw: string, selfId?: string): string {
   const base = raw.trim().slice(0, 18) || 'Player';
-  const taken = (n: string) => room.players.some(p => p.id !== selfId && p.name.toLowerCase() === n.toLowerCase());
+  const taken = (n: string) => room.players.concat(room.spectators).some(p => p.id !== selfId && p.name.toLowerCase() === n.toLowerCase());
   if (!taken(base)) return base;
   for (let i = 2; ; i++) if (!taken(`${base} ${i}`)) return `${base} ${i}`;
 }
@@ -89,19 +90,10 @@ function shuffle<T>(a: T[]): T[] {
   return b;
 }
 
-/** What one phone is allowed to know. */
-function playerView(p: Player) {
+/** Custom roles + host edits for the given role keys (what a phone needs to draw those cards). */
+function roleDefsFor(list: string[]) {
   const sh = room.shared;
-  const mark = (sh.status || {})[p.name];
-  const fate = !mark ? 'none' : mark.how === 'night' ? 'killed' : mark.how === 'voted' ? 'voted' : 'none';
-  const role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
-
-  const counts: Record<string, number> = {};
-  Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
-  const deck = Object.entries(counts);
-
-  // Custom roles + host edits for any role this phone might show (its own card + the guide list)
-  const keys = new Set([...Object.keys(counts), ...(role ? [role] : [])]);
+  const keys = new Set(list);
   const roleDefs: Record<string, any> = {};
   for (const k of keys) {
     const custom = (sh.custom || []).find((c: any) => c.key === k);
@@ -116,10 +108,27 @@ function playerView(p: Player) {
       ...(src.blurb ? { desc: src.blurb } : {}),
       ...(custom ? { motto: '', custom: true } : {}),
       ...(custom && custom.lib ? { lib: custom.lib } : {}), // library role → the phone shows it in its own language
+      ...(src.wolf === false ? { wolf: false } : {}), // wolf helpers don't count as wolves
       // host-written text wins over the phone's translations; untouched library roles stay translatable
       edited: !!edit || (!!custom && !custom.lib),
     };
   }
+
+  return roleDefs;
+}
+
+/** What one phone is allowed to know. */
+function playerView(p: Player) {
+  const sh = room.shared;
+  const mark = (sh.status || {})[p.name];
+  const fate = !mark ? 'none' : mark.how === 'night' ? 'killed' : mark.how === 'voted' ? 'voted' : 'none';
+  const role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
+
+  const counts: Record<string, number> = {};
+  Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
+  const deck = Object.entries(counts);
+
+  const roleDefs = roleDefsFor([...Object.keys(counts), ...(role ? [role] : [])]);
 
   return {
     joined: true,
@@ -136,8 +145,29 @@ function playerView(p: Player) {
   };
 }
 
+/** A spectator sees everything: every player's role, who is out, and the host's timeline. */
+function spectatorView(sp: Player) {
+  const sh = room.shared;
+  const roleOf = (name: string) => (sh.override || {})[name] || room.assign[name] || null;
+  const players = room.players.map(p => ({ name: p.name, color: p.color, role: roleOf(p.name), status: (sh.status || {})[p.name] || null }));
+  const keys = players.map(p => p.role).filter(Boolean) as string[];
+  return {
+    spectator: true,
+    name: sp.name,
+    dealt: room.dealt,
+    phase: sh.phase || 'night',
+    round: sh.round || 1,
+    roomLang: sh.roomLang || 'en',
+    players,
+    log: sh.log || [],
+    roleDefs: roleDefsFor(keys),
+    playerCount: room.players.length,
+  };
+}
+
 function hostView() {
   return {
+    spectators: room.spectators.filter(p => p.connected).length,
     players: room.players.map(({ name, color, connected, fake }) => ({ name, color, connected, fake: !!fake })),
     assign: room.assign,
     dealt: room.dealt,
@@ -167,6 +197,7 @@ if (PROD) {
 function pushAll() {
   io.to('host').emit('room', hostView());
   for (const p of room.players) io.to(`p:${p.id}`).emit('player:view', playerView(p));
+  for (const sp of room.spectators) io.to(`p:${sp.id}`).emit('player:view', spectatorView(sp));
 }
 
 io.on('connection', (socket: Socket) => {
@@ -211,18 +242,20 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:end', () => {
       room.assign = {};
       room.dealt = false;
+      for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor() }); // they join the next game
+      room.spectators = [];
       pushAll();
     });
     return;
   }
 
   // ----- players -----
-  let me: Player | undefined = room.players.find(p => p.id === auth.playerId);
+  let me: Player | undefined = room.players.find(p => p.id === auth.playerId) || room.spectators.find(p => p.id === auth.playerId);
   const attach = (p: Player) => {
     me = p;
     p.connected = true;
     socket.join(`p:${p.id}`);
-    socket.emit('player:view', playerView(p));
+    socket.emit('player:view', room.spectators.includes(p) ? spectatorView(p) : playerView(p));
     pushAll();
   };
   if (me) attach(me);
@@ -235,6 +268,10 @@ io.on('connection', (socket: Socket) => {
       me = seat;
     } else if (me) {
       me.name = room.dealt ? me.name : uniqueName(name, me.id); // names are locked once cards are dealt
+    } else if (room.dealt) {
+      // the game is already running: watch it, and play in the next one
+      me = { id: randomUUID(), name: uniqueName(name), color: '#c7a8ff', connected: true };
+      room.spectators.push(me);
     } else {
       me = { id: randomUUID(), name: uniqueName(name), color: nextColor(), connected: true };
       room.players.push(me);

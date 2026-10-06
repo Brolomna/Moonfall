@@ -6,6 +6,6 @@ import fr from './roles.fr';
 import th from './roles.th';
 import es from './roles.es';
 
-export type LibText = { roles: Record<string, [string, string, string]>; ui: { goalLoner: string; reconnecting: string } };
+export type LibText = { roles: Record<string, [string, string, string]>; ui: Record<string, string> & { goalLoner: string; reconnecting: string } };
 
 export const LIB_I18N: Record<string, LibText> = { zh, ko, ja, fr, th, es };

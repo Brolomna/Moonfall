@@ -3,7 +3,7 @@ import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HostView } from './views/HostView';
 
-type RoomInfo = { players: { name: string; color: string; connected: boolean; fake?: boolean }[]; assign: Record<string, string>; dealt: boolean };
+type RoomInfo = { spectators?: number; players: { name: string; color: string; connected: boolean; fake?: boolean }[]; assign: Record<string, string>; dealt: boolean };
 
 export function HostApp() {
   const socket = useMemo(() => connect('host'), []);
