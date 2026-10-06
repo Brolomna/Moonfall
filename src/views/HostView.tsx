@@ -175,7 +175,8 @@ export class HostView extends React.Component<any, any> {
     const st = (k, def) => (s[k] !== undefined ? s[k] : (init[k] !== undefined ? init[k] : def));
 
     // ---------- house rules ----------
-    const ruleDefaults = { peaceful: false, wolfPick: 'majority', seerSees: 'wolf', selfHeal: true, skipVote: true, tie: 'none', reveal: true, silentDead: true, showRoles: true };
+    // our classic rules: wolves must agree, no skipping the vote, ties vote again, cards stay hidden
+    const ruleDefaults = { peaceful: false, wolfPick: 'unanimous', seerSees: 'wolf', selfHeal: true, skipVote: false, tie: 'revote', reveal: false, silentDead: true, showRoles: true };
     const rules = { ...ruleDefaults, ...(s.rules || {}) };
     const setRule = (k, v) => this.setState({ rules: { ...rules, [k]: v } });
     const tgl = (k, label, desc) => ({ isToggle: true, isChoice: false, label, desc, on: rules[k], track: rules[k] ? '#e8d3a0' : 'rgba(255,255,255,.16)', knob: rules[k] ? '23px' : '3px', border: rules[k] !== ruleDefaults[k] ? 'rgba(232,211,160,.45)' : 'rgba(236,230,246,.08)', flip: () => setRule(k, !rules[k]) });
@@ -199,7 +200,7 @@ export class HostView extends React.Component<any, any> {
         tgl('showRoles', 'Show this round’s roles in the game guide', 'Players can read which roles are in the deck. Turn off for a mystery game.')
       ] }
     ];
-    const ruleShort = { peaceful: 'Peaceful first night', wolfPick: 'Wolves must all agree', seerSees: 'Seer sees exact role', selfHeal: 'No self-heal', skipVote: 'No skipping votes', tie: rules.tie === 'revote' ? 'Ties: vote again' : 'Ties: host decides', reveal: 'Cards stay hidden', silentDead: 'The dead may talk', showRoles: 'Mystery role list' };
+    const ruleShort = { peaceful: 'Peaceful first night', wolfPick: 'Wolves: majority wins', seerSees: 'Seer sees exact role', selfHeal: 'No self-heal', skipVote: 'Village may skip', tie: rules.tie === 'host' ? 'Ties: host decides' : 'Ties: no one out', reveal: 'Cards revealed', silentDead: 'The dead may talk', showRoles: 'Mystery role list' };
     const changed = Object.keys(ruleDefaults).filter(k => rules[k] !== ruleDefaults[k]).map(k => ruleShort[k]);
     const rulesSummary = changed.length ? changed.slice(0, 2).join(' · ') + (changed.length > 2 ? ' · +' + (changed.length - 2) + ' more' : '') : 'Classic rules · tap to customize';
     const screen = s.screen || this.props.screen || 'players';
