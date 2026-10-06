@@ -161,6 +161,8 @@ function spectatorView(sp: Player) {
     players,
     log: sh.log || [],
     roleDefs: roleDefsFor(keys),
+    deck: Object.entries(keys.reduce((c: Record<string, number>, k) => ((c[k] = (c[k] || 0) + 1), c), {})), // for the game guide
+    showRoles: true,
     playerCount: room.players.length,
   };
 }

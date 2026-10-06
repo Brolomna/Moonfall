@@ -608,9 +608,17 @@ export class PlayerView extends React.Component<any, any> {
                   <span className="pulse" style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor' }} />
                   {v.spec.phaseLabel}
                 </span>
-                <h1 style={{ margin: '0', fontFamily: v.fD, fontWeight: '600', fontSize: '28px', lineHeight: '1.2' }}>
-                  {v.T.specTitle}
-                </h1>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h1 style={{ flex: '1', margin: '0', fontFamily: v.fD, fontWeight: '600', fontSize: '28px', lineHeight: '1.2' }}>
+                    {v.T.specTitle}
+                  </h1>
+                  <button className="press" onClick={v.openGuide} style={{ height: '40px', padding: '0 14px 0 10px', flex: 'none', borderRadius: '999px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(30,18,52,.88)', color: '#e9dcff', fontSize: '13.5px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7 M8 11h7" />
+                    </svg>
+                    {v.T.guideBtn}
+                  </button>
+                </span>
                 <p style={{ margin: '0', fontSize: '15px', lineHeight: '1.5', color: '#c4b8da' }}>
                   {v.T.specSub}
                 </p>

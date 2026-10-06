@@ -6,7 +6,7 @@ import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story'];
 
   constructor(props) {
     super(props);
@@ -20,6 +20,38 @@ export class HostView extends React.Component<any, any> {
       if (Object.keys(shared).length && this.props.onPatch) this.props.onPatch(shared);
     }
     return super.setState(patch, cb);
+  }
+
+  story() {
+    return {
+      openings: [
+        'Long ago, in a village at the edge of a dark forest, people began to vanish whenever the moon was full. Tonight, the moon is full again… Everyone, close your eyes.',
+        'A storm has cut the village off from the rest of the world. No one can leave — and someone among you is not quite human. As the thunder rolls, everyone, close your eyes.',
+        'The harvest festival is over and the lanterns go out one by one. In the last flicker of light, a howl rises from the hills. Everyone, close your eyes.',
+        'A stranger arrived this morning with a warning: “The wolves are already inside your walls.” Nobody believed him. Night falls… Everyone, close your eyes.',
+        'At midnight the church bell rang thirteen times. The old ones say that means the beast has woken. Everyone, close your eyes — and hope it isn’t hungry.',
+        'Fog rolls in from the marsh, thick enough to hide anything. Doors are bolted, candles blown out. The night belongs to them now. Everyone, close your eyes.',
+      ],
+      nightfall: [
+        'Darkness returns, and the village holds its breath. Everyone, close your eyes.',
+        'The fire burns low and the shadows grow long. Close your eyes…',
+        'Somewhere a door creaks open. The wolves are stirring. Everyone, sleep.',
+        'The moon climbs above the trees, pale and hungry. Close your eyes, villagers.',
+        'Another night, another chance for the beast. Everyone, close your eyes.',
+        'The wind whispers names through the empty streets. Close your eyes — and hope it isn’t yours.',
+      ],
+      dawnDeath: [
+        'A scream breaks the morning silence. Everyone, wake up.',
+        'The sun rises on a terrible sight. Everyone, open your eyes.',
+        'The rooster crows — but not everyone wakes. Open your eyes.',
+        'An empty chair at breakfast, and blood on the doorstep. Everyone, wake up.',
+      ],
+      dawnQuiet: [
+        'Morning comes, and somehow everyone is still here. Wake up!',
+        'A quiet night. Too quiet… Everyone, open your eyes.',
+        'The village wakes untouched — the wolves went hungry. Wake up.',
+      ],
+    };
   }
 
   catalog() {
@@ -533,32 +565,32 @@ export class HostView extends React.Component<any, any> {
     const add = (key, title, who, say, opts) => {
       const t = renamed(key) ? byKey[key].name : title;
       const ghost = !who.some(nm => !isOut(nm)); // everyone with this role is out — the host still calls it
-      defs.push({ key, title: t, who, ghost, say: ghost ? 'Everyone with this role is out — call “' + t + '” exactly as usual, wait about 10 seconds in silence, then move on. Give no answers.' : (renamed(key) ? byKey[key].blurb : say), ...(opts || {}) });
+      defs.push({ key, title: t, who, ghost, say: ghost ? 'Out — call as usual, wait in silence, no answers.' : (renamed(key) ? byKey[key].blurb : say), ...(opts || {}) });
     };
-    if (first && list('doppelganger').length) add('doppelganger', 'Doppelgänger', list('doppelganger'), 'Wake the Doppelgänger. They silently point at one player to copy. Remember who — you’ll need it if that player dies.', { firstOnly: true });
-    if (first && list('cupid').length) add('cupid', 'Cupid', list('cupid'), 'Cupid points at two players. Tap both on the shoulder — they open their eyes and see each other. They are now lovers.', { firstOnly: true });
-    const agree = rules.wolfPick === 'unanimous' ? ' They must all point at the same player.' : ' If they disagree, the most-pointed player is chosen.';
-    const wolfSay = rage ? 'The Wolf Cub was killed — tonight the wolves choose TWO players to eliminate.' + agree
-      : (first && rules.peaceful ? 'Peaceful first night: the werewolves open their eyes only to see each other. No one is eliminated tonight.' : 'Werewolves open their eyes, find each other and silently choose one player to eliminate.' + agree);
+    if (first && list('doppelganger').length) add('doppelganger', 'Doppelgänger', list('doppelganger'), 'Picks one player to copy.', { firstOnly: true });
+    if (first && list('cupid').length) add('cupid', 'Cupid', list('cupid'), 'Picks two lovers — tap both so they see each other.', { firstOnly: true });
+    const agree = rules.wolfPick === 'unanimous' ? ' All must agree.' : '';
+    const wolfSay = rage ? 'The Wolf Cub died — the wolves pick TWO victims.' + agree
+      : (first && rules.peaceful ? 'Peaceful night — the wolves only see each other.' : 'The wolves pick a victim.' + agree);
     if (wolves.length) add('werewolf', 'Werewolves', wolves, wolfSay, { rage, peaceful: first && rules.peaceful });
-    if (first && list('minion').length) add('minion', 'Minion', list('minion'), 'Werewolves raise a thumb with eyes closed. The Minion opens their eyes to see who they are.', { firstOnly: true });
-    if (first && list('mason').length) add('mason', 'Masons', list('mason'), 'Masons open their eyes and look at each other, then close them.', { firstOnly: true });
-    const seerSay = rules.seerSees === 'role' ? 'The Seer points at one player. Quietly show them that player’s exact role on your phone.' : 'The Seer points at one player. Nod for werewolf, shake for not.' + (inGame('lycan') ? ' The Lycan counts as a werewolf here.' : '');
+    if (first && list('minion').length) add('minion', 'Minion', list('minion'), 'Wolves raise a thumb; the Minion sees them.', { firstOnly: true });
+    if (first && list('mason').length) add('mason', 'Masons', list('mason'), 'Masons see each other.', { firstOnly: true });
+    const seerSay = rules.seerSees === 'role' ? 'Picks a player — show their exact role.' : 'Picks a player — nod for werewolf, shake for not.';
     if (list('seer').length) {
       const heir = !aliveWith('seer').length && aliveWith('apprentice');
-      if (heir && heir.length) add('seer', 'Seer', heir, 'The Seer is out — when you call the Seer, the Apprentice Seer wakes instead. ' + seerSay);
+      if (heir && heir.length) add('seer', 'Seer', heir, 'The Apprentice wakes as the Seer. ' + seerSay);
       else add('seer', 'Seer', list('seer'), seerSay);
     }
-    if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'The Sorceress points at one player. Nod if that player is the Seer.');
-    if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'The Bodyguard points at one player to guard (not themselves). If the wolves attack that player, the Bodyguard dies instead.');
-    if (list('healer').length) add('healer', 'Healer', list('healer'), 'The Healer points at one player to protect tonight.' + (rules.selfHeal ? ' They may choose themselves.' : ' They may not choose themselves.'));
+    if (list('sorceress').length) add('sorceress', 'Sorceress', list('sorceress'), 'Picks a player — nod if it’s the Seer.');
+    if (list('bodyguard').length) add('bodyguard', 'Bodyguard', list('bodyguard'), 'Guards a player — dies in their place if attacked.');
+    if (list('healer').length) add('healer', 'Healer', list('healer'), 'Protects one player' + (rules.selfHeal ? ' (themselves allowed).' : ' (not themselves).'));
     const wu = st('witch', {}); const saveLeft = !wu.save || wu.save === round, poisonLeft = !wu.poison || wu.poison === round;
     if (list('witch').length) add('witch', 'Witch', list('witch'),
-      saveLeft && poisonLeft ? 'Point at tonight’s victim. The Witch may save them, poison someone else, or do nothing.'
-        : saveLeft ? 'Point at tonight’s victim. The poison is used up — the Witch may only save them, or do nothing.'
-          : poisonLeft ? 'The healing potion is used up — don’t show the victim. The Witch may poison someone, or do nothing.'
-            : 'Both potions are used up. Call the Witch anyway, wait a few seconds in silence, then move on.');
-    if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'The Old Hag points at one player. That player must sit out all of tomorrow.');
+      saveLeft && poisonLeft ? 'Show the victim — save, poison, or pass.'
+        : saveLeft ? 'Show the victim — save or pass (poison used).'
+          : poisonLeft ? 'Don’t show the victim — poison or pass (potion used).'
+            : 'Both potions used — call for show, then move on.');
+    if (list('oldhag').length) add('oldhag', 'Old Hag', list('oldhag'), 'Banishes a player from tomorrow.');
     custom.forEach(c => {
       const when = c.night === undefined ? 'every' : c.night; // library roles say when they wake; hand-made ones wake every night
       if (!list(c.key).length || !when || when === 'wolves' || (when === 'first' && !first)) return;
@@ -671,11 +703,11 @@ export class HostView extends React.Component<any, any> {
     // ---------- day guide ----------
     const nightDeaths = names.filter(nm => status[nm] && status[nm].phase === 'night' && status[nm].round === round && status[nm].how !== 'removed');
     const daySteps = [
-      { num: '1', title: 'Announce the night', text: nightDeaths.length ? 'Say who was eliminated: ' + nightDeaths.join(', ') + '.' + (rules.reveal ? ' Reveal their card to everyone.' : ' Keep their card secret.') + (rules.silentDead ? ' Ask them to stay silent from now on.' : ' They may still listen and react, but not vote.') : 'If no one was marked, say: “Everyone survived the night.”' },
-      { num: '2', title: 'Let the village talk', text: 'Give everyone 2–5 minutes to share suspicions and accuse.' },
-      { num: '3', title: 'Hold the vote', text: 'Count hands for the most-accused player.' + (rules.skipVote ? ' The village may also vote to skip — then no one is out.' : ' Someone must be voted out.') + ({ none: ' On a tie, no one is out today.', revote: ' On a tie, vote again between the tied players.', host: ' On a tie, you decide.' })[rules.tie] + ' Then tap Mark players → Voted.' }
+      { num: '1', title: 'Announce the night', text: nightDeaths.length ? 'Dead players: ' + nightDeaths.join(', ') : 'No one died.' },
+      { num: '2', title: 'Let the village talk', text: '' },
+      { num: '3', title: 'Hold the vote', text: '' },
     ];
-    if (tough && !isOut(tough)) daySteps.push({ num: '4', title: 'At sunset', text: 'Mark ' + tough + ' as Killed — the Tough Guy’s extra day is over.' });
+    if (tough && !isOut(tough)) daySteps.push({ num: '4', title: 'At sunset', text: 'Mark ' + tough + ' (Tough Guy) as Killed.' });
     const dr2 = (key, text) => { const r = byKey[key]; return aliveWith(key).length ? [{ name: r.name + ' (' + aliveWith(key).join(', ') + ')', text, color: r.color, icon: r.icon }] : []; };
     const dayRules = [].concat(
       dr2('prince', 'if voted out, they reveal and survive.'),
@@ -824,7 +856,7 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
         this.props.onDeal && this.props.onDeal(deck.map(r => r.key));
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, story: Math.floor(Math.random() * 1000) });
       },
       openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
       closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
@@ -876,9 +908,8 @@ export class HostView extends React.Component<any, any> {
       closeMark: () => this.setState({ markOpen: false }),
       alerts,
       showNightGuide: night && !gameOver, showDayGuide: !night && !gameOver,
-      nightIntro: first
-        ? 'First night. Say “Everyone, close your eyes.” Then call each role below in order and give each about 10 seconds. Tap a step when it’s done. Keep calling every role on later nights, even after its player is out.'
-        : 'Say “Night falls — everyone, close your eyes.” Call every role in order — even ones that are out — so no one can tell who died.',
+      nightIntro: (() => { const S = this.story(), k = st('story', 0); return first ? S.openings[k % S.openings.length] : S.nightfall[(k + round) % S.nightfall.length]; })(),
+      dayIntro: (() => { const S = this.story(), k = st('story', 0), pool = nightDeaths.length ? S.dawnDeath : S.dawnQuiet; return pool[(k + round) % pool.length]; })(),
       nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
       daySteps, dayRules, hasDayRules: dayRules.length > 0,
       gameOver,
@@ -1526,8 +1557,13 @@ export class HostView extends React.Component<any, any> {
                           {v.stepsDone}
                         </span>
                       </div>
-                      <p style={{ margin: '0', padding: '10px 12px', borderRadius: '12px', background: 'rgba(167,127,240,.1)', fontSize: '13px', lineHeight: '1.5', color: '#e4d9f0' }}>
-                        {v.nightIntro}
+                      <p style={{ margin: '0', padding: '10px 12px', borderRadius: '12px', background: 'rgba(167,127,240,.1)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase', color: '#c7a8ff' }}>
+                          Read aloud
+                        </span>
+                        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '17px', lineHeight: '1.4', color: '#f1e9d2' }}>
+                          {v.nightIntro}
+                        </span>
                       </p>
                       <ol style={{ listStyle: 'none', margin: '0', padding: '0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {((v.nightSteps) || []).map((st: any, $index: number) => (
@@ -1571,11 +1607,7 @@ export class HostView extends React.Component<any, any> {
                         ))}
                       </ol>
                       <p style={{ margin: '0', fontSize: '13px', lineHeight: '1.5', color: '#c4b8da' }}>
-                        Last, say{' '}
-                        <span style={{ color: '#f1e9d2', fontStyle: 'italic' }}>
-                          “Everyone, wake up.”
-                        </span>
-                        {' '}and tap{' '}
+                        When every role is done, tap{' '}
                         <span style={{ fontWeight: '700', color: '#ffd3a8' }}>
                           Day
                         </span>
@@ -1595,6 +1627,14 @@ export class HostView extends React.Component<any, any> {
                           Run the day
                         </span>
                       </span>
+                      <p style={{ margin: '0', padding: '10px 12px', borderRadius: '12px', background: 'rgba(255,211,168,.08)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase', color: '#ffd3a8' }}>
+                          Read aloud
+                        </span>
+                        <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '17px', lineHeight: '1.4', color: '#f6e7c1' }}>
+                          {v.dayIntro}
+                        </span>
+                      </p>
                       <ol style={{ listStyle: 'none', margin: '0', padding: '0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {((v.daySteps) || []).map((d: any, $index: number) => (
                           <React.Fragment key={$index}>
@@ -1606,9 +1646,11 @@ export class HostView extends React.Component<any, any> {
                                 <span style={{ fontWeight: '700', fontSize: '14.5px' }}>
                                   {d.title}
                                 </span>
-                                <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#d8c8d4' }}>
-                                  {d.text}
-                                </span>
+                                {(d.text) ? (
+                                  <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#d8c8d4' }}>
+                                    {d.text}
+                                  </span>
+                                ) : null}
                               </span>
                             </li>
                           </React.Fragment>
