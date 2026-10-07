@@ -476,12 +476,24 @@ export class HostView extends React.Component<any, any> {
       const lg = unlog(log, nm);
       const fixedHere = lg.length !== log.length;
       const patch = { status: next, log: how !== 'alive' ? lg.concat([ev('out', { how, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]) };
-      const dgCopy0 = st('dgCopy', null);
-      if (how !== 'alive' && how !== 'removed' && dgName && nm !== dgName && (!dgCopy0 || dgCopy0 === nm)) {
-        patch.dg = { dead: nm, choice: roleOf(nm).key };
-        patch.markOpen = false;
-      }
+      if (how !== 'alive' && how !== 'removed') dgTakeOver(patch, [nm]);
       return patch;
+    };
+    // The Doppelgänger's copy is recorded on night 1, so when that player dies the role passes over at once
+    // (card + reminder, no question). Only if nothing was recorded does the host get the old "who did they copy?" sheet.
+    const dgTakeOver = (patch, dead) => {
+      if (!dgName) return;
+      const copy = st('dgCopy', null);
+      if (copy) {
+        if (dead.indexOf(copy) < 0) return;
+        const nr = roleOf(copy);
+        patch.override = { ...override, [dgName]: nr.key };
+        patch.dgDone = { name: dgName, role: nr.key, from: copy };
+        patch.log = (patch.log || log).concat([ev('dg', { name: dgName, role: nr.name })]);
+        return;
+      }
+      const hit = dead.find(nm => nm !== dgName);
+      if (hit) { patch.dg = { dead: hit, choice: roleOf(hit).key }; patch.markOpen = false; }
     };
     const mark = (nm, how) => this.setState(markPatch(nm, how));
     const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['night', 'Killed', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['removed', 'Left', '#b9acd2', '#1a1424']];
@@ -551,7 +563,7 @@ export class HostView extends React.Component<any, any> {
     });
     if (dgDone) {
       const nr = byKey[dgDone.role] || byKey.villager;
-      push('dg-' + dgDone.name, 'Doppelgänger · ' + dgDone.name, dgDone.name + ' is now the ' + nr.name, 'Their phone card has changed. From now on, wake ' + dgDone.name + ' as the ' + nr.name + ' when that role is called.', '154,167,184', '#c6d0dc', nr.icon);
+      push('dg-' + dgDone.name, 'Doppelgänger · ' + dgDone.name, dgDone.name + ' is now the ' + nr.name, (dgDone.from ? dgDone.from + ', the player they copied, is out. ' : '') + 'Their phone card has changed. From now on, wake ' + dgDone.name + ' as the ' + nr.name + ' when that role is called.', '154,167,184', '#c6d0dc', nr.icon);
     }
 
     // ---------- night guide ----------
@@ -968,10 +980,7 @@ export class HostView extends React.Component<any, any> {
         const nightLog = saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
           .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name })));
         const patch = { phase: 'day', round, status: nextStatus, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
-        // Doppelgänger takes over the copied player's role when they die
-        const dgCopy = st('dgCopy', null);
-        const dgHit = dgName && dead.find(nm => nm !== dgName && (!dgCopy || nm === dgCopy));
-        if (dgHit) patch.dg = { dead: dgHit, choice: roleOf(dgHit).key };
+        dgTakeOver(patch, dead); // the Doppelgänger takes over the copied player's role
         this.setState(patch);
       },
       actView, actOpen: screen === 'play' && !!actView,
