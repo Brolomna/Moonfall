@@ -1,0 +1,58 @@
+/* The shared village transition (src/Village.tsx) */
+.village { position: absolute; left: 0; top: 0; width: 390px; overflow: hidden; z-index: 60; background: #07040f; animation: vIn .5s ease both; cursor: pointer; }
+.village-out { animation: vOut .6s ease both; }
+@keyframes vIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes vOut { from { opacity: 1 } to { opacity: 0 } }
+.village-title { position: absolute; left: 0; right: 0; top: 18%; text-align: center; font: 700 34px 'Cinzel', serif; letter-spacing: .08em; color: #f6f1ff; text-shadow: 0 2px 24px rgba(0,0,0,.6); animation: vTitle 3.6s ease both; }
+@keyframes vTitle { 0% { opacity: 0; transform: translateY(10px) } 20%, 80% { opacity: 1; transform: none } 100% { opacity: 0 } }
+
+.sky-fade-in { animation: vIn 2.4s ease .2s both; }
+.sky-fade-out { animation: vOut 2.4s ease .2s both; }
+.twink { animation: twink 2.4s ease-in-out infinite; }
+@keyframes twink { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
+.moon-rise { animation: moonRise 2.6s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes moonRise { from { transform: translateY(140px); opacity: 0 } to { transform: none; opacity: 1 } }
+.sun-rise { animation: sunRise 2.8s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes sunRise { from { transform: translateY(260px); opacity: .2 } to { transform: none; opacity: 1 } }
+.bird { animation: fly 4s linear .8s both; }
+@keyframes fly { from { transform: translate(-30px, 140px) } to { transform: translate(420px, 70px) } }
+
+.hill { transition: fill 2s ease; }
+.hill-night { fill: #170d2c; animation: toNightHill 2.4s ease both; }
+.hill-day { fill: #6f8f5a; animation: toDayHill 2.4s ease both; }
+@keyframes toNightHill { from { fill: #6f8f5a } to { fill: #170d2c } }
+@keyframes toDayHill { from { fill: #170d2c } to { fill: #6f8f5a } }
+.grass-night { fill: #0e0820; animation: toNightGrass 2.4s ease both; }
+.grass-day { fill: #8aa866; animation: toDayGrass 2.4s ease both; }
+@keyframes toNightGrass { from { fill: #8aa866 } to { fill: #0e0820 } }
+@keyframes toDayGrass { from { fill: #0e0820 } to { fill: #8aa866 } }
+
+.house { animation: houseIn .6s ease both; }
+@keyframes houseIn { from { opacity: 0 } to { opacity: 1 } }
+.veil-in { opacity: .62; animation: veilIn 2.2s ease both; }
+.veil-out { opacity: 0; animation: veilOut 2.2s ease both; }
+@keyframes veilIn { from { opacity: 0 } to { opacity: .62 } }
+@keyframes veilOut { from { opacity: .62 } to { opacity: 0 } }
+/* windows: lit at dusk, then go dark one by one; at dawn the shutters open to the light */
+.win-off { fill: #ffd27a; animation: lightsOut .5s ease both; }
+@keyframes lightsOut { from { fill: #ffd27a } to { fill: #0e0a1a } }
+.win-on { fill: #0e0a1a; animation: lightsOn .6s ease both; }
+@keyframes lightsOn { from { fill: #0e0a1a } to { fill: #cfe8ff } }
+.puff { fill: rgba(240,240,240,.7); transform-box: fill-box; transform-origin: center; animation: puff 3s ease-out infinite; }
+@keyframes puff { 0% { transform: translate(0, 0) scale(.6); opacity: 0 } 15% { opacity: .9 } 100% { transform: translate(6px, -34px) scale(2.2); opacity: 0 } }
+/* a house falling into ruin */
+.ruin-in { animation: ruin 1.4s ease both; }
+@keyframes ruin { 0% { opacity: 0; transform: translateY(-4px) } 40% { opacity: .6 } 60% { transform: translateY(1px) rotate(.6deg) } 100% { opacity: 1; transform: none } }
+.house-name { font: 700 10px 'Manrope', sans-serif; fill: #f6f1ff; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 3px; }
+.house-name.gone { fill: #9a93a6; text-decoration: line-through; }
+.house-name.me { fill: #ffd27a; }
+.fog-band { fill: rgba(190,165,240,.10); filter: blur(10px); animation: vIn 2s ease 1s both; }
+
+.path-night { stroke: #1b1230; animation: toNightPath 2.4s ease both; }
+.path-day { stroke: #c9a879; animation: toDayPath 2.4s ease both; }
+@keyframes toNightPath { from { stroke: #c9a879 } to { stroke: #1b1230 } }
+@keyframes toDayPath { from { stroke: #1b1230 } to { stroke: #c9a879 } }
+.pine-night { fill: #0b0618; animation: toNightPine 2.4s ease both; }
+.pine-day { fill: #4c6b3c; animation: toDayPine 2.4s ease both; }
+@keyframes toNightPine { from { fill: #4c6b3c } to { fill: #0b0618 } }
+@keyframes toDayPine { from { fill: #0b0618 } to { fill: #4c6b3c } }

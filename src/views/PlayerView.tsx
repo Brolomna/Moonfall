@@ -5,6 +5,7 @@ import './PlayerView.css';
 import { ROLE_LIBRARY } from './roleLibrary';
 import { LIB_I18N, TIPS_I18N } from './i18n';
 import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
+import { Village } from '../Village';
 
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
@@ -475,7 +476,7 @@ export class PlayerView extends React.Component<any, any> {
 
     const langObj = langs.find(l => l.code === lang);
     return {
-      T, lang, fD, fI, fB, rc,
+      T, lang, fD, fI, fB, rc, fmt,
       nameValue: name, displayName, initial: displayName[0].toUpperCase(),
       youreIn: fmt(T.youreIn, { name: displayName }),
       waitingHost: fmt(T.waitingHost, { n: this.props.playerCount || 1 }), // NET
@@ -1522,6 +1523,11 @@ export class PlayerView extends React.Component<any, any> {
               </span>
             </div>
           </>
+        ) : null}
+        {(this.props.scene) ? (
+          <Village key={this.props.scene.phase + this.props.scene.round} players={this.props.scene.players} phase={this.props.scene.phase} justOut={this.props.scene.justOut}
+            label={v.fmt(this.props.scene.phase === 'day' ? v.T.specDayN : v.T.specNightN, { n: this.props.scene.round })}
+            height={this.props.frameH || 844} onDone={this.props.onSceneDone} />
         ) : null}
         {(this.props.offline) ? (
           <div className="offline" role="status" style={{ fontFamily: v.fB }}>

@@ -117,6 +117,17 @@ function roleDefsFor(list: string[]) {
   return roleDefs;
 }
 
+/** The shared village for the phase-change scene: every player's house, and whether its owner is out.
+ *  Players' phones don't learn tonight's deaths before dawn (spectators see everything). No roles. */
+function villageFor(spectator: boolean) {
+  const sh = room.shared, round = sh.round || 1, night = (sh.phase || 'night') === 'night';
+  return room.players.map(p => {
+    const m = (sh.status || {})[p.name];
+    const hiddenTonight = !spectator && night && m && m.phase === 'night' && m.round === round && m.how !== 'removed';
+    return { name: p.name, out: !!m && !hiddenTonight };
+  });
+}
+
 /** How many players died during the current round's night (picks the morning sound: none / one / more). */
 function dawnDeaths() {
   const sh = room.shared;
@@ -158,6 +169,8 @@ function playerView(p: Player) {
     roomLang: sh.roomLang || 'en',
     showRoles,
     dawnDeaths: dawnDeaths(),
+    round: sh.round || 1,
+    village: room.dealt ? villageFor(false) : [],
     lover,
     deck,
     roleDefs,
@@ -174,6 +187,7 @@ function spectatorView(sp: Player) {
   return {
     spectator: true,
     dawnDeaths: dawnDeaths(),
+    village: villageFor(true),
     name: sp.name,
     dealt: room.dealt,
     phase: sh.phase || 'night',
