@@ -5,6 +5,9 @@ import './HostView.css';
 import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 import { MECH, DAY_REMINDERS } from './roleMechanics';
 
+// village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
+const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
+
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
   static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner'];
@@ -732,7 +735,7 @@ export class HostView extends React.Component<any, any> {
     const SAY = {
       copy: 'Picks one player to copy.', lovers: 'Picks two lovers — tap both so they see each other.',
       rob: 'Swaps roles with a player — both cards change.', swap: 'Swaps two other players’ roles — their cards change.',
-      mimic: 'Copies a player’s power.', target: 'Show them their target.', client: 'Show them their client.', drunk: 'Night 3: hand the Drunk their real role — their card changes.',
+      mimic: 'Copies a player’s power.', target: 'Show them their target.', client: 'Show them their client.', drunk: 'Night 3: wake the Drunk and show them their real role — their card changes.',
       none: '', block: 'Picks a player whose power fails tonight.', disguise: 'Disguises a player — checks show the opposite.',
       slay: 'Eliminates a player. The wolves can’t kill them.', whitewolf: 'May eliminate a werewolf.', arson: 'Douses a player — or ignites everyone doused.',
       bite: 'Bites a player — they turn into a vampire at dawn.', vengeance: 'Takes revenge on their killer.',
@@ -817,7 +820,9 @@ export class HostView extends React.Component<any, any> {
         case 'vengeance': case 'gamble': return one(alive);
         case 'spy': return { kind: x.kind, count: 0, pool: [], ask: 'Wake the Spy and point at this wolf:' };
         case 'insomniac': return { kind: 'insomniac', count: 2, pool: others, ask: 'Who sits on each side of the Insomniac? (remembered for later nights)' };
-        case 'drunk': return { kind: 'drunk', count: 1, pool: [], roles: inPlay.filter(k => libOf(k) !== 'Drunk'), ask: (MECH['Drunk'] || {}).ask };
+        case 'drunk': return mech.drunkAs
+          ? { kind: 'drunk', count: 0, pool: [], ask: 'Wake the Drunk and show them their real role:' }
+          : { kind: 'drunk', count: 1, pool: [], roles: DRUNK_ROLES.filter(k => byKey[k] && inPlay.indexOf(k) < 0), ask: 'Hand the Drunk a role nobody else has:' }; // games dealt before the Drunk's role was pre-picked
         case 'none': return null;
         default: return one(others, null, { optional: x.kind === 'choose' });
       }
@@ -851,25 +856,28 @@ export class HostView extends React.Component<any, any> {
     });
 
     // ---------- answers the host passes on ----------
-    const looksWolf = (nm) => { const r = roleOf(nm); const w = (isWolf(r) && ['Shadow Wolf'].indexOf(r.lib) < 0) || r.key === 'lycan'; return disguisedNow.indexOf(nm) >= 0 ? !w : w; };
-    const seerResult = (nm) => (rules.seerSees === 'role' ? roleOf(nm).name : looksWolf(nm) ? 'a werewolf — nod' : 'not a werewolf — shake');
+    // the Drunk's hidden role counts for every check, even before night 3 (official rule)
+    const trueRole = (nm) => { const r = roleOf(nm); return mech.drunkAs && libOf(r.key) === 'Drunk' && byKey[mech.drunkAs] ? byKey[mech.drunkAs] : r; };
+    const looksWolf = (nm) => { const r = trueRole(nm); const w = (isWolf(r) && ['Shadow Wolf'].indexOf(r.lib) < 0) || r.key === 'lycan'; return disguisedNow.indexOf(nm) >= 0 ? !w : w; };
+    const seerResult = (nm) => (rules.seerSees === 'role' ? trueRole(nm).name : looksWolf(nm) ? 'a werewolf — nod' : 'not a werewolf — shake');
     // official Aura Seer: thumbs up for anyone who isn't a plain Villager or plain Werewolf (a disguise flips it)
-    const auraSpecial = (nm) => { const k = roleOf(nm).key; const sp = k !== 'villager' && k !== 'werewolf'; return disguisedNow.indexOf(nm) >= 0 ? !sp : sp; };
+    const auraSpecial = (nm) => { const k = trueRole(nm).key; const sp = k !== 'villager' && k !== 'werewolf'; return disguisedNow.indexOf(nm) >= 0 ? !sp : sp; };
     const auraOf = (nm) => { const r = roleOf(nm); let a = r.team === 'Loner' ? 'neutral' : (r.team === 'Werewolves' && r.lib !== 'Traitor' && r.lib !== 'Shadow Wolf') ? 'evil' : 'good'; if (disguisedNow.indexOf(nm) >= 0 && a !== 'neutral') a = a === 'good' ? 'evil' : 'good'; return a; };
     const actorsOf = (a) => (a.kind === 'kill' ? wolves : names.filter(nm => wokeAs(nm).key === a.key && !isOut(nm)));
     const visitsBy = (nm) => tonightActs.filter(a => actorsOf(a).indexOf(nm) >= 0).reduce((s0, a) => s0.concat(a.targets || []), []).filter((v, i, arr) => arr.indexOf(v) === i);
     const visitorsOf = (nm) => tonightActs.filter(a => (a.targets || []).indexOf(nm) >= 0).reduce((s0, a) => s0.concat(actorsOf(a)), []).filter((v, i, arr) => arr.indexOf(v) === i && v !== nm);
     const isVampire = (nm) => isLib(nm, 'Vampire');
     const resultFor = (kind, t, actors) => {
+      if (kind === 'drunk' && mech.drunkAs) return 'The Drunk is really the ' + roleLabel(mech.drunkAs) + ' — show them, and their card changes now.';
       if (kind === 'check' && t) return 'Show the Seer: ' + t + ' is ' + seerResult(t) + '.';
       if (kind === 'seek' && t) return roleOf(t).key === 'seer' ? 'Nod — ' + t + ' is the Seer.' : 'Shake — ' + t + ' is not the Seer.';
       if (kind === 'aura' && t) return auraSpecial(t) ? 'Nod — ' + t + ' has a special role.' : 'Shake — ' + t + ' is a plain Villager or Werewolf.';
-      if (kind === 'fortune' && t) return 'Show the Fortune Teller: ' + t + ' is the ' + roleOf(t).name + '.';
+      if (kind === 'fortune' && t) return 'Show the Fortune Teller: ' + t + ' is the ' + trueRole(t).name + '.';
       if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + roleOf(t).name + '.';
       if (kind === 'investigate' && t) {
         const pool = otherRoleNames(t).filter((v, i, arr) => arr.indexOf(v) === i);
         const k0 = seedOf(t + round), extra = [pool[k0 % Math.max(1, pool.length)], pool[(k0 >> 3) % Math.max(1, pool.length)]].filter((v, i, arr) => v && arr.indexOf(v) === i);
-        const three = [roleOf(t).name].concat(extra).sort((a, b) => seedOf(a + round) - seedOf(b + round));
+        const three = [trueRole(t).name].concat(extra).sort((a, b) => seedOf(a + round) - seedOf(b + round));
         return 'Tell the Investigator: ' + t + ' is one of — ' + three.join(', ') + '.';
       }
       if (kind === 'track' && t) { const v = visitsBy(t); return 'Tell the Tracker: ' + t + (v.length ? ' visited ' + v.join(' and ') : ' visited no one') + ' tonight.'; }
@@ -903,7 +911,7 @@ export class HostView extends React.Component<any, any> {
       const choose = (nm) => this.setState({ pick: single ? (pick[0] === nm ? [] : [nm]) : (pick.indexOf(nm) >= 0 ? pick.filter(p => p !== nm) : pick.length < spec.count ? pick.concat([nm]) : pick.slice(1).concat([nm])), ignite: false });
       const result = resultFor(spec.kind, pick[0], actors) + (spec.kind === 'swap' && pick.length === 2 ? pick[0] + ' and ' + pick[1] + ' swap roles.' : '');
       const doused = (mech.doused || []).filter(nm => !isOut(nm));
-      const ready = spec.kind === 'witch' || spec.count === 0 ? true : spec.kind === 'drunk' ? !!s.drunkRole : s.ignite ? true : (pick.length === spec.count || (spec.optional && pick.length === 0));
+      const ready = spec.kind === 'witch' || spec.count === 0 ? true : spec.kind === 'drunk' ? !!(mech.drunkAs || s.drunkRole) : s.ignite ? true : (pick.length === spec.count || (spec.optional && pick.length === 0));
       const record = () => {
         const a = { round, key: actX.key, kind: spec.kind };
         const patch = { checks: checks.indexOf(ck(actX.key)) >= 0 ? checks : checks.concat([ck(actX.key)]), nightAct: null };
@@ -913,7 +921,7 @@ export class HostView extends React.Component<any, any> {
         if (prev && prev.undo) Object.keys(prev.undo).forEach(nm => { if (prev.undo[nm] === null) delete ov[nm]; else ov[nm] = prev.undo[nm]; });
         const setRole = (nm, key) => { a.undo = a.undo || {}; if (!(nm in a.undo)) a.undo[nm] = nm in ov ? ov[nm] : null; ov[nm] = key; };
         if (spec.kind === 'witch') { a.save = witchCanSave ? s.wSave || null : null; a.poison = witchCanPoison ? s.wPoison || null : null; }
-        else if (spec.kind === 'drunk') { a.role = s.drunkRole; a.targets = []; actors.forEach(nm => setRole(nm, s.drunkRole)); }
+        else if (spec.kind === 'drunk') { a.role = mech.drunkAs || s.drunkRole; a.targets = []; actors.forEach(nm => setRole(nm, a.role)); }
         else {
           a.targets = s.ignite ? doused.slice() : pick.slice();
           if (s.ignite) a.ignite = true;
@@ -960,7 +968,7 @@ export class HostView extends React.Component<any, any> {
         title: actX.title, who: actors.join(', '), ask: spec.ask, icon: r0.icon, color: r0.color,
         isWitch: spec.kind === 'witch', isPick: spec.kind !== 'witch',
         need: spec.count > 1 ? 'Pick ' + spec.count + ' · ' + pick.length + ' chosen' : '',
-        rows: spec.kind === 'drunk'
+        rows: spec.kind === 'drunk' && mech.drunkAs ? [] : spec.kind === 'drunk'
           ? (spec.roles || []).map(k => { const rr = byKey[k]; return { name: rr.name, initial: '★', color: rr.color, roleName: rr.team, roleColor: rr.color, roleSoft: 'rgba(' + rr.rgb + ',.14)', sel: s.drunkRole === k, toggle: () => this.setState({ drunkRole: s.drunkRole === k ? null : k }) }; })
           : spec.pool.map(nm => rowOf(nm, pick.indexOf(nm) >= 0, () => choose(nm))),
         emptyText: spec.pool.length || spec.kind === 'drunk' || spec.count === 0 ? '' : (spec.emptyText || 'No one to choose.'),
@@ -1153,6 +1161,7 @@ export class HostView extends React.Component<any, any> {
       saved: e.name + ' survived — saved by ' + (/^(their|the )/.test(e.by) ? e.by : 'the ' + e.by),
       turned: e.name + ' became the ' + e.role + (e.by === 'apprentice' ? ' (the apprentice steps up)' : e.by ? ' (' + e.by + ')' : ''),
       raised: e.name + ' was raised from the dead',
+      drunk: 'The Drunk is secretly the ' + e.role + ' (revealed on night 3)',
       vote: 'The vote: ' + ((e.tally || []).map(x => x[0] + ' ' + x[1]).join(' · ') || 'no votes') + (e.out ? '' : e.why === 'skipped' ? ' — the village skipped the vote' : e.why === 'tie' ? ' — tied, no one is out' : e.why === 'no majority' ? ' — no majority, no one is out' : ' — no one is out'),
       act: actLine(e),
     }[e.t]);
@@ -1253,7 +1262,16 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
         this.props.onDeal && this.props.onDeal(deck.map(r => r.key), fixed); // NET: fixed players get their card, the rest are shuffled
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        // The Drunk's real role is an extra card nobody else holds (official rule): a village role that isn't in
+        // the deck, about as strong as the Drunk, picked now and handed over on night 3.
+        const hasDrunk = deck.some(r => r.lib === 'Drunk');
+        const inDeck = deck.map(r => r.key);
+        const pool = DRUNK_ROLES.filter(k => byKey[k] && inDeck.indexOf(k) < 0);
+        const near = pool.filter(k => Math.abs((byKey[k].strength || 0) - 3) <= 1);
+        const from = near.length ? near : pool;
+        const drunkAs = hasDrunk ? (from.length ? from[Math.floor(Math.random() * from.length)] : 'villager') : null;
+        const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: byKey[drunkAs].name }] : [];
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       },
       fixOpen: screen === 'roles' && !!s.fixOpen, openFix: () => this.setState({ fixOpen: true, fixPick: null }), closeFix: () => this.setState({ fixOpen: false, fixPick: null }),
       fixRows, fixedN, fixLabel: fixedN ? 'Fixed roles · ' + fixedN : 'Fix roles', clearFix: () => this.setState({ fixed: {}, fixPick: null }), hasFixed: fixedN > 0,
