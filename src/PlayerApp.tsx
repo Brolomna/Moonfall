@@ -1,3 +1,4 @@
+import { preloadVillage } from './Village';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
@@ -24,7 +25,7 @@ export function PlayerApp() {
   const [scene, setScene] = useState<{ phase: string; round: number; players: { name: string; out: boolean; me?: boolean }[]; justOut: string[] } | null>(null);
   // splash art first, then the name page
   const [splash, setSplash] = useState(true);
-  useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
+  useEffect(() => { preloadVillage(); const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
   const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
   const soundRef = useRef(soundOn); soundRef.current = soundOn;
   const toggleSound = () => setSoundOn(on => { try { localStorage.setItem('moonfall.playerSound', on ? 'off' : 'on'); } catch { /* private mode */ } return !on; });

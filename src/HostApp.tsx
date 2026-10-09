@@ -3,7 +3,7 @@ import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HostView } from './views/HostView';
 import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
-import { Village } from './Village';
+import { Village, preloadVillage } from './Village';
 
 const SOUND_KEY = 'moonfall.hostSound';
 
@@ -23,7 +23,7 @@ export function HostApp() {
   const sceneOut = useRef<Set<string>>(new Set());
   const [scene, setScene] = useState<{ phase: 'night' | 'day'; round: number; players: { name: string; out: boolean }[]; justOut: string[] } | null>(null);
 
-  useEffect(() => { installAudioUnlock(); }, []);
+  useEffect(() => { installAudioUnlock(); preloadVillage(); }, []);
   useEffect(() => {
     if (soundOn && stage.screen === 'play' && stage.phase === 'night') startAmbience(); else stopAmbience();
   }, [soundOn, stage.screen, stage.phase]);

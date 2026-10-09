@@ -798,7 +798,7 @@ export class PlayerView extends React.Component<any, any> {
                       <>
                         <div className="face" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 42%, #33205a 0%, #1a0f30 55%, #0e0819 100%)', border: '1px solid rgba(199,168,255,.42)', boxShadow: '0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(167,127,240,.2)' }}>
                           {/* card back: the Moonfall title art */}
-                          <img src="/splash.webp" alt="" draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
+                          <img src="/cardback.webp" alt="" draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
                           <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', height: '45%', background: 'linear-gradient(180deg, rgba(14,8,25,0), rgba(14,8,25,.85))' }} />
                           <div style={{ position: 'absolute', left: '0', right: '0', bottom: '34px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', background: 'rgba(30,16,56,.72)', backdropFilter: 'blur(4px)', border: '1px solid rgba(199,168,255,.4)', fontSize: '14px', fontWeight: '700', color: '#f1e9ff' }}>
