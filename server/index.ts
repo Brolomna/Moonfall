@@ -117,6 +117,12 @@ function roleDefsFor(list: string[]) {
   return roleDefs;
 }
 
+/** How many players died during the current round's night (picks the morning sound: none / one / more). */
+function dawnDeaths() {
+  const sh = room.shared;
+  return Object.values((sh.status || {}) as Record<string, any>).filter(m => m && m.phase === 'night' && m.round === (sh.round || 1) && m.how !== 'removed').length;
+}
+
 /** What one phone is allowed to know. */
 function playerView(p: Player) {
   const sh = room.shared;
@@ -146,6 +152,7 @@ function playerView(p: Player) {
     fate,
     roomLang: sh.roomLang || 'en',
     showRoles,
+    dawnDeaths: dawnDeaths(),
     deck,
     roleDefs,
     playerCount: room.players.length,
@@ -160,6 +167,7 @@ function spectatorView(sp: Player) {
   const keys = players.map(p => p.role).filter(Boolean) as string[];
   return {
     spectator: true,
+    dawnDeaths: dawnDeaths(),
     name: sp.name,
     dealt: room.dealt,
     phase: sh.phase || 'night',

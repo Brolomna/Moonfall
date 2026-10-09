@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HostView } from './views/HostView';
-import { installAudioUnlock, playHowl, playSunrise, startAmbience, stopAmbience } from './sound';
+import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
 
 const SOUND_KEY = 'moonfall.hostSound';
 
@@ -29,7 +29,15 @@ export function HostApp() {
     socket.emit('host:patch', patch);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     // Night / Day buttons send phase without screen; deal and end-game also send screen (no sound for those)
-    if (phase && !screen && phase !== phaseRef.current && soundOn) (phase === 'night' ? playHowl : playSunrise)();
+    if (phase && !screen && phase !== phaseRef.current && soundOn) {
+      if (phase === 'night') playHowl();
+      else {
+        // morning sound by tonight's deaths (the Day patch carries the resolved status)
+        const round = patch.round as number | undefined;
+        const deaths = Object.values((patch.status || {}) as Record<string, any>).filter(m => m && m.phase === 'night' && m.round === round && m.how !== 'removed').length;
+        playDawn(deaths);
+      }
+    }
     if (phase) phaseRef.current = phase;
     if (phase || screen) setStage(st => ({ phase: phase || st.phase, screen: screen || st.screen }));
   };

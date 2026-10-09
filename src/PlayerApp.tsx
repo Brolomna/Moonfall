@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { PlayerView } from './views/PlayerView';
-import { installAudioUnlock, playHowl, playSunrise } from './sound';
+import { installAudioUnlock, playDawn, playHowl } from './sound';
 
 type View = {
   name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned';
@@ -24,7 +24,7 @@ export function PlayerApp() {
   useEffect(() => {
     const inGame = !!view && (view.dealt || !!view.spectator);
     const phase = inGame ? view!.phase : null;
-    if (phase && lastPhase.current && phase !== lastPhase.current && soundRef.current) (phase === 'night' ? playHowl : playSunrise)();
+    if (phase && lastPhase.current && phase !== lastPhase.current && soundRef.current) { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
     lastPhase.current = phase;
   }, [view]);
 

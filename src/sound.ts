@@ -173,6 +173,87 @@ export function playSunrise() {
   });
 }
 
+/** A low funeral bell. */
+function bell(c: AudioContext, t: number, f: number, level: number, out: AudioNode, decay = 6) {
+  [[1, 1], [2.0, 0.5], [2.4, 0.35], [3.9, 0.18], [5.4, 0.08]].forEach(([m, a]) => {
+    const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f * m;
+    const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level * a, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0004, t + decay / m ** 0.3);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + decay + 0.2);
+  });
+}
+
+/** A soft, bowed, cello-like note (for mournful lines). */
+function bowed(c: AudioContext, t: number, f: number, dur: number, level: number, out: AudioNode) {
+  const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+  const vib = c.createOscillator(); vib.frequency.value = 4.6; const vd = c.createGain(); vd.gain.value = f * 0.006; vib.connect(vd); vd.connect(o.frequency);
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f * 3.2; lp.Q.value = 0.6;
+  const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level, t + 0.35); g.gain.setValueAtTime(level, t + dur - 0.3); g.gain.linearRampToValueAtTime(0, t + dur + 0.4);
+  o.connect(lp); lp.connect(g); g.connect(out);
+  [o, vib].forEach(x => { x.start(t); x.stop(t + dur + 0.5); });
+}
+
+/** Day breaks after a death: a grey morning — a low minor swell, a mournful falling line, one funeral bell. */
+export function playMourning() {
+  const c = audio(); if (!c || c.state !== 'running') return;
+  const t = c.currentTime + 0.05;
+  const out = bus(c, 0.22, 0.75);
+  // A-minor pad
+  const pad = c.createGain(); pad.gain.setValueAtTime(0, t); pad.gain.linearRampToValueAtTime(0.55, t + 2); pad.gain.setValueAtTime(0.55, t + 4.5); pad.gain.linearRampToValueAtTime(0, t + 7.5);
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; pad.connect(lp); lp.connect(out);
+  [110, 130.8, 164.8, 220].forEach((f, i) => {
+    const o = c.createOscillator(); o.type = i % 2 ? 'triangle' : 'sine'; o.frequency.value = f; o.detune.value = (i - 1.5) * 5;
+    const g = c.createGain(); g.gain.value = 0.25; o.connect(g); g.connect(pad); o.start(t); o.stop(t + 7.6);
+  });
+  // the mourning line: E D C B … A
+  [[329.6, 0.9], [293.7, 0.9], [261.6, 0.9], [246.9, 1.0], [220, 2.4]].reduce((at, [f, d]) => { bowed(c, at, f, d, 0.16, out); return at + d; }, t + 0.8);
+  bell(c, t + 0.4, 98, 0.22, out, 7);
+}
+
+/** Day breaks after several deaths: a deep impact, a dissonant swell, shrill strings, a heartbeat and heavy bells. */
+export function playMassacre() {
+  const c = audio(); if (!c || c.state !== 'running') return;
+  const t = c.currentTime + 0.05;
+  const out = bus(c, 0.26, 0.8);
+  // impact: a falling sub boom + a dark noise burst
+  const boom = c.createOscillator(); boom.type = 'sine'; boom.frequency.setValueAtTime(70, t); boom.frequency.exponentialRampToValueAtTime(28, t + 1.6);
+  const bg = c.createGain(); bg.gain.setValueAtTime(0, t); bg.gain.linearRampToValueAtTime(1.1, t + 0.02); bg.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+  boom.connect(bg); bg.connect(out); boom.start(t); boom.stop(t + 2.3);
+  const nz = c.createBufferSource(); nz.buffer = noiseBuffer(c, 1.5);
+  const nf = c.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.setValueAtTime(1200, t); nf.frequency.exponentialRampToValueAtTime(120, t + 1.2);
+  const ng = c.createGain(); ng.gain.setValueAtTime(0.5, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+  nz.connect(nf); nf.connect(ng); ng.connect(out); nz.start(t); nz.stop(t + 1.5);
+  // dissonant cluster swelling up from the dark
+  const cl = c.createGain(); cl.gain.setValueAtTime(0, t + 0.3); cl.gain.linearRampToValueAtTime(0.5, t + 3.2); cl.gain.linearRampToValueAtTime(0, t + 7);
+  const clf = c.createBiquadFilter(); clf.type = 'lowpass'; clf.frequency.setValueAtTime(200, t + 0.3); clf.frequency.exponentialRampToValueAtTime(1600, t + 3.2); clf.frequency.exponentialRampToValueAtTime(300, t + 7);
+  cl.connect(clf); clf.connect(out);
+  [65.4, 69.3, 92.5, 98, 138.6].forEach((f, i) => {
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = (i - 2) * 9;
+    const g = c.createGain(); g.gain.value = 0.18; o.connect(g); g.connect(cl); o.start(t + 0.3); o.stop(t + 7.1);
+  });
+  // shrill, trembling high strings a semitone apart
+  [1760, 1864.7].forEach((f, i) => {
+    const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    const trem = c.createOscillator(); trem.frequency.value = 9 + i * 2; const td = c.createGain(); td.gain.value = 0.03;
+    const g = c.createGain(); g.gain.setValueAtTime(0, t + 1); g.gain.linearRampToValueAtTime(0.035, t + 3.5); g.gain.linearRampToValueAtTime(0, t + 6.5);
+    trem.connect(td); td.connect(g.gain); o.connect(g); g.connect(out);
+    [o, trem].forEach(x => { x.start(t + 1); x.stop(t + 6.6); });
+  });
+  // heartbeat
+  [1.4, 1.65, 2.6, 2.85, 3.8, 4.05].forEach((d, i) => {
+    const s0 = t + d, o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(58, s0); o.frequency.exponentialRampToValueAtTime(40, s0 + 0.18);
+    const g = c.createGain(); g.gain.setValueAtTime(0, s0); g.gain.linearRampToValueAtTime(i % 2 ? 0.45 : 0.7, s0 + 0.01); g.gain.exponentialRampToValueAtTime(0.001, s0 + 0.25);
+    o.connect(g); g.connect(out); o.start(s0); o.stop(s0 + 0.3);
+  });
+  // two heavy bell tolls
+  bell(c, t + 0.1, 73.4, 0.3, out, 8);
+  bell(c, t + 3.4, 69.3, 0.26, out, 8);
+}
+
+/** The morning sound for how many players died tonight. */
+export function playDawn(deaths: number) {
+  if (deaths >= 2) playMassacre(); else if (deaths === 1) playMourning(); else playSunrise();
+}
+
 // ---------- host-only night ambience (very quiet loop) ----------
 let amb: { stop: () => void } | null = null;
 let wantAmb = false;
