@@ -713,7 +713,8 @@ export class HostView extends React.Component<any, any> {
     // Tonight everyone acts with the card they went to sleep with; swaps made tonight (Robber, Troublemaker, Mimic…)
     // show on the phones at once but only wake with the new role from the next night.
     const nightStart = {};
-    if (night) st('acts', []).filter(a => a.round === round && a.undo).forEach(a => Object.keys(a.undo).forEach(nm => { if (!(nm in nightStart)) nightStart[nm] = a.undo[nm]; }));
+    // (the Drunk is the exception: their real role works from night 3 itself)
+    if (night) st('acts', []).filter(a => a.round === round && a.undo && a.kind !== 'drunk').forEach(a => Object.keys(a.undo).forEach(nm => { if (!(nm in nightStart)) nightStart[nm] = a.undo[nm]; }));
     const wokeAs = (nm) => (!(nm in nightStart) ? roleOf(nm) : nightStart[nm] === null ? baseRole[nm] : byKey[nightStart[nm]] || baseRole[nm]);
     const wolves = alive.filter(nm => isWolf(wokeAs(nm)));
     const wolfDied = names.some(nm => isWolf(baseRole[nm]) && status[nm] && status[nm].how !== 'removed');
@@ -767,11 +768,14 @@ export class HostView extends React.Component<any, any> {
     // every other role in play, by its rules
     const inPlay = [];
     names.forEach(nm => { const k = wokeAs(nm).key; if (inPlay.indexOf(k) < 0) inPlay.push(k); });
+    // tonight's sobered-up Drunk keeps their (done) step in the list while already playing the real role
+    const drunkTonight = st('acts', []).find(a => a.round === round && a.kind === 'drunk');
+    if (night && drunkTonight && inPlay.indexOf(drunkTonight.key) < 0) inPlay.push(drunkTonight.key);
     inPlay.forEach(k => {
       if (k === 'werewolf' || k === 'wolfcub') return;
       const lib = libOf(k), m = MECH[lib];
       const c = custom.find(x => x.key === k);
-      const holders = names.filter(nm => wokeAs(nm).key === k);
+      const holders = drunkTonight && k === drunkTonight.key ? (drunkTonight.who || []) : names.filter(nm => wokeAs(nm).key === k);
       if (m) {
         if (m.kind === 'kill') return;
         if (m.when === 'first' && !first) return;
@@ -921,7 +925,7 @@ export class HostView extends React.Component<any, any> {
         if (prev && prev.undo) Object.keys(prev.undo).forEach(nm => { if (prev.undo[nm] === null) delete ov[nm]; else ov[nm] = prev.undo[nm]; });
         const setRole = (nm, key) => { a.undo = a.undo || {}; if (!(nm in a.undo)) a.undo[nm] = nm in ov ? ov[nm] : null; ov[nm] = key; };
         if (spec.kind === 'witch') { a.save = witchCanSave ? s.wSave || null : null; a.poison = witchCanPoison ? s.wPoison || null : null; }
-        else if (spec.kind === 'drunk') { a.role = mech.drunkAs || s.drunkRole; a.targets = []; actors.forEach(nm => setRole(nm, a.role)); }
+        else if (spec.kind === 'drunk') { a.role = mech.drunkAs || s.drunkRole; a.targets = []; a.who = actors.slice(); actors.forEach(nm => setRole(nm, a.role)); }
         else {
           a.targets = s.ignite ? doused.slice() : pick.slice();
           if (s.ignite) a.ignite = true;
