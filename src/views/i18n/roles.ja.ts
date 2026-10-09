@@ -87,6 +87,11 @@ export default {
     evPrince: "{name}は王子だと明かし、投票を生き延びました",
     evDg: "{name}は{role}になりました",
     evSaved: "{name}は襲われましたが、救われました",
+    // role groups on the waiting screen
+    grpVillage: "村人陣営",
+    grpWolves: "人狼陣営",
+    grpNeutral: "中立",
+    grpSpecial: "特殊",
     // poison death card
     whenPoisoned: "夜 · 毒殺",
     poisonT1: "魔女に",

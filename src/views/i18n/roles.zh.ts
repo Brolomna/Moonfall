@@ -87,6 +87,11 @@ export default {
     evPrince: "{name}亮出王子身份，躲过了投票",
     evDg: "{name}变成了{role}",
     evSaved: "{name}遭到袭击，但被救下了",
+    // role groups on the waiting screen
+    grpVillage: "村民阵营",
+    grpWolves: "狼人阵营",
+    grpNeutral: "中立",
+    grpSpecial: "特殊",
     // poison death card
     whenPoisoned: "夜晚 · 中毒",
     poisonT1: "被女巫",

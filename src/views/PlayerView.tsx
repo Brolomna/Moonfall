@@ -65,7 +65,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -390,6 +390,21 @@ export class PlayerView extends React.Component<any, any> {
     }).sort((a, b) => a.t - b.t);
     const totalCards = deck.reduce((a, d) => a + d[1], 0);
 
+    // waiting screen: the host's picks grouped by side (Special = the role library's Special tab), tap a chip for its card text
+    const groupOf = (k) => {
+      const lib = (defs[k] || {}).lib;
+      if (lib && (ROLE_LIBRARY.find(e => e.name === lib) || {}).cat === 'Special') return 'special';
+      const team = (all[k] || {}).team;
+      return team === 'Werewolves' ? 'wolves' : team === 'Loner' ? 'neutral' : 'village';
+    };
+    const GROUPS = [['village', T.grpVillage, '#8fe0b8'], ['wolves', T.grpWolves, '#ff8a9b'], ['neutral', T.grpNeutral, '#e3c7a5'], ['special', T.grpSpecial, '#c7a8ff']];
+    const tipKey = s.tip && guideRoles.some(r => r.key === s.tip) ? s.tip : null;
+    const waitGroups = GROUPS.map(([id, label, color]) => ({
+      id, label, color,
+      roles: guideRoles.filter(r => groupOf(r.key) === id).map(r => ({ ...r, on: r.key === tipKey, tap: () => this.setState({ tip: r.key === tipKey ? null : r.key }) }))
+    })).filter(g => g.roles.length);
+    const tipRole = tipKey ? guideRoles.find(r => r.key === tipKey) : null;
+
     // ---------- spectator (joined after the deal): everyone's role, who is out, the story so far ----------
     const sp = this.props.spectate; // NET
     let spec = null;
@@ -456,6 +471,7 @@ export class PlayerView extends React.Component<any, any> {
       openGuide: () => this.setState({ guide: true }),
       closeGuide: () => this.setState({ guide: false }),
       guideRoles, cardsChip: fmt(T.cardsChip, { n: totalCards }),
+      waitGroups, tipRole, closeTip: () => this.setState({ tip: null }),
       rules: [{ num: '1', text: T.rule1 }, { num: '2', text: T.rule2 }, { num: '3', text: T.rule3 }],
       langOpen: !!(s.langOpen !== undefined ? s.langOpen : this.props.langOpen),
       openLang: () => this.setState({ langOpen: true }),
@@ -595,19 +611,29 @@ export class PlayerView extends React.Component<any, any> {
                         {v.cardsChip}
                       </span>
                     </span>
-                    <div className="scroll" style={{ maxHeight: '168px', overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
-                      {(v.guideRoles || []).map((r: any) => (
-                        <span key={r.key} style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 10px 0 7px', borderRadius: '999px', background: r.soft, border: `1px solid ${r.edge}`, fontSize: '13px', fontWeight: '700', color: r.color }}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                            <path d={r.icon} />
-                          </svg>
-                          {r.name}
-                          {(r.multi) ? (
-                            <span style={{ color: '#ece6f6', opacity: 0.8 }}>
-                              ×{r.count}
-                            </span>
-                          ) : null}
-                        </span>
+                    <div className="scroll" style={{ maxHeight: '290px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(v.waitGroups || []).map((g: any) => (
+                        <div key={g.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '800', letterSpacing: '.1em', textTransform: 'uppercase', color: g.color }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: g.color }} />
+                            {g.label}
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {(g.roles || []).map((r: any) => (
+                              <button key={r.key} className="press" onClick={r.tap} aria-pressed={r.on} style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '32px', padding: '0 10px 0 7px', borderRadius: '999px', background: r.on ? r.color : r.soft, border: `1px solid ${r.on ? r.color : r.edge}`, fontSize: '13px', fontWeight: '700', color: r.on ? '#12091c' : r.color }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d={r.icon} />
+                                </svg>
+                                {r.name}
+                                {(r.multi) ? (
+                                  <span style={{ opacity: 0.8 }}>
+                                    ×{r.count}
+                                  </span>
+                                ) : null}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -1374,6 +1400,32 @@ export class PlayerView extends React.Component<any, any> {
                 ))}
               </div>
             </section>
+          </>
+        ) : null}
+        {(v.tipRole && v.isWaiting) ? (
+          <>
+            <div onClick={v.closeTip} style={{ position: 'absolute', inset: '0', zIndex: 30 }} />
+            <div className="rise" role="dialog" aria-label={v.tipRole.name} onClick={v.closeTip} style={{ position: 'absolute', left: '24px', right: '24px', top: '150px', zIndex: 31, padding: '16px', borderRadius: '20px', background: 'linear-gradient(170deg, #241536 0%, #140b22 100%)', border: `1px solid ${v.tipRole.edge}`, boxShadow: `0 18px 50px rgba(0,0,0,.6), 0 0 30px ${v.tipRole.soft}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: v.tipRole.soft, color: v.tipRole.color }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={v.tipRole.icon} />
+                  </svg>
+                </span>
+                <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '19px', color: v.tipRole.color }}>
+                    {v.tipRole.name}
+                  </span>
+                  <span style={{ alignSelf: 'flex-start', padding: '1px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '800', color: v.tipRole.teamFg, background: v.tipRole.teamBg }}>
+                    {v.tipRole.team}
+                  </span>
+                </span>
+                <span aria-hidden="true" style={{ fontSize: '20px', color: '#8f82a8' }}>×</span>
+              </span>
+              <span style={{ fontSize: '14.5px', lineHeight: '1.5', color: '#e4d9f0' }}>
+                {v.tipRole.desc}
+              </span>
+            </div>
           </>
         ) : null}
         {(this.props.offline) ? (

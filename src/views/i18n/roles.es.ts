@@ -87,6 +87,11 @@ export default {
     evPrince: "{name} reveló ser el Príncipe y sobrevivió a la votación",
     evDg: "{name} se convirtió en {role}",
     evSaved: "{name} fue atacado, pero lo salvaron",
+    // role groups on the waiting screen
+    grpVillage: "Aldea",
+    grpWolves: "Hombres lobo",
+    grpNeutral: "Neutrales",
+    grpSpecial: "Especiales",
     // poison death card
     whenPoisoned: "Noche · envenenado",
     poisonT1: "ENVENENADO POR",

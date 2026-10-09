@@ -87,6 +87,11 @@ export default {
     evPrince: "{name} 님이 왕자임을 밝히고 투표에서 살아남았어요",
     evDg: "{name} 님의 역할이 {role}(으)로 바뀌었어요",
     evSaved: "{name} 님이 공격받았지만 구출됐어요",
+    // role groups on the waiting screen
+    grpVillage: "마을",
+    grpWolves: "늑대인간",
+    grpNeutral: "중립",
+    grpSpecial: "특수",
     // poison death card
     whenPoisoned: "밤 · 독살",
     poisonT1: "마녀에게",

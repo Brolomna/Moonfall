@@ -87,6 +87,11 @@ export default {
     evPrince: "{name} เปิดเผยว่าเป็นเจ้าชายและรอดจากการโหวต",
     evDg: "{name} กลายเป็น{role}",
     evSaved: "{name} ถูกโจมตีแต่รอดมาได้",
+    // role groups on the waiting screen
+    grpVillage: "ฝ่ายหมู่บ้าน",
+    grpWolves: "ฝ่ายมนุษย์หมาป่า",
+    grpNeutral: "ฝ่ายกลาง",
+    grpSpecial: "บทบาทพิเศษ",
     // poison death card
     whenPoisoned: "กลางคืน · ถูกวางยา",
     poisonT1: "ถูกแม่มด",
