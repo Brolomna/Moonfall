@@ -1,81 +1,43 @@
 /* The shared village transition (src/Village.tsx) */
-.village { position: absolute; left: 0; top: 0; width: 390px; overflow: hidden; z-index: 60; background: #07040f; animation: vIn .5s ease both; cursor: pointer; }
+.village { position: absolute; left: 0; top: 0; width: 390px; overflow: hidden; z-index: 60; background: #0a0612; animation: vIn .5s ease both; cursor: pointer; }
 .village-out { animation: vOut .6s ease both; }
 @keyframes vIn { from { opacity: 0 } to { opacity: 1 } }
 @keyframes vOut { from { opacity: 1 } to { opacity: 0 } }
-.village-title { position: absolute; left: 0; right: 0; top: 18%; text-align: center; font: 700 34px 'Cinzel', serif; letter-spacing: .08em; color: #f6f1ff; text-shadow: 0 2px 24px rgba(0,0,0,.6); animation: vTitle 3.6s ease both; }
+.village-title { position: absolute; left: 0; right: 0; top: 12%; z-index: 50; text-align: center; font: 700 34px 'Cinzel', serif; letter-spacing: .08em; color: #f6f1ff; text-shadow: 0 2px 24px rgba(0,0,0,.7); animation: vTitle 3.6s ease both; }
 @keyframes vTitle { 0% { opacity: 0; transform: translateY(10px) } 20%, 80% { opacity: 1; transform: none } 100% { opacity: 0 } }
 
-.sky-fade-in { animation: vIn 2.4s ease .2s both; }
-.sky-fade-out { animation: vOut 2.4s ease .2s both; }
-.twink { animation: twink 2.4s ease-in-out infinite; }
-@keyframes twink { 0%, 100% { opacity: .25 } 50% { opacity: 1 } }
-.moon-rise { animation: moonRise 2.6s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes moonRise { from { transform: translateY(140px); opacity: 0 } to { transform: none; opacity: 1 } }
-.sun-rise { animation: sunRise 2.8s cubic-bezier(.2,.7,.2,1) both; }
-@keyframes sunRise { from { transform: translateY(260px); opacity: .2 } to { transform: none; opacity: 1 } }
-.bird { animation: fly 4s linear .8s both; }
-@keyframes fly { from { transform: translate(-30px, 140px) } to { transform: translate(420px, 70px) } }
+/* skies: the same gradients as the game screens; the new one fades in over the old */
+.v-sky { position: absolute; inset: 0; }
+.v-sky-night { background: radial-gradient(120% 70% at 80% 6%, #3b2163 0%, #1a0f2e 42%, #0a0612 78%); }
+.v-sky-day { background: radial-gradient(130% 70% at 75% 4%, #b0607a 0%, #6a3462 34%, #2a1238 70%, #120a1c 100%); }
+.v-night .v-sky-night { animation: vIn 2.2s ease both; }
+.v-day .v-sky-night { animation: vOut 2.2s ease both; }
+.v-orb { position: absolute; right: 30px; width: 58px; height: 58px; border-radius: 50%; }
+.v-moon { top: 52px; background: radial-gradient(circle at 38% 36%, #fffaf0, #ece2c6 45%, #c9bc9c); box-shadow: 0 0 60px 20px rgba(241,233,210,.18); animation: orbRise 2.4s cubic-bezier(.2,.7,.2,1) both; }
+.v-sun { top: 110px; background: radial-gradient(circle, #ffe9c4, #f2a65a 70%); box-shadow: 0 0 90px 40px rgba(242,166,90,.4); animation: orbRise 2.6s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes orbRise { from { transform: translateY(120px); opacity: 0 } to { transform: none; opacity: 1 } }
+.v-stars { position: absolute; inset: 0 0 50% 0; background-image:
+  radial-gradient(1.5px 1.5px at 40px 70px, #fff, transparent), radial-gradient(1px 1px at 150px 130px, #e6dcff, transparent),
+  radial-gradient(1.2px 1.2px at 220px 46px, #fff, transparent), radial-gradient(1px 1px at 24px 200px, #fff, transparent),
+  radial-gradient(1px 1px at 300px 160px, #fff, transparent), radial-gradient(1.4px 1.4px at 110px 30px, #fff, transparent),
+  radial-gradient(1px 1px at 350px 240px, #e6dcff, transparent), radial-gradient(1px 1px at 190px 220px, #fff, transparent);
+  animation: vIn 2s ease .6s both; }
 
-.hill { transition: fill 2s ease; }
-.hill-night { fill: #170d2c; animation: toNightHill 2.4s ease both; }
-.hill-day { fill: #6f8f5a; animation: toDayHill 2.4s ease both; }
-@keyframes toNightHill { from { fill: #6f8f5a } to { fill: #170d2c } }
-@keyframes toDayHill { from { fill: #170d2c } to { fill: #6f8f5a } }
-.grass-night { fill: #0e0820; animation: toNightGrass 2.4s ease both; }
-.grass-day { fill: #8aa866; animation: toDayGrass 2.4s ease both; }
-@keyframes toNightGrass { from { fill: #8aa866 } to { fill: #0e0820 } }
-@keyframes toDayGrass { from { fill: #0e0820 } to { fill: #8aa866 } }
+/* houses */
+.v-house { position: absolute; animation: houseIn .7s ease both; }
+@keyframes houseIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.v-img { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-drag: none; }
+/* night: the painted houses with their windows glowing; day: in daylight, the glow faded */
+.v-night .v-img { animation: nightfall 2.2s ease both; filter: drop-shadow(0 0 7px rgba(255,170,80,.28)); }
+.v-day .v-img { animation: daybreak 2.2s ease both; filter: brightness(1.15) saturate(.92) sepia(.08); }
+@keyframes nightfall { from { filter: brightness(1.15) saturate(.92) sepia(.08) } to { filter: drop-shadow(0 0 7px rgba(255,170,80,.28)) } }
+@keyframes daybreak { from { filter: drop-shadow(0 0 7px rgba(255,170,80,.28)) } to { filter: brightness(1.15) saturate(.92) sepia(.08) } }
+/* an eliminated player's house: lights out, colour drained */
+.village .v-img.v-dead { animation: none; filter: grayscale(.9) brightness(.3) contrast(1.15); }
+.village .v-img.v-dying { animation: goDark 1.8s ease both; }
+@keyframes goDark { from { filter: drop-shadow(0 0 7px rgba(255,170,80,.28)) } 30% { filter: brightness(1.4) } to { filter: grayscale(.9) brightness(.3) contrast(1.15) } }
 
-.house { animation: houseIn .6s ease both; }
-@keyframes houseIn { from { opacity: 0 } to { opacity: 1 } }
-.veil-in { opacity: .62; animation: veilIn 2.2s ease both; }
-.veil-out { opacity: 0; animation: veilOut 2.2s ease both; }
-@keyframes veilIn { from { opacity: 0 } to { opacity: .62 } }
-@keyframes veilOut { from { opacity: .62 } to { opacity: 0 } }
-/* windows: lit at dusk, then go dark one by one; at dawn the shutters open to the light */
-.win-off { fill: #ffd27a; animation: lightsOut .5s ease both; }
-@keyframes lightsOut { from { fill: #ffd27a } to { fill: #0e0a1a } }
-.win-on { fill: #0e0a1a; animation: lightsOn .6s ease both; }
-@keyframes lightsOn { from { fill: #0e0a1a } to { fill: #cfe8ff } }
-.puff { fill: rgba(240,240,240,.7); transform-box: fill-box; transform-origin: center; animation: puff 3s ease-out infinite; }
-@keyframes puff { 0% { transform: translate(0, 0) scale(.6); opacity: 0 } 15% { opacity: .9 } 100% { transform: translate(6px, -34px) scale(2.2); opacity: 0 } }
-/* a house falling into ruin */
-.ruin-in { animation: ruin 1.4s ease both; }
-@keyframes ruin { 0% { opacity: 0; transform: translateY(-4px) } 40% { opacity: .6 } 60% { transform: translateY(1px) rotate(.6deg) } 100% { opacity: 1; transform: none } }
-.house-name { font: 700 10px 'Manrope', sans-serif; fill: #f6f1ff; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 3px; }
-.house-name.gone { fill: #9a93a6; text-decoration: line-through; }
-.house-name.me { fill: #ffd27a; }
-.fog-band { fill: rgba(190,165,240,.10); filter: blur(10px); animation: vIn 2s ease 1s both; }
-
-.path-night { stroke: #1b1230; animation: toNightPath 2.4s ease both; }
-.path-day { stroke: #c9a879; animation: toDayPath 2.4s ease both; }
-@keyframes toNightPath { from { stroke: #c9a879 } to { stroke: #1b1230 } }
-@keyframes toDayPath { from { stroke: #1b1230 } to { stroke: #c9a879 } }
-.pine-night { fill: #0b0618; animation: toNightPine 2.4s ease both; }
-.pine-day { fill: #4c6b3c; animation: toDayPine 2.4s ease both; }
-@keyframes toNightPine { from { fill: #4c6b3c } to { fill: #0b0618 } }
-@keyframes toDayPine { from { fill: #0b0618 } to { fill: #4c6b3c } }
-
-/* medieval village scenery */
-.cloud { animation: cloudDrift 18s linear infinite alternate; }
-@keyframes cloudDrift { from { transform: translateX(-12px) } to { transform: translateX(12px) } }
-.cloud-night { fill: #2c1b4e; opacity: .8; }
-.cloud-day { fill: #f3d6e6; opacity: .85; }
-.far-night { fill: #160c2b; animation: toNightFar 2.4s ease both; }
-.far-day { fill: #8a6f9e; animation: toDayFar 2.4s ease both; }
-@keyframes toNightFar { from { fill: #8a6f9e } to { fill: #160c2b } }
-@keyframes toDayFar { from { fill: #160c2b } to { fill: #8a6f9e } }
-.castle-lights rect { animation: vIn 1.5s ease 1.2s both; }
-.grass-night { fill: #120a24; animation: toNightGround 2.4s ease both; }
-.grass-day { fill: #6f5c70; animation: toDayGround 2.4s ease both; }
-@keyframes toNightGround { from { fill: #6f5c70 } to { fill: #120a24 } }
-@keyframes toDayGround { from { fill: #120a24 } to { fill: #6f5c70 } }
-.street-night { fill: #231a36; animation: toNightStreet 2.4s ease both; }
-.street-day { fill: #b49a80; animation: toDayStreet 2.4s ease both; }
-@keyframes toNightStreet { from { fill: #b49a80 } to { fill: #231a36 } }
-@keyframes toDayStreet { from { fill: #231a36 } to { fill: #b49a80 } }
-.torch-glow { transform-box: fill-box; transform-origin: center; animation: glow 1.4s ease-in-out infinite alternate; }
-@keyframes glow { from { opacity: .7; transform: scale(.92) } to { opacity: 1; transform: scale(1.08) } }
-.flame-flick { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .5s ease-in-out infinite alternate; }
-@keyframes flick { from { transform: scale(1, 1) } to { transform: scale(.85, 1.15) } }
+.v-name { position: absolute; width: 120px; text-align: center; font: 700 11px 'Manrope', sans-serif; color: #f6f1ff; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.6); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v-name.gone { color: #8f88a0; text-decoration: line-through; }
+.v-name.me { color: #ffd27a; }
+.v-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 18%; z-index: 5; background: linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.75)); pointer-events: none; }
