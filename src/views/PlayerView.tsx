@@ -839,18 +839,6 @@ export class PlayerView extends React.Component<any, any> {
                             <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#f2c4cb' }}>
                               {v.T.killedLine}
                             </span>
-                            <span style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '34px', padding: '0 14px 0 8px', borderRadius: '999px', background: 'rgba(0,0,0,.35)', border: `1px solid ${v.rc.frame}`, fontSize: '13px', fontWeight: '700' }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                                <path d={v.rc.icon} />
-                              </svg>
-                              <span>
-                                {v.T.youWereA}
-                                <span style={{ color: v.rc.color }}>
-                                  {v.rc.name}
-                                </span>
-                                {v.T.youWereB}
-                              </span>
-                            </span>
                             <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#d9b8be' }}>
                               {v.T.killedRule}
                             </span>
@@ -912,18 +900,6 @@ export class PlayerView extends React.Component<any, any> {
                             <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#d2ecbc' }}>
                               {v.T.poisonLine}
                             </span>
-                            <span style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '34px', padding: '0 14px 0 8px', borderRadius: '999px', background: 'rgba(0,0,0,.35)', border: `1px solid ${v.rc.frame}`, fontSize: '13px', fontWeight: '600', color: '#e8f5dc' }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                                <path d={v.rc.icon} />
-                              </svg>
-                              <span>
-                                {v.T.youWereA}
-                                <span style={{ color: v.rc.color }}>
-                                  {v.rc.name}
-                                </span>
-                                {v.T.youWereB}
-                              </span>
-                            </span>
                             <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#bcd4a8' }}>
                               {v.T.killedRule}
                             </span>
@@ -970,18 +946,6 @@ export class PlayerView extends React.Component<any, any> {
                             </span>
                             <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#f2d4b4' }}>
                               {v.T.votedLine}
-                            </span>
-                            <span style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '34px', padding: '0 14px 0 8px', borderRadius: '999px', background: 'rgba(0,0,0,.35)', border: `1px solid ${v.rc.frame}`, fontSize: '13px', fontWeight: '700' }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                                <path d={v.rc.icon} />
-                              </svg>
-                              <span>
-                                {v.T.youWereA}
-                                <span style={{ color: v.rc.color }}>
-                                  {v.rc.name}
-                                </span>
-                                {v.T.youWereB}
-                              </span>
                             </span>
                             <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#dcc0a6' }}>
                               {v.T.votedRule}
