@@ -7,7 +7,7 @@ import { MECH, DAY_REMINDERS } from './roleMechanics';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote'];
 
   constructor(props) {
     super(props);
@@ -965,8 +965,75 @@ export class HostView extends React.Component<any, any> {
     const daySteps = [
       { num: '1', title: 'Announce the night', text: nightDeaths.length ? 'Dead players: ' + nightDeaths.join(', ') : 'No one died.' },
       { num: '2', title: 'Let the village talk', text: '' },
-      { num: '3', title: 'Hold the vote', text: '' },
+      { num: '3', title: 'Hold the vote', text: 'Use the vote panel below: nominate players, count the raised hands for each, then end the vote.' },
     ];
+
+    // ---------- the day's vote: nominations → a hand count per nominee → End vote marks the player voted out ----------
+    const vs = st('vote', null);
+    const vote = vs && vs.round === round ? vs : { round, noms: [], closed: false, result: null };
+    const setVote = (nv, extra) => this.setState({ vote: { ...vote, ...nv }, ...(extra || {}) });
+    const voters = alive.length;
+    const voteOut = (nm, tally) => {
+      const patch = markPatch(nm, 'voted');
+      const vEv = ev('vote', { tally, out: nm });
+      const lg = patch.log.slice(); const at = lg.findIndex(e => e.t === 'out' && e.name === nm && e.round === round && e.phase === phase);
+      lg.splice(at < 0 ? lg.length : at, 0, vEv);
+      this.setState({ ...patch, log: lg, vote: { ...vote, closed: true, result: { out: nm, tally } }, nominating: false });
+    };
+    const tallyOf = () => vote.noms.filter(n => n.count > 0).sort((a, b) => b.count - a.count).map(n => [n.name, n.count]);
+    const noOneOut = (why) => setVote({ closed: true, result: { out: null, why, tally: tallyOf() } }, { log: log.concat([ev('vote', { tally: tallyOf(), out: null, why })]), nominating: false });
+    const endVote = () => {
+      const t = tallyOf();
+      if (!t.length) return noOneOut('no votes');
+      const top = t.filter(x => x[1] === t[0][1]).map(x => x[0]);
+      if (top.length === 1) return voteOut(top[0], t);
+      setVote({ closed: true, result: { tie: top, tally: t } }, { nominating: false });
+    };
+    const reopen = () => {
+      const r = vote.result || {};
+      const base = r.out && status[r.out] && status[r.out].how === 'voted' ? markPatch(r.out, 'alive') : { log };
+      this.setState({ ...base, log: base.log.filter(e => !(e.t === 'vote' && e.round === round)), vote: { ...vote, closed: false, result: null } });
+    };
+    const res = vote.result;
+    const nominees = vote.noms.filter(n => !isOut(n.name) || (res && res.out === n.name));
+    const tieRule = rules.tie;
+    const voteView = {
+      open: !vote.closed,
+      hasNoms: nominees.length > 0,
+      voters, votersText: voters + ' players alive — each raises a hand once',
+      noms: nominees.map(n => {
+        const lead = !vote.closed && n.count > 0 && n.count === Math.max(...nominees.map(x => x.count));
+        const set = (c) => setVote({ noms: vote.noms.map(x => (x.name === n.name ? { ...x, count: Math.max(0, Math.min(voters, c)) } : x)) });
+        return {
+          name: n.name, initial: n.name.charAt(0).toUpperCase(), count: n.count, lead,
+          majority: n.count > voters / 2,
+          inc: () => set(n.count + 1), dec: () => set(n.count - 1),
+          remove: () => setVote({ noms: vote.noms.filter(x => x.name !== n.name) }),
+          canEdit: !vote.closed,
+        };
+      }),
+      nominating: !vote.closed && !!s.nominating,
+      toggleNominate: () => this.setState({ nominating: !s.nominating }),
+      candidates: alive.filter(nm => !vote.noms.some(n => n.name === nm)).map(nm => ({
+        name: nm, pick: () => setVote({ noms: vote.noms.concat([{ name: nm, count: 0 }]) }, { nominating: false }),
+      })),
+      canEnd: !vote.closed,
+      endLabel: nominees.some(n => n.count > 0) ? 'End vote & reveal' : 'End vote — no one is out',
+      endVote,
+      canSkip: !vote.closed && rules.skipVote,
+      skip: () => noOneOut('skipped'),
+      closed: vote.closed,
+      isOut: !!(res && res.out), isNone: !!(res && !res.out && !res.tie), isTie: !!(res && res.tie),
+      outName: res && res.out, outVotes: res && res.out ? (res.tally.find(x => x[0] === res.out) || [0, 0])[1] : 0,
+      noneText: res && res.why === 'skipped' ? 'The village chose to skip the vote. No one is out today.' : 'No votes were cast. No one is out today.',
+      tieText: res && res.tie ? 'Tie: ' + res.tie.join(' and ') + ' — ' + res.tally[0][1] + ' votes each.' : '',
+      tieHint: { revote: 'House rule: vote again between the tied players.', none: 'House rule: on a tie, no one is out.', host: 'House rule: the host decides.' }[tieRule] || '',
+      tieRevote: () => setVote({ closed: false, result: null, noms: (res.tie || []).map(nm => ({ name: nm, count: 0 })) }),
+      tieNone: () => noOneOut('tie'),
+      tiePicks: (res && res.tie ? res.tie : []).map(nm => ({ name: nm, pick: () => voteOut(nm, res.tally) })),
+      revoteFirst: tieRule !== 'none',
+      reopen,
+    };
     if (tough && !isOut(tough)) daySteps.push({ num: '4', title: 'At sunset', text: 'Mark ' + tough + ' (Tough Guy) as Killed.' });
     const dr2 = (key, text) => { const r = byKey[key]; return aliveWith(key).length ? [{ name: r.name + ' (' + aliveWith(key).join(', ') + ')', text, color: r.color, icon: r.icon }] : []; };
     const dayEffects = st('acts', []).filter(a => a.round === round && ['banish', 'silence', 'hypnotize', 'curse'].indexOf(a.kind) >= 0 && a.targets && a.targets[0] && !isOut(a.targets[0])).map(a => {
@@ -1057,9 +1124,10 @@ export class HostView extends React.Component<any, any> {
       saved: e.name + ' survived — saved by ' + (/^(their|the )/.test(e.by) ? e.by : 'the ' + e.by),
       turned: e.name + ' became the ' + e.role + (e.by === 'apprentice' ? ' (the apprentice steps up)' : e.by ? ' (' + e.by + ')' : ''),
       raised: e.name + ' was raised from the dead',
+      vote: 'The vote: ' + ((e.tally || []).map(x => x[0] + ' ' + x[1]).join(' · ') || 'no votes') + (e.out ? '' : e.why === 'skipped' ? ' — the village skipped the vote' : e.why === 'tie' ? ' — tied, no one is out' : ' — no one is out'),
       act: actLine(e),
     }[e.t]);
-    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { act: '#a6c8ff', saved: '#62d4a6', turned: '#c2a8f0', raised: '#8fe0b8', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
+    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { vote: '#f2c58a', act: '#a6c8ff', saved: '#62d4a6', turned: '#c2a8f0', raised: '#8fe0b8', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
     const chapters = [];
     log.forEach((e, i) => {
       if (e.t === 'start' || e.t === 'phase') {
@@ -1156,7 +1224,7 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
         this.props.onDeal && this.props.onDeal(deck.map(r => r.key), fixed); // NET: fixed players get their card, the rest are shuffled
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       },
       fixOpen: screen === 'roles' && !!s.fixOpen, openFix: () => this.setState({ fixOpen: true, fixPick: null }), closeFix: () => this.setState({ fixOpen: false, fixPick: null }),
       fixRows, fixedN, fixLabel: fixedN ? 'Fixed roles · ' + fixedN : 'Fix roles', clearFix: () => this.setState({ fixed: {}, fixPick: null }), hasFixed: fixedN > 0,
@@ -1213,7 +1281,9 @@ export class HostView extends React.Component<any, any> {
       nightIntro: (() => { const S = this.story(), k = st('story', 0); return first ? S.openings[k % S.openings.length] : S.nightfall[(k + round) % S.nightfall.length]; })(),
       dayIntro: (() => { const S = this.story(), k = st('story', 0), pool = nightDeaths.length ? S.dawnDeath : S.dawnQuiet; return pool[(k + round) % pool.length]; })(),
       nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
-      daySteps, dayRules, hasDayRules: dayRules.length > 0,
+      daySteps, dayRules, hasDayRules: dayRules.length > 0, voteView,
+      showVote: !night && (!gameOver || !!(vote.result && vote.result.out)),
+      veil: !!s.veil, toggleVeil: () => this.setState({ veil: !s.veil }),
       gameOver,
       histOpen: screen === 'play' && !!s.histOpen, openHist: () => this.setState({ histOpen: true }), closeHist: () => this.setState({ histOpen: false }),
       chapters, outcome, hasOutcome: !!outcome, copyStory, copyLabel: s.copied ? 'Copied!' : 'Copy as text',
@@ -1324,7 +1394,7 @@ export class HostView extends React.Component<any, any> {
       confirmYes: () => {
         const to = s.confirmEnd || 'players';
         this.props.onEnd && this.props.onEnd(); // NET
-        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {} });
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false });
       },
       confirmNo: () => this.setState({ confirmEnd: null }),
       // spectator QR during the game (same join link — the server makes late joiners spectators)
@@ -1773,6 +1843,11 @@ export class HostView extends React.Component<any, any> {
                     </span>
                   </span>
                   <span style={{ flex: '1' }} />
+                  <button className="press" onClick={v.toggleVeil} aria-label="Hide the host screen" style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(0,0,0,.18)', color: '#e9dcff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z" />
+                    </svg>
+                  </button>
                   <button className="press" onClick={this.props.onToggleSound} aria-label={this.props.soundOn ? 'Turn sound off' : 'Turn sound on'} aria-pressed={!!this.props.soundOn} style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(0,0,0,.18)', color: this.props.soundOn ? '#e9dcff' : '#7f7397', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d={this.props.soundOn ? 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12' : 'M4 9h4l5-4v14l-5-4H4z M17 9l5 6 M22 9l-5 6'} />
@@ -2034,6 +2109,110 @@ export class HostView extends React.Component<any, any> {
                             ))}
                           </div>
                         </>
+                      ) : null}
+                    </section>
+                  </>
+                ) : null}
+                {(v.showVote) ? (
+                  <>
+                    <section aria-label="Village vote" style={{ padding: '16px', borderRadius: '22px', background: 'rgba(40,18,40,.8)', border: '1px solid rgba(255,211,168,.25)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '10px' }}>
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase', color: '#ffd3a8' }}>
+                            Village vote
+                          </span>
+                          <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '19px' }}>
+                            Nominations
+                          </span>
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#a99bc2', textAlign: 'right', maxWidth: '150px' }}>
+                          {v.voteView.votersText}
+                        </span>
+                      </span>
+                      {(!v.voteView.hasNoms && v.voteView.open) ? (
+                        <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#d8c8d4' }}>
+                          When someone is accused and seconded, tap Nominate and choose them. Then count the hands against them.
+                        </span>
+                      ) : null}
+                      {((v.voteView.noms) || []).map((n: any) => (
+                        <div key={n.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: n.lead ? 'rgba(242,166,90,.14)' : 'rgba(20,12,34,.75)', border: `1.5px solid ${n.lead ? 'rgba(242,166,90,.55)' : 'rgba(236,230,246,.09)'}` }}>
+                          <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: '#f2c58a' }}>
+                            {n.initial}
+                          </span>
+                          <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '700', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.name}</span>
+                            {(n.majority) ? <span style={{ fontSize: '11px', fontWeight: '700', color: '#ffb27a' }}>Majority</span> : null}
+                          </span>
+                          {(n.canEdit) ? (
+                            <button className="press" onClick={n.dec} aria-label={`One vote fewer for ${n.name}`} style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '22px', fontWeight: '700' }}>−</button>
+                          ) : null}
+                          <span aria-label={`${n.count} votes`} style={{ minWidth: '34px', textAlign: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px', color: n.lead ? '#ffd3a8' : '#ece6f6' }}>
+                            {n.count}
+                          </span>
+                          {(n.canEdit) ? (
+                            <button className="press" onClick={n.inc} aria-label={`One more vote for ${n.name}`} style={{ width: '48px', height: '40px', flex: 'none', borderRadius: '12px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '22px', fontWeight: '800' }}>+</button>
+                          ) : null}
+                          {(n.canEdit) ? (
+                            <button className="press" onClick={n.remove} aria-label={`Withdraw ${n.name}'s nomination`} style={{ width: '28px', height: '40px', flex: 'none', border: 'none', background: 'none', color: '#7f7397', fontSize: '18px' }}>×</button>
+                          ) : null}
+                        </div>
+                      ))}
+                      {(v.voteView.open) ? (
+                        <>
+                          {(v.voteView.nominating) ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '10px', borderRadius: '14px', background: 'rgba(10,6,18,.55)', border: '1px dashed rgba(255,211,168,.3)' }}>
+                              {((v.voteView.candidates) || []).map((c: any) => (
+                                <button key={c.name} className="press" onClick={c.pick} style={{ height: '36px', padding: '0 12px', borderRadius: '999px', border: '1px solid rgba(255,211,168,.35)', background: 'rgba(242,197,138,.1)', color: '#f6e7c1', fontSize: '14px', fontWeight: '700' }}>
+                                  {c.name}
+                                </button>
+                              ))}
+                              {(!v.voteView.candidates.length) ? <span style={{ fontSize: '13px', color: '#a99bc2' }}>Everyone is already nominated.</span> : null}
+                            </div>
+                          ) : null}
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="press" onClick={v.voteView.toggleNominate} style={{ flex: '1', height: '40px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', border: '1px solid rgba(255,211,168,.4)', background: 'rgba(242,197,138,.1)', color: '#ffd3a8' }}>
+                              {v.voteView.nominating ? 'Cancel' : '+ Nominate'}
+                            </button>
+                            {(v.voteView.canSkip) ? (
+                              <button className="press" onClick={v.voteView.skip} style={{ flex: 'none', padding: '0 14px', height: '40px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#c4b8da' }}>
+                                Skip vote
+                              </button>
+                            ) : null}
+                          </div>
+                          <button className="press" onClick={v.voteView.endVote} style={{ height: '52px', borderRadius: '16px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '16px', fontWeight: '800' }}>
+                            {v.voteView.endLabel}
+                          </button>
+                        </>
+                      ) : null}
+                      {(v.voteView.isOut) ? (
+                        <div className="rise" style={{ padding: '14px', borderRadius: '16px', background: 'linear-gradient(160deg, rgba(242,166,90,.22), rgba(18,10,31,.9))', border: '1px solid rgba(242,166,90,.55)', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'center' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: '#ffb27a' }}>The village has spoken</span>
+                          <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px' }}>{v.voteView.outName}</span>
+                          <span style={{ fontSize: '13.5px', color: '#e4d9f0' }}>is voted out with {v.voteView.outVotes} vote{v.voteView.outVotes === 1 ? '' : 's'}. Marked as Voted.</span>
+                        </div>
+                      ) : null}
+                      {(v.voteView.isNone) ? (
+                        <div style={{ padding: '12px 14px', borderRadius: '14px', background: 'rgba(20,12,34,.75)', fontSize: '14px', color: '#e4d9f0', textAlign: 'center' }}>
+                          {v.voteView.noneText}
+                        </div>
+                      ) : null}
+                      {(v.voteView.isTie) ? (
+                        <div style={{ padding: '14px', borderRadius: '16px', background: 'rgba(20,12,34,.8)', border: '1px solid rgba(255,211,168,.35)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ fontWeight: '800', fontSize: '15px', color: '#ffd3a8' }}>{v.voteView.tieText}</span>
+                          <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>{v.voteView.tieHint}</span>
+                          <button className="press" onClick={v.voteView.tieRevote} style={{ height: '40px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', border: 'none', background: v.voteView.revoteFirst ? '#f2c58a' : 'rgba(255,255,255,.06)', color: v.voteView.revoteFirst ? '#1c120a' : '#ece6f6' }}>Vote again between them</button>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {((v.voteView.tiePicks) || []).map((t: any) => (
+                              <button key={t.name} className="press" onClick={t.pick} style={{ flex: '1', padding: '0 10px', height: '40px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', border: '1px solid rgba(242,166,90,.4)', background: 'rgba(242,166,90,.1)', color: '#ffd3a8' }}>{t.name} is out</button>
+                            ))}
+                          </div>
+                          <button className="press" onClick={v.voteView.tieNone} style={{ height: '40px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', border: '1px solid rgba(236,230,246,.18)', background: v.voteView.revoteFirst ? 'rgba(255,255,255,.05)' : '#f2c58a', color: v.voteView.revoteFirst ? '#c4b8da' : '#1c120a' }}>No one is out</button>
+                        </div>
+                      ) : null}
+                      {(v.voteView.closed && !v.voteView.isTie) ? (
+                        <button className="press" onClick={v.voteView.reopen} style={{ alignSelf: 'center', height: '34px', border: 'none', background: 'none', color: '#a99bc2', fontSize: '13px', fontWeight: '700' }}>
+                          Undo — reopen the vote
+                        </button>
                       ) : null}
                     </section>
                   </>
@@ -2977,6 +3156,16 @@ export class HostView extends React.Component<any, any> {
               </div>
             </section>
           </>
+        ) : null}
+        {(v.veil) ? (
+          <div aria-label="Host screen hidden" style={{ position: 'absolute', inset: '0', zIndex: 300, background: '#0a0612' }}>
+            <img src="/splash.webp" alt="Moonfall" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', userSelect: 'none' }} />
+            <button className="press" onClick={v.toggleVeil} aria-label="Show the host screen" style={{ position: 'absolute', top: '54px', left: '20px', width: '40px', height: '40px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.14)', background: 'rgba(10,6,18,.35)', color: 'rgba(233,220,255,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6 M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+              </svg>
+            </button>
+          </div>
         ) : null}
       </div>
     );
