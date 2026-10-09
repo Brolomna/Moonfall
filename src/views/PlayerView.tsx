@@ -3,7 +3,8 @@
 import React from 'react';
 import './PlayerView.css';
 import { ROLE_LIBRARY } from './roleLibrary';
-import { LIB_I18N } from './i18n';
+import { LIB_I18N, TIPS_I18N } from './i18n';
+import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
@@ -13,6 +14,7 @@ export class PlayerView extends React.Component<any, any> {
     // after 5 s while alive, after 3 s (back to the death card) once the player is out
     const revealed = !!(this.state && this.state.revealed), was = !!(prevState && prevState.revealed);
     if (revealed && !was) {
+      this.setState({ peeks: ((this.state && this.state.peeks) || 0) + 1 }); // next tip on every peek
       clearTimeout(this._hide);
       const fate = (this.state && this.state.fate) || this.props.fate || 'none';
       this._hide = setTimeout(() => this.setState({ revealed: false }), fate === 'none' ? 5000 : 3000);
@@ -367,6 +369,11 @@ export class PlayerView extends React.Component<any, any> {
     };
     const key = all[this.props.role] ? this.props.role : 'werewolf';
     const R = loc(key);
+    // strategy tip for this role (library name → this phone's language), cycling on each peek; team tips as fallback
+    const tipName = (defs[key] && !defs[key].edited && defs[key].lib) || (!defs[key] || !defs[key].custom ? (ROLE_LIBRARY.find(e => e.builtin === key) || {}).name : null);
+    const TL = TIPS_I18N[lang];
+    const tipList = (tipName && ((TL && TL.roles[tipName]) || ROLE_TIPS[tipName])) || ((TL && TL.team[R.team]) || TEAM_TIPS[R.team] || TEAM_TIPS.Village);
+    const tip = tipList[Math.max(0, (s.peeks || 1) - 1) % tipList.length];
     const motif = all[key].motif || ({ werewolf: 'wolf', seer: 'seer', healer: 'healer', witch: 'witch', hunter: 'hunter', villager: 'village' })[key] || 'generic';
     const screen = this.props.screen || 'join'; // NET: the server decides the screen
     const phase = s.phase || this.props.phase || 'night';
@@ -517,6 +524,7 @@ export class PlayerView extends React.Component<any, any> {
       togglePhase: () => this.setState({ phase: night ? 'day' : 'night' }),
       phaseDemoLabel: night ? T.toDay : T.toNight,
       isAlive: fate === 'none', isKilled: fate === 'killed', isVoted: fate === 'voted', isPoisoned: fate === 'poisoned', isShot: fate === 'shot', isHeartbreak: fate === 'heartbreak',
+      tip: fate === 'none' ? tip : '',
       loverText: this.props.lover ? fmt(T.loverWith, { name: this.props.lover }) : '', // NET: Cupid's partner
       killLabel: fate === 'killed' ? T.revive : T.killed,
       voteLabel: fate === 'voted' ? T.revive : T.voted,
@@ -1184,6 +1192,16 @@ export class PlayerView extends React.Component<any, any> {
                         <p style={{ margin: '0', fontSize: v.rc.descSize, lineHeight: '1.5', color: '#e0d8ee' }}>
                           {v.rc.desc}
                         </p>
+                        {(v.tip) ? (
+                          <span style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', marginTop: '10px', padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,255,255,.05)', border: '1px dashed rgba(236,230,246,.18)', fontSize: '12.5px', lineHeight: '1.45', color: '#d8cfe8', textAlign: 'left' }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f2d06b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none', marginTop: '1px' }}>
+                              <path d="M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z" />
+                            </svg>
+                            <span>
+                              {v.tip}
+                            </span>
+                          </span>
+                        ) : null}
                         <div style={{ flex: '1' }} />
                         {(v.loverText) ? (
                           <span className="heartbeat" style={{ alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', padding: '6px 14px', borderRadius: '999px', fontSize: '13.5px', fontWeight: '700', color: '#ffd6e6', background: 'rgba(240,143,184,.18)', border: '1px solid rgba(240,143,184,.55)' }}>

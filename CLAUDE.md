@@ -35,6 +35,8 @@ host-guide text and the 7-language player translations all live inside the view 
 The role library (Browse role library, presets, name auto-fill) is hand-written in `src/views/roleLibrary.ts`;
 its player-phone translations are `src/views/i18n/roles.<lang>.ts` (keyed by the English role name, plus the
 newer UI lines `goalLoner` / `reconnecting`). Adding a library role means adding it in all six files.
+Role strategy tips (shown on the role card, one per peek) are in `src/views/roleTips.ts` with translations in
+`src/views/i18n/tips.<lang>.ts` — a new role needs tips there too (or it falls back to its team's tips).
 
 ## Conventions
 - Players are keyed by **name** (server makes names unique). Host-side maps `status`, `override` are name-keyed.

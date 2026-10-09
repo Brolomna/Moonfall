@@ -404,23 +404,65 @@ export class HostView extends React.Component<any, any> {
     const PRESETS = [
       { id: 'beginner', label: 'Beginner', sub: 'Seer & Healer', special: () => 2, roles: ['Seer', 'Healer'] },
       { id: 'classic', label: 'Classic', sub: 'The well-known roles', special: (k) => Math.max(2, Math.round(k * 0.5)), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard', 'Prince', 'Apprentice Seer'] },
-      { id: 'intermediate', label: 'Intermediate', sub: 'A few twists', special: (k) => Math.max(3, Math.round(k * 0.65)), wolfRoles: (w) => (w >= 2 ? ['Wolf Cub'] : []), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Lycan', 'Tanner', 'Apprentice Seer', 'Prince', 'Cursed', 'Little Girl', 'Mayor'] },
-      { id: 'advanced', label: 'Advanced', sub: 'Chaos & secrets', special: (k) => k - 1, wolfRoles: (w) => ['Alpha Werewolf', 'Wolf Cub', 'Shadow Wolf'].slice(0, w - 1), roles: ['Seer', 'Bodyguard', 'Witch', 'Hunter', 'Minion', 'Cursed', 'Doppelgänger', 'Cupid', 'Aura Seer', 'Tough Guy', 'Little Girl', 'Sorcerer', 'Revealer', 'Old Hag', 'Spellcaster', 'Tanner'] },
+      { id: 'intermediate', label: 'Intermediate', sub: 'New twists every tap', random: true },
+      { id: 'advanced', label: 'Advanced', sub: 'A wild new mix every tap', random: true },
       { id: 'wolfpack', label: 'Wolf Pack', sub: 'No plain Werewolves', special: (k) => Math.max(2, Math.round(k * 0.6)), wolfRoles: (w) => ['Alpha Werewolf', 'Wolf King', 'Shadow Wolf', 'Nightmare Wolf', 'Omega Wolf', 'Wolf Cub'].slice(0, w), roles: ['Seer', 'Witch', 'Bodyguard', 'Hunter', 'Watcher', 'Elder', 'Tracker', 'Prince', 'Medium', 'Mayor'] },
     ];
     const libEntry = (nm) => ROLE_LIBRARY.find(e => e.name === nm);
     const strengthOf = (nm) => { const e = libEntry(nm); return e.builtin && byKey[e.builtin] ? byKey[e.builtin].strength : e.s; };
+    // Intermediate / Advanced: a fresh deck from the whole library on every tap. The Seer always stays
+    // (Intermediate also keeps one protector). Many random decks are tried; only fair ones (−2…+2) are kept,
+    // and the one with the most roles you haven't played recently wins — so the presets rotate through the library.
+    const randomDeck = (level, N, W) => {
+      const recent = s.presetRecent || [];
+      const rnd = (a) => a.map(x => [Math.random(), x]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+      const isWolfE = (e) => e.team === 'Werewolves' && e.wolf !== false && e.builtin !== 'minion' && e.builtin !== 'sorceress';
+      const usable = ROLE_LIBRARY.filter(e => ['villager', 'werewolf', 'mason'].indexOf(e.builtin) < 0);
+      const specialWolves = usable.filter(isWolfE);
+      const allies = usable.filter(e => e.team === 'Werewolves' && !isWolfE(e));
+      const NEEDS = { 'Hunter Apprentice': 'Hunter', 'Vampire Hunter': 'Vampire' };
+      const slots = N - W;
+      let best = null;
+      for (let tries = 0; tries < 400; tries++) {
+        const core = level === 'advanced' ? ['Seer'] : ['Seer', rnd(['Healer', 'Bodyguard'])[0]];
+        const nSW = level === 'advanced' ? (W >= 2 ? 1 + Math.floor(Math.random() * (W - 1)) : 0) : (W >= 2 && Math.random() < 0.6 ? 1 : 0);
+        const wolfRoles = rnd(specialWolves).slice(0, nSW).map(e => e.name);
+        const picks = core.slice();
+        if (level === 'advanced' && N >= 8 && Math.random() < 0.6) picks.push(rnd(allies)[0].name);
+        const want = Math.max(picks.length, level === 'advanced' ? slots - Math.floor(Math.random() * 2) : Math.round(slots * 0.6));
+        const lonerCap = level === 'advanced' ? 2 : 1;
+        let loners = 0;
+        // prefer roles not played recently
+        const pool = usable.filter(e => e.team !== 'Werewolves' && picks.indexOf(e.name) < 0)
+          .map(e => [(recent.indexOf(e.name) >= 0 ? 1 : 0) + Math.random() * 0.9, e]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+        for (const e of pool) {
+          if (picks.length >= want) break;
+          if (e.team === 'Loner' && loners >= lonerCap) continue;
+          if (NEEDS[e.name] && picks.indexOf(NEEDS[e.name]) < 0) continue;
+          if (e.team === 'Loner') loners++;
+          picks.push(e.name);
+        }
+        const villagers = slots - picks.length;
+        if (villagers < 0) continue;
+        const score = (W - wolfRoles.length) * byKey.werewolf.strength + villagers * byKey.villager.strength + wolfRoles.concat(picks).reduce((a, nm) => a + strengthOf(nm), 0);
+        const fresh = wolfRoles.concat(picks).filter(nm => recent.indexOf(nm) < 0).length;
+        const rank = Math.abs(score) <= 2 ? 100 + fresh : -Math.abs(score);
+        if (!best || rank > best.rank) best = { rank, wolfRoles, specials: picks, villagers };
+      }
+      return best;
+    };
     const applyPreset = (p) => {
       const N = Math.max(5, n), W = Math.max(1, Math.round(N / 4));
-      const wolfRoles = p.wolfRoles ? p.wolfRoles(W) : [];
+      const gen = p.random ? randomDeck(p.id, N, W) : null;
+      const wolfRoles = gen ? gen.wolfRoles : p.wolfRoles ? p.wolfRoles(W) : [];
       const slots = N - W;
-      const specials = p.roles.slice(0, Math.min(p.special(slots), slots));
-      let villagers = slots - specials.length;
+      const specials = gen ? gen.specials : p.roles.slice(0, Math.min(p.special(slots), slots));
+      let villagers = gen ? gen.villagers : slots - specials.length;
       const score = () => (W - wolfRoles.length) * byKey.werewolf.strength + villagers * byKey.villager.strength
         + wolfRoles.concat(specials).reduce((a, nm) => a + strengthOf(nm), 0);
       // nudge toward a fair game (−3…+3) by trading Villagers for light balancing roles
       const tipWolf = ['Lycan', 'Tanner', 'Cursed', 'Pacifist'], tipVillage = ['Hunter', 'Mayor', 'Prince', 'Elder', 'Diseased'];
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < (gen ? 0 : 8); i++) {
         const sc = score();
         if (sc >= -3 && sc <= 3) break;
         const pool = sc > 3 ? tipWolf : tipVillage;
@@ -442,7 +484,9 @@ export class HostView extends React.Component<any, any> {
         if (!nextCustom.find(c => c.key === role.key)) nextCustom.push(role);
         return role.key;
       });
-      this.setState({ counts: { werewolf: W - wolfRoles.length, villager: villagers, mason: 0 }, picked: keys, custom: nextCustom, hidden: nextHidden, preset: p.id });
+      const used = wolfRoles.concat(specials);
+      this.setState({ counts: { werewolf: W - wolfRoles.length, villager: villagers, mason: 0 }, picked: keys, custom: nextCustom, hidden: nextHidden, preset: p.id,
+        ...(gen ? { presetRecent: used.concat((s.presetRecent || []).filter(nm => used.indexOf(nm) < 0)).slice(0, 30) } : {}) });
     };
     const presets = PRESETS.map(p => ({ label: p.label, sub: p.sub, on: s.preset === p.id, apply: () => applyPreset(p) }));
 
