@@ -56,3 +56,26 @@
 .pine-day { fill: #4c6b3c; animation: toDayPine 2.4s ease both; }
 @keyframes toNightPine { from { fill: #4c6b3c } to { fill: #0b0618 } }
 @keyframes toDayPine { from { fill: #0b0618 } to { fill: #4c6b3c } }
+
+/* medieval village scenery */
+.cloud { animation: cloudDrift 18s linear infinite alternate; }
+@keyframes cloudDrift { from { transform: translateX(-12px) } to { transform: translateX(12px) } }
+.cloud-night { fill: #2c1b4e; opacity: .8; }
+.cloud-day { fill: #f3d6e6; opacity: .85; }
+.far-night { fill: #160c2b; animation: toNightFar 2.4s ease both; }
+.far-day { fill: #8a6f9e; animation: toDayFar 2.4s ease both; }
+@keyframes toNightFar { from { fill: #8a6f9e } to { fill: #160c2b } }
+@keyframes toDayFar { from { fill: #160c2b } to { fill: #8a6f9e } }
+.castle-lights rect { animation: vIn 1.5s ease 1.2s both; }
+.grass-night { fill: #120a24; animation: toNightGround 2.4s ease both; }
+.grass-day { fill: #6f5c70; animation: toDayGround 2.4s ease both; }
+@keyframes toNightGround { from { fill: #6f5c70 } to { fill: #120a24 } }
+@keyframes toDayGround { from { fill: #120a24 } to { fill: #6f5c70 } }
+.street-night { fill: #231a36; animation: toNightStreet 2.4s ease both; }
+.street-day { fill: #b49a80; animation: toDayStreet 2.4s ease both; }
+@keyframes toNightStreet { from { fill: #b49a80 } to { fill: #231a36 } }
+@keyframes toDayStreet { from { fill: #231a36 } to { fill: #b49a80 } }
+.torch-glow { transform-box: fill-box; transform-origin: center; animation: glow 1.4s ease-in-out infinite alternate; }
+@keyframes glow { from { opacity: .7; transform: scale(.92) } to { opacity: 1; transform: scale(1.08) } }
+.flame-flick { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .5s ease-in-out infinite alternate; }
+@keyframes flick { from { transform: scale(1, 1) } to { transform: scale(.85, 1.15) } }
