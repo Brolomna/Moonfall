@@ -2,12 +2,12 @@
 export default {
   roles: {
     // ---------- Village ----------
-    'Aura Seer': ['Liseuse d’aura', 'Chaque âme a sa couleur', 'Chaque nuit, désigne un joueur. Le meneur te dit si son aura est bonne, maléfique ou neutre.'],
+    'Aura Seer': ['Liseuse d’aura', 'Chaque âme a sa couleur', 'Chaque nuit, désigne un joueur. Le meneur t’indique s’il a un rôle spécial — autre chose qu’un simple Villageois ou Loup-garou.'],
     'Medium': ['Médium', 'Les morts murmurent encore', 'Chaque nuit, désigne un joueur mort. Le meneur te montre son rôle.'],
     'Investigator': ['Enquêteur', 'Trois noms, une vérité', 'Chaque nuit, désigne un joueur. Le meneur te cite trois rôles — l’un d’eux est le sien.'],
     'Tracker': ['Pisteur', 'Chaque pas laisse une trace', 'Chaque nuit, suis un joueur. Le meneur te dit chez qui il est allé cette nuit, s’il est sorti.'],
     'Watcher': ['Guetteur', 'L’œil rivé sur la porte', 'Chaque nuit, surveille un joueur. Le meneur te dit qui lui a rendu visite cette nuit.'],
-    'Priest': ['Prêtre', 'Une bénédiction dans le noir', 'Une fois par partie, la nuit, bénis un joueur. La première fois qu’il devrait être éliminé, il survit.'],
+    'Priest': ['Prêtre', 'Une bénédiction dans le noir', 'Une fois par partie, la nuit, bénis un autre joueur (pas toi). La première fois qu’il devrait être éliminé, il survit.'],
     'Judge': ['Juge bègue', 'Silence dans la salle !', 'Une fois par partie, après un vote, fais discrètement signe au meneur pour qu’un second vote ait lieu aussitôt.'],
     'Elder': ['Ancien', 'Trop vieux pour mourir', 'Tu survis à la première attaque des loups contre toi. La seconde te tue.'],
     'Little Girl': ['Petite Fille', 'Espionner, c’est risqué', 'Quand les loups se réveillent, tu peux entrouvrir les doigts pour les espionner. S’ils te surprennent, ils peuvent faire de toi leur victime.'],
@@ -15,12 +15,12 @@ export default {
     'Pacifist': ['Pacifiste', 'Pas de sang sur tes mains', 'Tu dois toujours voter pour épargner les joueurs — tu ne peux jamais voter pour éliminer quelqu’un.'],
     'Fortune Teller': ['Diseuse de bonne aventure', 'Les cartes ne mentent jamais', 'Une fois par partie, quand le meneur te réveille la nuit, désigne un joueur. Le meneur te montre son rôle exact.'],
     'Baker': ['Boulanger', 'Pas de pain, pas de village', 'Tant que tu vis, le village mange à sa faim. Une fois que tu es éliminé, la famine frappe : tous les trois jours, le meneur élimine un joueur de plus.'],
-    'Revealer': ['Révélateur', 'Quitte ou double', 'Une fois par partie, la nuit, désigne un joueur. Si c’est un loup-garou, il est démasqué et éliminé. Sinon, c’est toi qui meurs.'],
+    'Revealer': ['Révélateur', 'Quitte ou double', 'Une fois par partie, la nuit, désigne un joueur. S’il est loup-garou — ou Lycan —, il est éliminé. Sinon, c’est toi qui meurs.'],
     'Spy': ['Espion', 'Connais ton ennemi', 'Après le choix des loups, le meneur te réveille et te désigne l’un d’eux.'],
     'Robber': ['Brigand', 'Ce qui est à toi est à moi', 'La première nuit, désigne un joueur et échange ton rôle avec le sien. Le meneur vous dit en secret vos nouveaux rôles.'],
     'Troublemaker': ['Noiseuse', 'Sème la zizanie', 'La première nuit, désigne deux autres joueurs. Le meneur échange leurs rôles en secret — ils découvrent leur nouveau rôle au matin.'],
     'Drunk': ['Soûlard', 'Je suis qui, déjà ?', 'Tu joues comme simple Villageois jusqu’à la troisième nuit, où le meneur te remet en secret ton vrai rôle.'],
-    'Insomniac': ['Insomniaque', 'Tu ne dors jamais vraiment', 'À la fin de chaque nuit, le meneur te montre si ton rôle a changé.'],
+    'Insomniac': ['Insomniaque', 'Tu ne dors jamais vraiment', 'Chaque nuit, le meneur te dit si au moins un de tes deux voisins s’est réveillé.'],
     'Mimic': ['Imitateur', 'Un pouvoir d’emprunt', 'La première nuit, désigne un joueur. Tu copies son pouvoir (pas son camp) jusqu’à la fin de la partie.'],
     'Diseased': ['Contagieux', 'Mords-moi, tu le regretteras', 'Si les loups t’éliminent, ils attrapent ta maladie et ne peuvent attaquer personne la nuit suivante.'],
 
@@ -54,7 +54,7 @@ export default {
     'Blackmailer': ['Maître chanteur', 'Le silence est d’or', 'Tu aides les loups. Chaque nuit, choisis un joueur qui ne doit pas parler pendant le jour suivant.'],
     'Hypnotist': ['Hypnotiseur', 'Regarde-moi dans les yeux', 'Tu aides les loups. Chaque nuit, choisis un joueur — demain, il devra voter là où tu pointes.'],
     'Illusionist': ['Illusionniste', 'Rien n’est ce qu’il paraît', 'Tu aides les loups. Chaque nuit, déguise un joueur : cette nuit, toute vérification sur lui montre l’inverse.'],
-    'Spellcaster': ['Jeteur de sorts', 'Chut…', 'Chaque nuit, désigne un joueur. Il est réduit au silence et ne peut pas dire un mot pendant le jour suivant.'],
+    'Spellcaster': ['Jeteur de sorts', 'Chut…', 'Chaque nuit, désigne un joueur. Il est réduit au silence et ne peut pas parler du tout le jour suivant. Tu ne peux pas choisir deux fois le même joueur.'],
     'Gambler': ['Parieur', 'La chance sourit aux audacieux', 'Chaque nuit, parie sur la victime des loups. Devine juste trois fois et tu gagnes seul.'],
     'Bartender': ['Tavernier', 'Cette tournée est pour toi', 'Chaque nuit, sers un verre à un joueur. Son pouvoir échoue cette nuit.'],
     'Vengeful Spirit': ['Esprit vengeur', 'La mort n’est pas une fin', 'Quand tu meurs, tu reviens en esprit : une fois, la nuit, élimine le joueur qui t’a tué.'],

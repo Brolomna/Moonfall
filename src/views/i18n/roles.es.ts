@@ -2,12 +2,12 @@
 export default {
   roles: {
     // ---------- Village ----------
-    'Aura Seer': ['Vidente de auras', 'Cada alma tiene su color', 'Cada noche, señala a un jugador. El anfitrión te dice si su aura es buena, malvada o neutral.'],
+    'Aura Seer': ['Vidente de auras', 'Cada alma tiene su color', 'Cada noche, señala a un jugador. El anfitrión te indica si tiene un rol especial, es decir, algo distinto de un simple Aldeano u Hombre lobo.'],
     'Medium': ['Médium', 'Los muertos aún susurran', 'Cada noche, señala a un jugador muerto. El anfitrión te muestra su rol.'],
     'Investigator': ['Investigador', 'Tres nombres, una verdad', 'Cada noche, señala a un jugador. El anfitrión nombra tres roles: uno de ellos es el suyo.'],
     'Tracker': ['Rastreador', 'Cada paso deja huella', 'Cada noche, sigue a un jugador. El anfitrión te dice a quién visitó esta noche, si visitó a alguien.'],
     'Watcher': ['Vigía', 'Ojos en la puerta', 'Cada noche, vigila a un jugador. El anfitrión te dice quién lo visitó esta noche.'],
-    'Priest': ['Sacerdote', 'Una bendición en la oscuridad', 'Una vez por partida, de noche, bendice a un jugador. La primera vez que fuera a ser eliminado, sobrevive.'],
+    'Priest': ['Sacerdote', 'Una bendición en la oscuridad', 'Una vez por partida, de noche, bendice a otro jugador (no a ti). La primera vez que fuera a ser eliminado, sobrevive.'],
     'Judge': ['Juez', 'Orden en la sala', 'Una vez por partida, tras una votación, haz una señal secreta al anfitrión para celebrar otra votación al instante.'],
     'Elder': ['Anciano', 'Demasiado viejo para morir fácil', 'Sobrevives al primer ataque de los hombres lobo contra ti. El segundo te mata.'],
     'Little Girl': ['Niña', 'Espiar es peligroso', 'Cuando despierten los hombres lobo, puedes espiar en secreto entre los dedos. Si te descubren mirando, pueden elegirte como víctima.'],
@@ -15,12 +15,12 @@ export default {
     'Pacifist': ['Pacifista', 'Sin sangre en tus manos', 'Siempre debes votar para que los jugadores sigan vivos: nunca puedes votar para eliminar a nadie.'],
     'Fortune Teller': ['Adivina', 'Las cartas nunca mienten', 'Una vez por partida, cuando el anfitrión te despierte de noche, señala a un jugador. El anfitrión te muestra su rol exacto.'],
     'Baker': ['Panadero', 'Sin pan no hay aldea', 'Mientras vivas, la aldea come. Cuando te eliminen, la aldea pasa hambre: desde entonces, cada tres días el anfitrión elimina a un jugador más.'],
-    'Revealer': ['Revelador', 'Todo o nada', 'Una vez por partida, de noche, señala a un jugador. Si es un hombre lobo, queda al descubierto y eliminado. Si no, mueres tú.'],
+    'Revealer': ['Revelador', 'Todo o nada', 'Una vez por partida, de noche, señala a un jugador. Si es un hombre lobo —o un Licántropo—, queda eliminado. Si no, mueres tú.'],
     'Spy': ['Espía', 'Conoce a tu enemigo', 'Cuando los hombres lobo hayan elegido, el anfitrión te despierta y te señala a uno de ellos.'],
     'Robber': ['Atracador', 'Lo tuyo es mío', 'La primera noche, señala a un jugador e intercambia tu rol con el suyo. El anfitrión les dice a ambos en privado su nuevo rol.'],
     'Troublemaker': ['Alborotador', 'A río revuelto…', 'La primera noche, señala a otros dos jugadores. El anfitrión intercambia sus roles en privado: descubren su nuevo rol por la mañana.'],
     'Drunk': ['Borracho', '¿Quién era yo?', 'Juegas como un Aldeano normal hasta la tercera noche, cuando el anfitrión te entrega en secreto tu verdadero rol.'],
-    'Insomniac': ['Insomne', 'En realidad nunca duermes', 'Al final de cada noche, el anfitrión te muestra si tu rol ha cambiado.'],
+    'Insomniac': ['Insomne', 'En realidad nunca duermes', 'Cada noche, el anfitrión te dice si al menos uno de los dos jugadores sentados a tu lado se despertó.'],
     'Mimic': ['Imitador', 'Poder prestado', 'La primera noche, señala a un jugador. Copias su poder (no su equipo) el resto de la partida.'],
     'Diseased': ['Enfermo', 'Muérdeme y te arrepentirás', 'Si los hombres lobo te eliminan, se contagian de tu enfermedad y no pueden atacar a nadie la noche siguiente.'],
 
@@ -54,7 +54,7 @@ export default {
     'Blackmailer': ['Chantajista', 'El silencio vale oro', 'Ayudas a los lobos. Cada noche, elige a un jugador que no podrá hablar durante el día siguiente.'],
     'Hypnotist': ['Hipnotizador', 'Mírame a los ojos', 'Ayudas a los lobos. Cada noche, elige a un jugador: mañana debe votar a quien tú señales.'],
     'Illusionist': ['Ilusionista', 'Nada es lo que parece', 'Ayudas a los lobos. Cada noche, disfraza a un jugador: esta noche, cualquier revisión sobre él muestra lo contrario.'],
-    'Spellcaster': ['Conjurador', 'Chitón', 'Cada noche, señala a un jugador. Queda silenciado y no puede hablar en absoluto durante el día siguiente.'],
+    'Spellcaster': ['Conjurador', 'Chitón', 'Cada noche, señala a un jugador. Queda silenciado y no puede hablar en absoluto durante el día siguiente. No puedes elegir dos veces al mismo jugador.'],
     'Gambler': ['Apostador', 'La fortuna sonríe a los audaces', 'Cada noche, apuesta a quién atacarán los lobos. Acierta tres veces y ganas solo.'],
     'Bartender': ['Tabernero', 'Esta ronda la pagas tú', 'Cada noche, sirve una copa a un jugador. Su poder falla esta noche.'],
     'Vengeful Spirit': ['Espíritu vengativo', 'La muerte no es el final', 'Cuando mueras, vuelves como espíritu: una vez, de noche, elimina al jugador que te mató.'],

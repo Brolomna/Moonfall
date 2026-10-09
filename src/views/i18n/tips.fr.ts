@@ -22,7 +22,7 @@ export default {
     'Villager': ['Tu n’as aucun pouvoir — ton vote et ta voix sont tes armes.', 'Retiens tout : qui a accusé qui, et qui a changé son vote.', 'Te faire passer pour un rôle à pouvoir peut protéger le vrai — mais seulement si tu es sûr de toi.'],
     'Seer': ['Ne te dévoile pas trop tôt — tu deviendrais la première cible des loups.', 'Inspecte les accusateurs bruyants et les joueurs discrets : ce sont les plus révélateurs.', 'Quand tu trouves un loup, oriente le vote sans dire comment tu le sais.'],
     'Apprentice Seer': ['Fais-toi discrète : les loups ignorent encore ton existence.', 'Retiens ce que la Voyante a laissé entendre — tu devras peut-être finir son travail.', 'Une fois le pouvoir hérité, fais comme si rien n’avait changé.'],
-    'Aura Seer': ['Une aura « bonne » n’est pas forcément un villageois — certains rôles spéciaux paraissent neutres.', 'Sers-toi de tes vérifications pour couvrir les joueurs que la Voyante n’atteint pas.', 'Partage tes résultats avec prudence : une fausse annonce peut faire tuer un innocent.'],
+    'Aura Seer': ['Un hochement signifie un rôle spécial — pas forcément un villageois.', 'Un simple Villageois et un simple Loup-garou donnent tous deux un non.', 'Croise tes résultats avec ceux de la Voyante pour cerner les loups.'],
     'Medium': ['Les rôles des morts te disent quels pouvoirs sont encore en jeu.', 'Si un mort était loup, regarde qui l’a défendu.', 'Fais des allusions à ce que tu sais au lieu de l’annoncer.'],
     'Witch': ['Ne gaspille pas ta potion de vie la première nuit, sauf si la victime est clé.', 'Garde le poison pour un loup dont tu es presque sûre.', 'Potion utilisée ? Joue comme si tu l’avais encore — rends les loups nerveux.'],
     'Healer': ['Te protéger toi-même au début peut garder un rôle à pouvoir en vie plus longtemps.', 'Devine qui les loups craignent le plus — c’est lui qu’il faut protéger.', 'Ne dis jamais qui tu as protégé : ça indique aux loups où ne pas frapper.'],
@@ -47,13 +47,13 @@ export default {
     'Robber': ['Échange avec un joueur dont le rôle pourrait être puissant.', 'Fais comme si tu avais encore ton ancien rôle pendant un moment.', 'N’oublie pas : le joueur volé a maintenant ton ancienne carte.'],
     'Troublemaker': ['Échange deux joueurs que tu soupçonnes — la confusion nuit surtout aux loups.', 'Ne dis à personne qui tu as échangé.', 'Observe les réactions des joueurs échangés le lendemain matin.'],
     'Drunk': ['Joue le Villageois pour l’instant — ton vrai rôle arrive.', 'Ne fais pas d’annonces que tu ne pourras pas assumer plus tard.', 'Quand ton rôle arrive, utilise-le discrètement.'],
-    'Insomniac': ['Si ton rôle change pendant la nuit, quelqu’un t’a échangé.', 'Un rôle changé est un indice sur qui a des pouvoirs de nuit.', 'Partage-le seulement si ça aide le village.'],
+    'Insomniac': ['Un hochement signifie qu’un de tes voisins a un pouvoir de nuit.', 'Deux non d’affilée laissent penser que tes deux voisins sont de simples villageois.', 'Ne le dis que si cela aide le village.'],
     'Mimic': ['Copie celui dont le pouvoir te semble le plus important.', 'Copier un joueur du village aide — vous pourrez vous couvrir mutuellement.', 'Ton camp ne change pas ; seul ton pouvoir change.'],
     'Doppelgänger': ['Copie un joueur qui semble avoir un rôle fort — tu en hériteras.', 'Tu gagnes avec le camp du rôle copié — surveille ta cible.', 'Reste neutre dans les débats tant que tu ne sais pas ce que tu deviendras.'],
     'Cursed': ['Si les loups te mordent, tu les rejoins — alors pourquoi pas les laisser faire.', 'D’ici là, aide le village honnêtement.', 'Si tu bascules, continue d’agir exactement pareil.'],
     'Diseased': ['Si les loups te dévorent, ils sautent une nuit — sois une cible tentante.', 'Fais croire aux loups que tu as un rôle à pouvoir.', 'Ta mort offre au village une nuit tranquille.'],
     'Lycan': ['La Voyante te voit comme un loup — prépare ta défense.', 'Reste calme et cohérent : la panique a l’air coupable.', 'Demande si possible une seconde vérification par un autre rôle.'],
-    'Tough Guy': ['Une attaque des loups ne te tue pas tout de suite — tu as un jour de plus.', 'Profite de ce dernier jour pour partager tous tes soupçons.', 'Les loups risquent de gâcher une nuit sur toi.'],
+    'Tough Guy': ['Si les loups t’attaquent, on ne te le dit pas — tu meurs simplement la nuit suivante.', 'Parle chaque jour comme si c’était le dernier.', 'Les loups risquent de gaspiller une nuit sur toi.'],
     'Village Idiot': ['Tu dois toujours voter pour éliminer — fais en sorte que tes votes aient l’air malins.', 'Joue l’idiot : les loups tuent rarement les joueurs inoffensifs.', 'Tes votes forcés peuvent pousser les loups à se trahir.'],
     'Old Hag': ['Écarte un suspect bavard pour que le village entende d’autres voix.', 'Écarter un rôle à pouvoir peut le protéger d’un vote.', 'Varie tes cibles pour que personne ne devine que c’est toi.'],
 
@@ -72,7 +72,7 @@ export default {
     'Traitor': ['Tu gagnes avec les loups sans les connaître — lis la table.', 'Pousse les votes contre les villageois confirmés.', 'Chaque vérification te montre innocent — profite de cette confiance.'],
 
     // ---------- Neutral / Loner ----------
-    'Tanner': ['Sois juste assez suspect — trop évident, et personne ne votera contre toi.', 'Argumente mollement, contredis-toi un peu.', 'Fais-toi éliminer au vote et tu gagnes, peu importe qui d’autre gagne.'],
+    'Tanner': ['Sois juste assez suspect — trop évident, et personne ne votera contre toi.', 'Argumente mollement, contredis-toi un peu.', 'Fais-toi éliminer par le vote et tu gagnes — tous les autres perdent.'],
     'Serial Killer': ['Les loups ne peuvent pas te tuer — profites-en pour rester calme.', 'Tue celui qui te menace le plus, villageois ou loup.', 'Laisse le village et les loups s’affronter : tu dois juste être le dernier.'],
     'Arsonist': ['Asperge discrètement pendant quelques nuits avant d’allumer.', 'Asperge les joueurs les plus susceptibles de durer.', 'Un seul grand incendie peut gagner la partie en une nuit.'],
     'Vampire': ['Mords les joueurs qui semblent loyaux et discrets.', 'Agrandis ton clan avant que quiconque ne s’en aperçoive.', 'Protège tes vampires au moment du vote.'],

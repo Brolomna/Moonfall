@@ -22,7 +22,7 @@ export default {
     'Villager': ['No tienes poder: tu voto y tu voz son tus armas.', 'Lleva la cuenta mental: quién acusó a quién y quién cambió su voto.', 'Fingir un rol de poder puede proteger al verdadero, pero solo si lo tienes claro.'],
     'Seer': ['No te reveles demasiado pronto: serías el primer objetivo de los lobos.', 'Revisa a los que acusan mucho y a los callados; son los que más dicen.', 'Si encuentras un lobo, guía la votación sin decir cómo lo sabes.'],
     'Apprentice Seer': ['Calla: los lobos aún no saben que existes.', 'Recuerda lo que insinuó la Vidente: quizá tengas que acabar su trabajo.', 'Cuando tomes el relevo, actúa como si nada hubiera cambiado.'],
-    'Aura Seer': ['Un aura “buena” no siempre es un aldeano: algunos roles especiales salen neutrales.', 'Usa tus revisiones para confirmar a quien la Vidente no alcanza.', 'Comparte los resultados con cuidado; un error puede costarle la vida a un inocente.'],
+    'Aura Seer': ['Un asentimiento significa un rol especial, no necesariamente un aldeano.', 'Un simple Aldeano y un simple Hombre lobo reciben ambos un no.', 'Combina tus resultados con los de la Vidente para acorralar a los lobos.'],
     'Medium': ['Los roles de los muertos te dicen qué poderes siguen en juego.', 'Si un muerto era lobo, fíjate en quién lo defendía.', 'Insinúa lo que sabes en lugar de anunciarlo.'],
     'Witch': ['No gastes la poción la primera noche salvo que la víctima sea clave.', 'Guarda el veneno para un lobo del que estés casi seguro.', 'Aunque ya hayas usado una poción, juega como si aún la tuvieras: pon nerviosos a los lobos.'],
     'Healer': ['Protegerte al principio puede mantener vivo un rol de poder más tiempo.', 'Adivina a quién temen más los lobos: protege a ese.', 'Nunca digas a quién protegiste; les dices a los lobos dónde no atacar.'],
@@ -47,13 +47,13 @@ export default {
     'Robber': ['Intercambia con un jugador que pueda tener un rol poderoso.', 'Actúa un tiempo como si siguieras con tu rol anterior.', 'Recuerda: el jugador al que robaste ahora tiene tu carta anterior.'],
     'Troublemaker': ['Intercambia a dos jugadores sospechosos: la confusión perjudica más a los lobos.', 'No le cuentes a nadie a quién intercambiaste.', 'Observa cómo reaccionan los intercambiados a la mañana siguiente.'],
     'Drunk': ['De momento juega como Aldeano: tu verdadero rol ya llegará.', 'No digas nada que luego no puedas sostener.', 'Cuando llegue tu rol, úsalo con discreción.'],
-    'Insomniac': ['Si tu rol cambia por la noche, alguien te lo intercambió.', 'Un rol cambiado es una pista de quién tiene poderes nocturnos.', 'Cuéntalo solo si ayuda a la aldea.'],
+    'Insomniac': ['Un asentimiento significa que uno de tus vecinos tiene un poder nocturno.', 'Dos noes seguidos sugieren que tus dos vecinos son simples aldeanos.', 'Compártelo solo si ayuda a la aldea.'],
     'Mimic': ['Copia a quien creas que tiene el poder más importante.', 'Copiar a un jugador bueno ayuda: podéis cubriros el uno al otro.', 'Tu equipo no cambia; solo cambia tu poder.'],
     'Doppelgänger': ['Copia a alguien que creas que tiene un rol fuerte: lo heredarás.', 'Ganas con el equipo del rol que copies: vigila a tu objetivo.', 'Mantente neutral en las charlas hasta saber en qué te convertirás.'],
     'Cursed': ['Si los lobos te muerden, te unes a ellos… así que quizá te convenga dejarte morder.', 'Hasta entonces, ayuda a la aldea con sinceridad.', 'Si te conviertes, sigue actuando exactamente igual.'],
     'Diseased': ['Si los lobos te comen, se saltan una noche: sé una presa tentadora.', 'Haz creer a los lobos que tienes un rol de poder.', 'Tu muerte le regala a la aldea una noche tranquila.'],
     'Lycan': ['La Vidente te ve como lobo: prepárate para defenderte.', 'Mantén la calma y la coherencia; el pánico parece culpa.', 'Si puedes, pide que otro rol te revise también.'],
-    'Tough Guy': ['Un ataque de lobos no te mata al momento: tienes un día más.', 'Usa ese último día para contar todo lo que sospechas.', 'Puede que los lobos desperdicien una noche contigo.'],
+    'Tough Guy': ['Si los lobos te atacan, no te enterarás: simplemente mueres la noche siguiente.', 'Habla cada día como si fuera el último.', 'Los lobos pueden desperdiciar una noche contigo.'],
     'Village Idiot': ['Siempre tienes que votar para eliminar: que tus votos parezcan sensatos.', 'Hazte el tonto; los lobos rara vez matan a quien parece inofensivo.', 'Tus votos obligados pueden hacer que los lobos se delaten.'],
     'Old Hag': ['Destierra a un sospechoso ruidoso para que la aldea oiga otras voces.', 'Desterrar a un rol de poder puede librarlo de una votación.', 'Cambia de objetivo para que nadie sepa que eres tú.'],
 
@@ -72,7 +72,7 @@ export default {
     'Traitor': ['Ganas con los lobos pero no sabes quiénes son: lee la mesa.', 'Empuja votaciones contra aldeanos confirmados.', 'Cualquier revisión te muestra como bueno: aprovecha esa confianza.'],
 
     // ---------- Neutral / Loner ----------
-    'Tanner': ['Sé sospechoso en su justa medida: si se nota demasiado, no te votarán.', 'Discute sin fuerza y contradícete un poco.', 'Si te expulsan, ganas, gane quien gane.'],
+    'Tanner': ['Sé sospechoso en su justa medida: si se nota demasiado, no te votarán.', 'Discute sin fuerza y contradícete un poco.', 'Si te expulsan por votación, ganas y todos los demás pierden.'],
     'Serial Killer': ['Los lobos no pueden matarte: aprovéchalo para mantener la calma.', 'Mata a quien más te amenace, sea aldeano o lobo.', 'Deja que la aldea y los lobos se peleen; tú solo tienes que quedar el último.'],
     'Arsonist': ['Rocía en silencio unas cuantas noches antes de prender fuego.', 'Rocía a los jugadores con más pinta de durar.', 'Un solo gran incendio puede ganar la partida en una noche.'],
     'Vampire': ['Muerde a jugadores que parezcan leales y callados.', 'Haz crecer tu aquelarre antes de que nadie se dé cuenta.', 'Protege a tus vampiros en las votaciones.'],

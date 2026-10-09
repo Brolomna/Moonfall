@@ -25,7 +25,7 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'Villager': ['You have no power — your vote and your voice are your weapons.', 'Keep notes in your head: who accused whom, and who changed their vote.', 'Claiming a power role can protect the real one — but only if you’re sure.'],
   'Seer': ['Don’t reveal yourself too early — you become the wolves’ first target.', 'Check loud accusers and quiet players; they’re the most telling.', 'When you find a wolf, steer the vote without saying how you know.'],
   'Apprentice Seer': ['Stay quiet: the wolves don’t know you exist yet.', 'Remember what the Seer hinted — you may need to finish their work.', 'Once you take over, act like nothing has changed.'],
-  'Aura Seer': ['A “good” aura isn’t always a villager — some special roles look neutral.', 'Use your checks to confirm players the Seer can’t reach.', 'Share results carefully; a wrong claim can get an innocent killed.'],
+  'Aura Seer': ['A nod means a special role — not necessarily a villager.', 'A plain Villager and a plain Werewolf both get a shake.', 'Combine your nods with the Seer’s checks to narrow down the wolves.'],
   'Medium': ['The dead’s roles tell you which powers are still in play.', 'If a dead player was a wolf, look at who defended them.', 'Hint at what you learned instead of announcing it.'],
   'Witch': ['Don’t waste the healing potion on night one unless the victim is key.', 'Save the poison for a wolf you’re almost sure about.', 'Once a potion is used, play as if you still have it — make the wolves nervous.'],
   'Healer': ['Protecting yourself early can keep a power role alive longer.', 'Guess who the wolves fear most — that’s who to protect.', 'Never say whom you protected; it tells the wolves where not to strike.'],
@@ -50,13 +50,13 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'Robber': ['Swap with a player whose role might be powerful.', 'Act as if you’re still your old role for a while.', 'Remember: the player you robbed now has your old card.'],
   'Troublemaker': ['Swap two players you suspect — confusion hurts the wolves most.', 'Don’t tell anyone whom you swapped.', 'Watch the swapped players’ reactions the next morning.'],
   'Drunk': ['Play as a Villager for now — your real role is coming.', 'Don’t make claims you can’t back up later.', 'When your role arrives, use it quietly.'],
-  'Insomniac': ['If your role changes in the night, someone swapped you.', 'A changed role is a clue about who has night powers.', 'Share it only if it helps the village.'],
+  'Insomniac': ['A nod means one of your neighbours has a night power.', 'Two shakes in a row hint that both neighbours are plain Villagers.', 'Share it only if it helps the village.'],
   'Mimic': ['Copy someone whose power you think matters most.', 'Copying a good player helps — they could cover for each other.', 'Your team doesn’t change; only your power does.'],
   'Doppelgänger': ['Copy a player you think has a strong role — you’ll inherit it.', 'You win with the team of the role you copied — watch your target.', 'Stay neutral in talks until you know what you’ll become.'],
   'Cursed': ['If the wolves bite you, you join them — so maybe let them.', 'Until then, help the village honestly.', 'If you turn, keep acting exactly the same.'],
   'Diseased': ['If the wolves eat you, they skip a night — be a tempting target.', 'Make the wolves think you’re a power role.', 'Your death buys the village a free night.'],
   'Lycan': ['The Seer sees you as a wolf — be ready to defend yourself.', 'Stay calm and consistent; panic looks guilty.', 'Ask for a second check by another role if you can.'],
-  'Tough Guy': ['A wolf attack won’t kill you right away — you get one more day.', 'Use that last day to share everything you suspect.', 'The wolves may waste a night on you.'],
+  'Tough Guy': ['If the wolves attack you, you won’t be told — you just die the next night.', 'Speak up every day as if it might be your last.', 'The wolves may waste a night on you.'],
   'Village Idiot': ['You must always vote to eliminate — make your votes look smart.', 'Play the fool; wolves rarely kill harmless-looking players.', 'Your forced votes can bait wolves into revealing themselves.'],
   'Old Hag': ['Banish a loud suspect so the village hears other voices.', 'Banishing a power role can protect them from a vote.', 'Vary whom you banish so nobody can tell it’s you.'],
 
@@ -75,7 +75,7 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'Traitor': ['You win with the wolves but don’t know them — read the table.', 'Push votes against confirmed villagers.', 'Every check shows you as good — use that trust.'],
 
   // ---------- Neutral / Loner ----------
-  'Tanner': ['Act just suspicious enough — too obvious and they won’t vote you.', 'Argue weakly, contradict yourself a little.', 'Get voted out and you win, no matter who else wins.'],
+  'Tanner': ['Act just suspicious enough — too obvious and they won’t vote you.', 'Argue weakly, contradict yourself a little.', 'Get voted out and you win — everyone else loses.'],
   'Serial Killer': ['The wolves can’t kill you — use that to stay calm.', 'Kill whoever threatens you most, villager or wolf.', 'Let the village and wolves fight; you just need to be last.'],
   'Arsonist': ['Douse quietly for a few nights before you light.', 'Douse the players most likely to survive long.', 'One big fire can win the game in a single night.'],
   'Vampire': ['Bite players who seem loyal and quiet.', 'Grow your coven before anyone notices.', 'Protect your vampires in the vote.'],
