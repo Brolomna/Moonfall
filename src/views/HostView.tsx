@@ -1325,7 +1325,8 @@ export class HostView extends React.Component<any, any> {
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
       endGlow: (soloWins || tannerWin) ? 'rgba(242,166,90,.24)' : villageWins ? 'rgba(98,212,166,.22)' : 'rgba(224,71,95,.25)',
       endBg: (soloWins || tannerWin) ? 'linear-gradient(170deg, rgba(110,60,20,.65), rgba(18,10,31,.92))' : villageWins ? 'linear-gradient(170deg, rgba(20,80,60,.6), rgba(18,10,31,.92))' : 'linear-gradient(170deg, rgba(110,20,38,.65), rgba(18,10,31,.92))',
-      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : '',
+      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : '',
+      endImgRatio: tannerWin ? '941 / 1672' : '746 / 1008',
       endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(killers[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
 
       dgOpen, dgChoices,
@@ -1937,7 +1938,7 @@ export class HostView extends React.Component<any, any> {
                   <>
                     <section className="rise" aria-label="Game over" style={{ padding: '22px 20px', borderRadius: '24px', background: v.endBg, border: `1px solid ${v.endBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', boxShadow: `0 0 60px ${v.endGlow}` }}>
                       {(v.endImg) ? (
-                        <img src={v.endImg} alt={v.endTitle} style={{ width: '100%', aspectRatio: '746 / 1008', objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
+                        <img src={v.endImg} alt={v.endTitle} style={{ width: v.endImgRatio === '941 / 1672' ? '78%' : '100%', aspectRatio: v.endImgRatio, objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
                       ) : (
                         <span style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.25)', border: `1px solid ${v.endBorder}` }}>
                           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={v.endColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">

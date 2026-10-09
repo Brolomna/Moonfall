@@ -38,7 +38,8 @@ export function PlayerApp() {
       if (soundRef.current) { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
       // houses whose owner went out since the last scene crumble on screen
       const before = new Set(lastVillage.current.filter(v => v.out).map(v => v.name));
-      setScene({ phase, round: (view as any).round || 1, players: village.map(v => ({ ...v, me: v.name === view!.name })), justOut: village.filter(v => v.out && !before.has(v.name)).map(v => v.name) });
+      // only sunrise gets the village scene; nightfall just remembers who was already out
+      if (phase === 'day') setScene({ phase, round: (view as any).round || 1, players: village.map(v => ({ ...v, me: v.name === view!.name })), justOut: village.filter(v => v.out && !before.has(v.name)).map(v => v.name) });
       lastVillage.current = village;
     }
     if (!lastPhase.current) lastVillage.current = village;

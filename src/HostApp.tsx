@@ -33,10 +33,11 @@ export function HostApp() {
     socket.emit('host:patch', patch);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     if (patch.status) statusRef.current = patch.status as Record<string, unknown>;
-    // Night / Day: show the village scene (houses of everyone; the dead ones abandoned)
+    // Day: show the village scene at sunrise (houses of everyone; the dead ones abandoned). Nightfall has no scene,
+    // but still marks who was already out, so the dawn scene only dims the houses of the night's deaths.
     if (phase && !screen && phase !== phaseRef.current) {
       const now = statusRef.current;
-      setScene({
+      if (phase === 'day') setScene({
         phase: phase as 'night' | 'day', round: (patch.round as number) || 1,
         players: net.players.map(p => ({ name: p.name, out: !!now[p.name] })),
         // houses whose owner went out since the last scene crumble on screen

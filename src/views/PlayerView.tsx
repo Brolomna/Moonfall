@@ -542,17 +542,21 @@ export class PlayerView extends React.Component<any, any> {
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
       ...(() => {
-        // NET: the end-result card everyone sees when the host's game ends
-        const w = this.props.winner; const id = w ? JSON.stringify(w) : '';
-        if (!w || s.endHidden === id) return { endShow: false };
-        const solo = w.side === 'solo';
+        // NET: the end-result card everyone sees when the host's game ends; it stays until the host starts a new game.
+        // Same colours as the host's game-over card: green village, red werewolves, amber for a lone winner.
+        const w = this.props.winner;
+        if (!w) return { endShow: false };
+        const tanner = w.side === 'solo' && w.key === 'tanner';
+        const tone = w.side === 'village' ? { c: '#8fe0b8', rgb: '98,212,166', bg: 'rgba(20,80,60,.6)' } : w.side === 'wolves' ? { c: '#ff8a9b', rgb: '224,71,95', bg: 'rgba(110,20,38,.65)' } : { c: '#f2a65a', rgb: '242,166,90', bg: 'rgba(110,60,20,.65)' };
         return {
           endShow: true,
-          endImg: w.side === 'village' ? '/end-village.webp' : w.side === 'wolves' ? '/end-wolves.webp' : '/splash.webp',
-          endSolo: solo, endSoloName: solo ? (w.names || []).join(' & ') : '',
+          endImg: w.side === 'village' ? '/end-village.webp' : w.side === 'wolves' ? '/end-wolves.webp' : tanner ? '/end-tanner.webp' : '/splash.webp',
+          endTall: tanner || w.side === 'solo', // the solo pictures are phone-shaped
+          endSolo: w.side === 'solo' && !tanner, endSoloName: w.side === 'solo' ? (w.names || []).join(' & ') : '',
           endCaption: w.side === 'village' ? T.endVillage : w.side === 'wolves' ? T.endWolves : fmt(T.endSolo, { role: all[w.key] ? loc(w.key).name : '' }),
           endSub: T.endSub,
-          endClose: () => this.setState({ endHidden: id }),
+          endColor: tone.c, endBorder: 'rgba(' + tone.rgb + ',.55)', endGlow: 'rgba(' + tone.rgb + ',.25)',
+          endBg: 'linear-gradient(170deg, ' + tone.bg + ', rgba(18,10,31,.94))',
         };
       })(),
       demo: !!this.props.demo, // NET: prototype-only buttons stay hidden in the real app
@@ -1530,19 +1534,20 @@ export class PlayerView extends React.Component<any, any> {
             height={this.props.frameH || 844} onDone={this.props.onSceneDone} />
         ) : null}
         {(v.endShow) ? (
-          <div className="fade" role="dialog" aria-label={v.endCaption} onClick={v.endClose} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.82)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '24px', fontFamily: v.fB }}>
-            <div className="rise" style={{ position: 'relative', width: '326px', aspectRatio: '746 / 1008', borderRadius: '26px', overflow: 'hidden', border: '1px solid rgba(232,211,160,.5)', boxShadow: '0 30px 80px rgba(0,0,0,.7), 0 0 60px rgba(242,166,90,.25)' }}>
-              <img src={v.endImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              {(v.endSolo) ? (
-                <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '60px 20px 26px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.92))', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '28px', color: '#f6e7c1', textShadow: '0 0 20px rgba(242,166,90,.6)' }}>{v.endSoloName}</span>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#ffd3a8' }}>{v.endCaption}</span>
-                </div>
-              ) : null}
-            </div>
-            {(!v.endSolo) ? <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#f6e7c1', textAlign: 'center' }}>{v.endCaption}</span> : null}
-            <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#d8cfe8', textAlign: 'center', maxWidth: '300px' }}>{v.endSub}</span>
-            <span aria-hidden="true" style={{ fontSize: '12px', color: '#8f84a8' }}>✕</span>
+          <div role="dialog" aria-label={v.endCaption} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.86)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', fontFamily: v.fB }}>
+            <section className="rise" style={{ width: '100%', maxHeight: '100%', boxSizing: 'border-box', padding: '18px 18px 20px', borderRadius: '26px', background: v.endBg, border: `1px solid ${v.endBorder}`, boxShadow: `0 0 70px ${v.endGlow}, 0 30px 80px rgba(0,0,0,.6)`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
+              <div style={{ position: 'relative', width: v.endTall ? '72%' : '100%', aspectRatio: v.endTall ? '941 / 1672' : '746 / 1008', borderRadius: '18px', overflow: 'hidden', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)', flex: 'none' }}>
+                <img src={v.endImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                {(v.endSolo) ? (
+                  <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '50px 14px 18px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.92))' }}>
+                    <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#f6e7c1', textShadow: `0 0 20px ${v.endGlow}` }}>{v.endSoloName}</span>
+                  </div>
+                ) : null}
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: v.endColor }}>{v.endSoloName && !v.endSolo ? v.endSoloName : '✦'}</span>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.2', color: '#f6f1ff' }}>{v.endCaption}</span>
+              <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
+            </section>
           </div>
         ) : null}
         {(this.props.offline) ? (
