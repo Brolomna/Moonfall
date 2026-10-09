@@ -6,7 +6,7 @@ import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed'];
 
   constructor(props) {
     super(props);
@@ -450,6 +450,28 @@ export class HostView extends React.Component<any, any> {
     const deck = [];
     counted.forEach(r => { for (let i = 0; i < r.count; i++) deck.push(r); });
     uniques.filter(r => r.on).forEach(r => deck.push(r));
+    // ---------- fixed roles (host-only): give a player a specific card; the rest are shuffled ----------
+    const deckCount = {}; deck.forEach(r => { deckCount[r.key] = (deckCount[r.key] || 0) + 1; });
+    const fixedAll = s.fixed || {};
+    const fixed = {}, fixedUsed = {};
+    // keep only fixes that still fit: the player is here, the role is in this deck, and not more than its cards
+    Object.keys(fixedAll).forEach(nm => { const k = fixedAll[nm]; if (names.indexOf(nm) >= 0 && (fixedUsed[k] || 0) < (deckCount[k] || 0)) { fixed[nm] = k; fixedUsed[k] = (fixedUsed[k] || 0) + 1; } });
+    const fixedN = Object.keys(fixed).length;
+    const deckKeys = deck.map(r => r.key).filter((k, i, a) => a.indexOf(k) === i);
+    const fixRows = names.map(nm => {
+      const k = fixed[nm]; const r = k ? byKey[k] : null; const open = s.fixPick === nm;
+      return {
+        name: nm, initial: nm[0], color: palette[nm], open,
+        roleName: r ? r.name : 'Random', roleColor: r ? r.color : '#8f82a8', roleSoft: r ? 'rgba(' + r.rgb + ',.16)' : 'rgba(255,255,255,.05)',
+        tap: () => this.setState({ fixPick: open ? null : nm }),
+        opts: open ? [{ key: '', name: 'Random', color: '#c4b8da', soft: 'rgba(255,255,255,.06)', on: !k, can: true, left: '', pick: () => { const nx = { ...fixed }; delete nx[nm]; this.setState({ fixed: nx, fixPick: null }); } }]
+          .concat(deckKeys.map(key => {
+            const rr = byKey[key]; const left = (deckCount[key] || 0) - (fixedUsed[key] || 0) + (k === key ? 1 : 0);
+            return { key, name: rr.name, color: rr.color, soft: 'rgba(' + rr.rgb + ',.16)', on: k === key, can: left > 0, left: deckCount[key] > 1 ? left + '/' + deckCount[key] : '', pick: () => (left > 0 ? this.setState({ fixed: { ...fixed, [nm]: key }, fixPick: null }) : null) };
+          })) : []
+      };
+    });
+
     const order = [3, 0, 7, 1, 5, 9, 2, 8, 4, 6, 10, 11, 12, 13, 14, 15];
     const shuffled = order.filter(i => i < deck.length).map(i => deck[i]).concat(deck.slice(order.length));
     const status = st('status', {});
@@ -876,9 +898,11 @@ export class HostView extends React.Component<any, any> {
       deal: () => {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') };
-        this.props.onDeal && this.props.onDeal(deck.map(r => r.key));
+        this.props.onDeal && this.props.onDeal(deck.map(r => r.key), fixed); // NET: fixed players get their card, the rest are shuffled
         this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start], acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, story: Math.floor(Math.random() * 1000) });
       },
+      fixOpen: screen === 'roles' && !!s.fixOpen, openFix: () => this.setState({ fixOpen: true, fixPick: null }), closeFix: () => this.setState({ fixOpen: false, fixPick: null }),
+      fixRows, fixedN, fixLabel: fixedN ? 'Fixed roles · ' + fixedN : 'Fix roles', clearFix: () => this.setState({ fixed: {}, fixPick: null }), hasFixed: fixedN > 0,
       openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
       closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
 
@@ -1423,6 +1447,12 @@ export class HostView extends React.Component<any, any> {
                     {' '}Shuffle & deal cards
                   </button>
                 </div>
+                <button className="press" onClick={v.openFix} style={{ alignSelf: 'center', marginTop: '-2px', padding: '2px 8px', border: 'none', background: 'none', color: v.hasFixed ? '#a99bc2' : '#6e6288', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" />
+                  </svg>
+                  {v.fixLabel}
+                </button>
               </div>
             </>
           ) : null}
@@ -2048,6 +2078,63 @@ export class HostView extends React.Component<any, any> {
                 </button>
                 <button className="press" onClick={v.closeRules} style={{ flex: '1', height: '56px', borderRadius: '16px', border: 'none', background: '#e8d3a0', color: '#1c140a', fontSize: '16px', fontWeight: '700' }}>
                   Save rules
+                </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.fixOpen) ? (
+          <>
+            <div className="fade" onClick={v.closeFix} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Fix roles" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', maxHeight: '792px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1d1131 0%, #120a20 100%)', borderTop: '1px solid rgba(199,168,255,.3)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ alignSelf: 'center', width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px' }}>
+                  Fix roles
+                </h2>
+                <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#a99bc2' }}>
+                  Only you see this. A fixed player gets that card; everyone else is shuffled with the cards that are left.
+                </span>
+              </div>
+              <ul className="scroll" style={{ flex: '1', minHeight: '0', listStyle: 'none', margin: '0', padding: '4px 20px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(v.fixRows || []).map((r: any) => (
+                  <li key={r.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', borderRadius: '16px', background: 'rgba(20,12,34,.75)', border: `1px solid ${r.open ? 'rgba(233,220,255,.5)' : 'rgba(236,230,246,.09)'}` }}>
+                    <button className="press" onClick={r.tap} aria-expanded={r.open} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0', border: 'none', background: 'none', color: '#ece6f6', textAlign: 'left' }}>
+                      <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: r.color }}>
+                        {r.initial}
+                      </span>
+                      <span style={{ flex: '1', minWidth: '0', fontWeight: '700', fontSize: '15px' }}>
+                        {r.name}
+                      </span>
+                      <span style={{ height: '26px', padding: '0 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', fontSize: '12.5px', fontWeight: '700', color: r.roleColor, background: r.roleSoft }}>
+                        {r.roleName}
+                      </span>
+                    </button>
+                    {(r.open) ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {(r.opts || []).map((o: any) => (
+                          <button key={o.key || 'random'} className="press" onClick={o.pick} disabled={!o.can} aria-pressed={o.on} style={{ height: '32px', padding: '0 10px', borderRadius: '999px', border: `1px solid ${o.on ? o.color : 'rgba(236,230,246,.12)'}`, background: o.on ? o.color : o.soft, color: o.on ? '#12091c' : o.color, fontSize: '12.5px', fontWeight: '700', opacity: o.can ? 1 : 0.35, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            {o.name}
+                            {(o.left) ? (
+                              <span style={{ fontSize: '11px', opacity: 0.75 }}>
+                                {o.left}
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)', display: 'flex', gap: '8px' }}>
+                {(v.hasFixed) ? (
+                  <button className="press" onClick={v.clearFix} style={{ height: '52px', padding: '0 16px', flex: 'none', borderRadius: '16px', border: '1px solid rgba(236,230,246,.18)', background: 'transparent', color: '#c4b8da', fontSize: '15px', fontWeight: '700' }}>
+                    All random
+                  </button>
+                ) : null}
+                <button className="press" onClick={v.closeFix} style={{ flex: '1', height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
+                  Done
                 </button>
               </div>
             </section>

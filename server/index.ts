@@ -241,10 +241,17 @@ io.on('connection', (socket: Socket) => {
       room.players = room.players.filter(p => !p.fake);
       pushAll();
     });
-    socket.on('host:deal', (keys: string[]) => {
-      const deck = shuffle(keys);
+    socket.on('host:deal', (keys: string[], fixed?: Record<string, string>) => {
+      // Roles the host fixed to players are handed out first (each takes one card of that role from the deck);
+      // the remaining cards are shuffled among everyone else.
       room.assign = {};
-      shuffle(room.players).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
+      const rest = keys.slice();
+      for (const [name, key] of Object.entries(fixed || {})) {
+        const i = rest.indexOf(key);
+        if (i >= 0 && room.players.some(p => p.name === name)) { room.assign[name] = key; rest.splice(i, 1); }
+      }
+      const deck = shuffle(rest);
+      shuffle(room.players.filter(p => !room.assign[p.name])).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
       room.dealt = true;
       pushAll();
     });

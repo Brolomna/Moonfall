@@ -33,7 +33,7 @@ export function HostApp() {
             info={info}
             onPatch={(patch: Record<string, unknown>) => socket.emit('host:patch', patch)}
             onKick={(name: string) => socket.emit('host:kick', name)}
-            onDeal={(keys: string[]) => socket.emit('host:deal', keys)}
+            onDeal={(keys: string[], fixed?: Record<string, string>) => socket.emit('host:deal', keys, fixed)}
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}
             onRemoveFakes={() => socket.emit('host:unfake')}
