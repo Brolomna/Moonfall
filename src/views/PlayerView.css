@@ -58,3 +58,22 @@ input::placeholder{color:#7f7397}
 .toxsmoke{filter:blur(4px);animation:toxsmoke 4.2s ease-out infinite}
 @keyframes bubble{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-26px);opacity:0}}
 .bubble{transform-box:fill-box;animation:bubble 2.2s ease-in infinite}
+
+/* Hunter death card */
+@keyframes arrowIn{0%{transform:translate(-120px,120px);opacity:0}60%{opacity:1}85%{transform:translate(4px,-4px)}100%{transform:none;opacity:1}}
+.arrow{animation:arrowIn .6s cubic-bezier(.2,.8,.3,1) .3s both}
+@keyframes jolt{0%,100%{transform:none}30%{transform:translate(3px,-2px)}60%{transform:translate(-2px,1px)}}
+.shotmoon{transform-box:fill-box;transform-origin:center;animation:jolt .35s ease-out .85s both}
+@keyframes leaf{0%{transform:translate(0,0) rotate(0);opacity:0}10%{opacity:1}100%{transform:translate(-30px,300px) rotate(540deg);opacity:0}}
+.leaf{animation:leaf 6s ease-in infinite}
+/* broken-heart death card */
+@keyframes halfL{from{transform:none}to{transform:translate(-9px,6px) rotate(-7deg)}}
+@keyframes halfR{from{transform:none}to{transform:translate(9px,6px) rotate(7deg)}}
+.halfL{transform-box:fill-box;transform-origin:100% 100%;animation:halfL 1.2s cubic-bezier(.3,.7,.2,1) .5s both}
+.halfR{transform-box:fill-box;transform-origin:0 100%;animation:halfR 1.2s cubic-bezier(.3,.7,.2,1) .5s both}
+@keyframes tear{0%{transform:translateY(0) scaleY(.6);opacity:0}15%{opacity:1}100%{transform:translateY(90px) scaleY(1.3);opacity:0}}
+.tear{animation:tear 3s ease-in 1.4s infinite}
+@keyframes petal{0%{transform:translate(0,0) rotate(0);opacity:0}10%{opacity:.9}100%{transform:translate(24px,320px) rotate(400deg);opacity:0}}
+.petal{animation:petal 7s ease-in infinite}
+@keyframes heartbeat{0%,100%{transform:scale(1)}12%{transform:scale(1.06)}24%{transform:scale(1)}36%{transform:scale(1.04)}}
+.heartbeat{animation:heartbeat 1.8s ease-in-out infinite}

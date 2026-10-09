@@ -87,6 +87,16 @@ export default {
     evPrince: "{name} révèle être le Prince et survit au vote",
     evDg: "{name} devient : {role}",
     evSaved: "{name} a été attaqué mais sauvé",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "La dernière flèche du Chasseur",
+    shotT1: "ABATTU PAR",
+    shotT2: "LE CHASSEUR",
+    shotLine: "Une dernière flèche dans le noir — et elle t’a trouvé.",
+    whenHeart: "Deux cœurs, un seul destin",
+    heartT1: "MORT DE",
+    heartT2: "CHAGRIN",
+    heartLine: "Ton amour est tombé, et tu n’as pas pu rester.",
+    loverWith: "Amoureux de {name}",
     // role groups on the waiting screen
     grpVillage: "Village",
     grpWolves: "Loups-garous",

@@ -5,9 +5,10 @@ import { PlayerView } from './views/PlayerView';
 import { installAudioUnlock, playDawn, playHowl } from './sound';
 
 type View = {
-  name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned';
+  name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned' | 'shot' | 'heartbreak';
   roomLang: string; showRoles: boolean; deck: [string, number][]; roleDefs: Record<string, unknown>; playerCount: number;
-  spectator?: boolean; // joined after the deal: watching (server sends players, roles, status and the host's log instead)
+  spectator?: boolean;
+  lover?: string | null; // Cupid's partner, shown as a heart on the card // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
 export function PlayerApp() {
@@ -53,6 +54,7 @@ export function PlayerApp() {
             role={view?.role || 'villager'}
             phase={view?.phase || 'night'}
             fate={view?.fate || 'none'}
+            lover={view?.lover || null}
             language={view?.roomLang || 'en'}
             roleDefs={view?.roleDefs}
             deck={view?.deck}

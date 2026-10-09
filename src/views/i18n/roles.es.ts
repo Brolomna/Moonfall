@@ -87,6 +87,16 @@ export default {
     evPrince: "{name} reveló ser el Príncipe y sobrevivió a la votación",
     evDg: "{name} se convirtió en {role}",
     evSaved: "{name} fue atacado, pero lo salvaron",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "La última flecha del Cazador",
+    shotT1: "ABATIDO POR",
+    shotT2: "EL CAZADOR",
+    shotLine: "Una última flecha en la oscuridad… y te encontró.",
+    whenHeart: "Dos corazones, un destino",
+    heartT1: "MURIÓ DE",
+    heartT2: "UN CORAZÓN ROTO",
+    heartLine: "Tu amor cayó, y no pudiste quedarte atrás.",
+    loverWith: "Enamorado de {name}",
     // role groups on the waiting screen
     grpVillage: "Aldea",
     grpWolves: "Hombres lobo",

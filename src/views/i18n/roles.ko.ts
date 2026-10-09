@@ -87,6 +87,16 @@ export default {
     evPrince: "{name} 님이 왕자임을 밝히고 투표에서 살아남았어요",
     evDg: "{name} 님의 역할이 {role}(으)로 바뀌었어요",
     evSaved: "{name} 님이 공격받았지만 구출됐어요",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "사냥꾼의 마지막 화살",
+    shotT1: "사냥꾼의 화살에",
+    shotT2: "쓰러졌다",
+    shotLine: "어둠 속 마지막 화살 — 그것이 당신을 찾았습니다.",
+    whenHeart: "두 심장, 하나의 운명",
+    heartT1: "상심하여",
+    heartT2: "세상을 떠났다",
+    heartLine: "사랑하는 이가 쓰러지자, 당신도 남을 수 없었습니다.",
+    loverWith: "{name} 님과 연인",
     // role groups on the waiting screen
     grpVillage: "마을",
     grpWolves: "늑대인간",

@@ -87,6 +87,16 @@ export default {
     evPrince: "{name} เปิดเผยว่าเป็นเจ้าชายและรอดจากการโหวต",
     evDg: "{name} กลายเป็น{role}",
     evSaved: "{name} ถูกโจมตีแต่รอดมาได้",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "ลูกธนูดอกสุดท้ายของนายพราน",
+    shotT1: "ถูกนายพราน",
+    shotT2: "ยิงตาย",
+    shotLine: "ลูกธนูดอกสุดท้ายในความมืด แล้วมันก็พุ่งมาหาคุณ",
+    whenHeart: "สองหัวใจ หนึ่งชะตา",
+    heartT1: "ตรอมใจ",
+    heartT2: "จนตาย",
+    heartLine: "คนรักของคุณล้มลง และคุณก็อยู่ต่อไปไม่ได้",
+    loverWith: "เป็นคู่รักกับ {name}",
     // role groups on the waiting screen
     grpVillage: "ฝ่ายหมู่บ้าน",
     grpWolves: "ฝ่ายมนุษย์หมาป่า",

@@ -127,7 +127,12 @@ function dawnDeaths() {
 function playerView(p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
-  const fate = !mark ? 'none' : mark.how === 'night' ? (mark.cause === 'poison' ? 'poisoned' : 'killed') : mark.how === 'voted' ? 'voted' : 'none';
+  // which death card the phone shows
+  const fate = !mark ? 'none' : mark.how === 'voted' ? 'voted' : mark.how !== 'night' ? 'none'
+    : ({ poison: 'poisoned', hunter: 'shot', heartbreak: 'heartbreak' } as Record<string, string>)[mark.cause] || 'killed';
+  // Cupid's lovers know each other: their card shows a heart and the partner's name
+  const lovers: string[] | null = sh.lovers || null;
+  const lover = lovers && lovers.includes(p.name) && room.dealt ? lovers.find(n => n !== p.name) || null : null;
   const role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
 
   const counts: Record<string, number> = {};
@@ -153,6 +158,7 @@ function playerView(p: Player) {
     roomLang: sh.roomLang || 'en',
     showRoles,
     dawnDeaths: dawnDeaths(),
+    lover,
     deck,
     roleDefs,
     playerCount: room.players.length,

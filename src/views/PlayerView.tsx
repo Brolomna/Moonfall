@@ -78,7 +78,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -452,7 +452,7 @@ export class PlayerView extends React.Component<any, any> {
             ? actRole(e.key) + ' → ' + ([e.save ? '💧 ' + e.save : '', e.poison ? '☠ ' + e.poison : ''].filter(Boolean).join(' · ') || '—')
             : actRole(e.key) + ' → ' + ((e.targets || []).join(' & ') || '—'))
           : e.t === 'saved' ? fmt(T.evSaved, { name: e.name })
-          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) }) + (e.cause === 'poison' ? ' ☠' : '')
+          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) }) + ({ poison: ' ☠', hunter: ' 🏹', heartbreak: ' 💔' }[e.cause] || '')
           : fmt({ back: T.evBack, tough: T.evTough, cursed: T.evCursed, prince: T.evPrince, dg: T.evDg }[e.t] || '{name}', { name: e.name, role: roleNameOf(e.name) });
         const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ act: '#a6c8ff', saved: '#62d4a6', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
         chapters[chapters.length - 1].items.push({ text, color, note: e.t === 'note' });
@@ -516,13 +516,14 @@ export class PlayerView extends React.Component<any, any> {
       pillBorder: night ? 'rgba(199,168,255,.35)' : 'rgba(255,211,168,.45)',
       togglePhase: () => this.setState({ phase: night ? 'day' : 'night' }),
       phaseDemoLabel: night ? T.toDay : T.toNight,
-      isAlive: fate === 'none', isKilled: fate === 'killed', isVoted: fate === 'voted', isPoisoned: fate === 'poisoned',
+      isAlive: fate === 'none', isKilled: fate === 'killed', isVoted: fate === 'voted', isPoisoned: fate === 'poisoned', isShot: fate === 'shot', isHeartbreak: fate === 'heartbreak',
+      loverText: this.props.lover ? fmt(T.loverWith, { name: this.props.lover }) : '', // NET: Cupid's partner
       killLabel: fate === 'killed' ? T.revive : T.killed,
       voteLabel: fate === 'voted' ? T.revive : T.voted,
       markKilled: () => this.setState({ fate: fate === 'killed' ? 'none' : 'killed', revealed: false }),
       markVoted: () => this.setState({ fate: fate === 'voted' ? 'none' : 'voted', revealed: false }),
       vigOpacity: fate === 'none' ? 0 : 1,
-      vigBg: fate === 'poisoned' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(40,120,30,.5) 100%)' : fate === 'voted' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,62,14,.5) 100%)' : 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(130,10,30,.55) 100%)',
+      vigBg: fate === 'heartbreak' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,30,80,.5) 100%)' : fate === 'shot' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(120,70,20,.5) 100%)' : fate === 'poisoned' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(40,120,30,.5) 100%)' : fate === 'voted' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,62,14,.5) 100%)' : 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(130,10,30,.55) 100%)',
 
       cardTransform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
       cardAria: revealed ? T.hintHide : T.tapToSee,
@@ -846,6 +847,88 @@ export class PlayerView extends React.Component<any, any> {
                         </div>
                       </>
                     ) : null}
+                    {(v.isShot) ? (
+                      <>
+                        <div className="face fateIn" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 26%, #5a3a17 0%, #261808 46%, #0c0703 100%)', border: '1px solid rgba(217,163,95,.45)', boxShadow: '0 20px 60px rgba(0,0,0,.6), 0 0 50px rgba(217,163,95,.35)' }}>
+                          <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(217,163,95,.45)', opacity: 0.6 }} />
+                          <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
+                            <circle cx="163" cy="128" r="118" fill="rgba(217,163,95,.05)" />
+                            <circle cx="163" cy="128" r="88" fill="rgba(217,163,95,.09)" />
+                            <g className="shotmoon">
+                              <circle cx="163" cy="128" r="62" fill="#c9a06a" />
+                              <circle cx="146" cy="110" r="10" fill="rgba(70,40,10,.25)" />
+                              <circle cx="182" cy="150" r="7" fill="rgba(70,40,10,.22)" />
+                              <circle cx="163" cy="128" r="62" fill="none" stroke="rgba(255,225,180,.45)" strokeWidth="1.2" />
+                              <path d="M170 120l14-12 M170 120l20 4 M170 120l6 18 M170 120l-8-16" stroke="rgba(60,30,8,.75)" strokeWidth="1.6" strokeLinecap="round" />
+                            </g>
+                            <g className="arrow">
+                              <path d="M60 230L170 120" stroke="#e8d3a0" strokeWidth="3" strokeLinecap="round" />
+                              <path d="M170 120l-15 3 6 6z" fill="#f2e2bd" />
+                              <path d="M66 224l-16-4 6 10z M74 216l-16-4 6 10z M60 230l-4-16 10 6z M68 222l-4-16 10 6z" fill="#b5523a" />
+                            </g>
+                          </svg>
+                          <span className="leaf" style={{ position: 'absolute', left: '70px', top: '40px', width: '9px', height: '5px', borderRadius: '50%', background: '#b5763a' }} />
+                          <span className="leaf" style={{ position: 'absolute', left: '230px', top: '20px', width: '8px', height: '4px', borderRadius: '50%', background: '#c9963f', animationDelay: '1.6s' }} />
+                          <span className="leaf" style={{ position: 'absolute', left: '150px', top: '10px', width: '7px', height: '4px', borderRadius: '50%', background: '#8f5a2a', animationDelay: '3s' }} />
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '0 28px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: '#e8b878' }}>
+                              {v.T.whenShot}
+                            </span>
+                            <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '30px', lineHeight: '1.12', letterSpacing: '.04em', color: '#fff3e2', textShadow: '0 0 24px rgba(217,163,95,.35)' }}>
+                              {v.T.shotT1}
+                              <br />
+                              {v.T.shotT2}
+                            </span>
+                            <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#ecd3b2' }}>
+                              {v.T.shotLine}
+                            </span>
+                            <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#cdb594' }}>
+                              {v.T.killedRule}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+                    {(v.isHeartbreak) ? (
+                      <>
+                        <div className="face fateIn" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 26%, #5a1a3a 0%, #2a0a1c 46%, #0d0409 100%)', border: '1px solid rgba(240,143,184,.45)', boxShadow: '0 20px 60px rgba(0,0,0,.6), 0 0 50px rgba(240,143,184,.35)' }}>
+                          <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(240,143,184,.45)', opacity: 0.6 }} />
+                          <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
+                            <circle cx="163" cy="128" r="118" fill="rgba(240,143,184,.05)" />
+                            <circle cx="163" cy="128" r="88" fill="rgba(240,143,184,.09)" />
+                            <g className="halfL">
+                              <path d="M163 196c-12-8-62-40-62-86a33 33 0 0 1 62-16l-8 22 12 14-10 18 10 16z" fill="#d94f86" />
+                              <path d="M163 196c-12-8-62-40-62-86a33 33 0 0 1 62-16" fill="none" stroke="rgba(255,200,225,.5)" strokeWidth="1.2" />
+                            </g>
+                            <g className="halfR">
+                              <path d="M163 196c12-8 62-40 62-86a33 33 0 0 0-62-16l-8 22 12 14-10 18 10 16z" fill="#c23f74" />
+                              <path d="M163 196c12-8 62-40 62-86a33 33 0 0 0-62-16" fill="none" stroke="rgba(255,200,225,.4)" strokeWidth="1.2" />
+                            </g>
+                          </svg>
+                          <span className="tear" style={{ position: 'absolute', left: '158px', top: '200px', width: '7px', height: '11px', borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%', background: '#f6a7c8' }} />
+                          <span className="petal" style={{ position: 'absolute', left: '90px', top: '30px', width: '10px', height: '7px', borderRadius: '70% 0', background: '#f08fb8' }} />
+                          <span className="petal" style={{ position: 'absolute', left: '220px', top: '14px', width: '9px', height: '6px', borderRadius: '70% 0', background: '#e86d9f', animationDelay: '1.3s' }} />
+                          <span className="petal" style={{ position: 'absolute', left: '160px', top: '4px', width: '8px', height: '6px', borderRadius: '70% 0', background: '#ffb3d1', animationDelay: '2.6s' }} />
+                          <span className="petal" style={{ position: 'absolute', left: '40px', top: '60px', width: '9px', height: '6px', borderRadius: '70% 0', background: '#f08fb8', animationDelay: '3.7s' }} />
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '0 28px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: '#f6a7c8' }}>
+                              {v.T.whenHeart}
+                            </span>
+                            <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '30px', lineHeight: '1.12', letterSpacing: '.04em', color: '#fff0f6', textShadow: '0 0 24px rgba(240,143,184,.35)' }}>
+                              {v.T.heartT1}
+                              <br />
+                              {v.T.heartT2}
+                            </span>
+                            <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#f2c8da' }}>
+                              {v.T.heartLine}
+                            </span>
+                            <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#d8b0c2' }}>
+                              {v.T.killedRule}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
                     {(v.isPoisoned) ? (
                       <>
                         <div className="face fateIn" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 26%, #2f5a14 0%, #13260c 46%, #060a05 100%)', border: '1px solid rgba(140,230,90,.45)', boxShadow: '0 20px 60px rgba(0,0,0,.6), 0 0 50px rgba(110,220,70,.18)' }}>
@@ -1102,6 +1185,14 @@ export class PlayerView extends React.Component<any, any> {
                           {v.rc.desc}
                         </p>
                         <div style={{ flex: '1' }} />
+                        {(v.loverText) ? (
+                          <span className="heartbeat" style={{ alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', padding: '6px 14px', borderRadius: '999px', fontSize: '13.5px', fontWeight: '700', color: '#ffd6e6', background: 'rgba(240,143,184,.18)', border: '1px solid rgba(240,143,184,.55)' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#f08fb8" stroke="none">
+                              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+                            </svg>
+                            {v.loverText}
+                          </span>
+                        ) : null}
                         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '14px', fontSize: '13px', fontWeight: '600', color: '#ece6f6', background: 'rgba(0,0,0,.32)', border: `1px solid ${v.rc.frame}` }}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
                             <path d="M4 21V4 M4 4h12l-2 4 2 4H4" />

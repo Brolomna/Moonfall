@@ -87,6 +87,16 @@ export default {
     evPrince: "{name}亮出王子身份，躲过了投票",
     evDg: "{name}变成了{role}",
     evSaved: "{name}遭到袭击，但被救下了",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "猎人的最后一箭",
+    shotT1: "被猎人",
+    shotT2: "射杀",
+    shotLine: "黑暗中的最后一箭——正中了你。",
+    whenHeart: "两颗心，同一命运",
+    heartT1: "因心碎",
+    heartT2: "而亡",
+    heartLine: "你的爱人倒下了，你也无法独活。",
+    loverWith: "与{name}相爱",
     // role groups on the waiting screen
     grpVillage: "村民阵营",
     grpWolves: "狼人阵营",

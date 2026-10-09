@@ -87,6 +87,16 @@ export default {
     evPrince: "{name}は王子だと明かし、投票を生き延びました",
     evDg: "{name}は{role}になりました",
     evSaved: "{name}は襲われましたが、救われました",
+    // Hunter and broken-heart death cards, lovers' heart
+    whenShot: "狩人の最後の一矢",
+    shotT1: "狩人に",
+    shotT2: "射抜かれた",
+    shotLine: "闇の中の最後の一矢——それはあなたを射抜いた。",
+    whenHeart: "ふたつの心、ひとつの運命",
+    heartT1: "失意のうちに",
+    heartT2: "息絶えた",
+    heartLine: "愛する人が倒れ、あなたも後を追った。",
+    loverWith: "{name}と恋人",
     // role groups on the waiting screen
     grpVillage: "村人陣営",
     grpWolves: "人狼陣営",

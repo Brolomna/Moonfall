@@ -500,13 +500,34 @@ export class HostView extends React.Component<any, any> {
     const ev = (t, extra) => ({ t, round, phase, ...(extra || {}) });
     // Re-marking someone in the same phase is a correction: replace their entry instead of stacking another
     const unlog = (lg, nm) => lg.filter(e => !(e.name === nm && e.round === round && e.phase === phase && ['out', 'back', 'tough', 'cursed', 'prince'].indexOf(e.t) >= 0));
-    const markPatch = (nm, how) => {
+    // Ways out of the game. 'how' groups them (killed / voted / left); 'cause' says who did it, which picks the
+    // player's death card (wolves, poison, Hunter's arrow, broken heart) and the History line.
+    const MARKS = {
+      wolves: { how: 'night' }, night: { how: 'night' }, voted: { how: 'voted' }, removed: { how: 'removed' }, left: { how: 'removed' },
+      hunter: { how: 'night', cause: 'hunter' }, poison: { how: 'night', cause: 'poison' }, heartbreak: { how: 'night', cause: 'heartbreak' },
+    };
+    const markOf = (m) => (!m ? 'alive' : m.how === 'voted' ? 'voted' : m.how === 'removed' ? 'left' : m.cause || 'wolves');
+    const loversNow = st('lovers', null);
+    const mateOf = (nm) => (loversNow && loversNow.indexOf(nm) >= 0 ? loversNow.find(x => x !== nm) : null);
+    const markPatch = (nm, kind) => {
       const next = { ...status };
-      if (how === 'alive') delete next[nm]; else next[nm] = { how, round, phase };
-      const lg = unlog(log, nm);
+      const mk = MARKS[kind] || null; // null = alive
+      if (!mk) delete next[nm]; else next[nm] = { ...mk, round, phase };
+      let lg = unlog(log, nm);
       const fixedHere = lg.length !== log.length;
-      const patch = { status: next, log: how !== 'alive' ? lg.concat([ev('out', { how, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]) };
-      if (how !== 'alive' && how !== 'removed') dgTakeOver(patch, [nm]);
+      lg = mk ? lg.concat([ev('out', { ...mk, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]);
+      const dead = mk && mk.how !== 'removed' ? [nm] : [];
+      // Cupid's lovers: when one dies the other dies of a broken heart at once; undoing the death undoes that too
+      const mate = mateOf(nm);
+      if (mate && dead.length && !next[mate]) {
+        next[mate] = { how: 'night', cause: 'heartbreak', round, phase };
+        lg = unlog(lg, mate).concat([ev('out', { how: 'night', cause: 'heartbreak', name: mate, role: roleOf(mate).name })]);
+        dead.push(mate);
+      } else if (mate && !dead.length && next[mate] && next[mate].cause === 'heartbreak' && next[mate].round === round && next[mate].phase === phase) {
+        delete next[mate]; lg = unlog(lg, mate);
+      }
+      const patch = { status: next, log: lg };
+      if (dead.length) dgTakeOver(patch, dead);
       return patch;
     };
     // The Doppelgänger's copy is recorded on night 1, so when that player dies the role passes over at once
@@ -526,26 +547,32 @@ export class HostView extends React.Component<any, any> {
       if (hit) { patch.dg = { dead: hit, choice: roleOf(hit).key }; patch.markOpen = false; }
     };
     const mark = (nm, how) => this.setState(markPatch(nm, how));
-    const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['night', 'Killed', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['removed', 'Left', '#b9acd2', '#1a1424']];
+    const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['wolves', 'Wolves', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['left', 'Left', '#b9acd2', '#1a1424'],
+      ['hunter', 'Hunter', '#d9a35f', '#2a1906'], ['poison', 'Poison', '#9be15a', '#132a06'], ['heartbreak', 'Heartbreak', '#f08fb8', '#2e0b1c']];
     // How each way out looks in the Mark players sheet: tinted card + badge, so out players stand apart
     const OUT_LOOK = {
-      night: { label: 'Killed', bg: 'rgba(224,71,95,.13)', border: 'rgba(255,138,155,.38)', badgeBg: '#ff8a9b', badgeFg: '#2b0b14' },
+      wolves: { label: 'Killed by wolves', bg: 'rgba(224,71,95,.13)', border: 'rgba(255,138,155,.38)', badgeBg: '#ff8a9b', badgeFg: '#2b0b14' },
       voted: { label: 'Voted out', bg: 'rgba(242,166,90,.12)', border: 'rgba(242,166,90,.38)', badgeBg: '#f2a65a', badgeFg: '#2a1606' },
-      removed: { label: 'Left', bg: 'rgba(185,172,210,.07)', border: 'rgba(185,172,210,.22)', badgeBg: '#b9acd2', badgeFg: '#1a1424' },
+      left: { label: 'Left', bg: 'rgba(185,172,210,.07)', border: 'rgba(185,172,210,.22)', badgeBg: '#b9acd2', badgeFg: '#1a1424' },
+      hunter: { label: 'Shot by the Hunter', bg: 'rgba(217,163,95,.12)', border: 'rgba(217,163,95,.4)', badgeBg: '#d9a35f', badgeFg: '#2a1906' },
+      poison: { label: 'Poisoned', bg: 'rgba(127,210,58,.1)', border: 'rgba(155,225,90,.38)', badgeBg: '#9be15a', badgeFg: '#132a06' },
+      heartbreak: { label: 'Broken heart', bg: 'rgba(240,143,184,.12)', border: 'rgba(240,143,184,.4)', badgeBg: '#f08fb8', badgeFg: '#2e0b1c' },
     };
     const dealt = names.map((nm, i) => {
       const r = roleOf(nm);
       const st0 = status[nm];
-      const cur = st0 ? st0.how : 'alive';
+      const cur = markOf(st0);
       const out = cur !== 'alive';
       const look = OUT_LOOK[cur];
+      const mate = mateOf(nm);
       return {
         name: nm, initial: nm[0], color: palette[nm], out, i,
         when: st0 ? st0.round * 2 + (st0.phase === 'day' ? 1 : 0) : 0, // Night 1 < Day 1 < Night 2 …
         opacity: out ? 0.6 : 1, strike: out ? 'line-through' : 'none',
         rowBg: look ? look.bg : 'rgba(20,12,34,.75)',
         rowBorder: look ? look.border : 'rgba(236,230,246,.09)',
-        badge: look ? (st0.cause === 'poison' ? 'Poisoned' : look.label) + (st0.how === 'removed' ? '' : ' · ' + (st0.phase === 'night' ? 'Night ' : 'Day ') + st0.round) : '',
+        badge: look ? look.label + (st0.how === 'removed' ? '' : ' · ' + (st0.phase === 'night' ? 'Night ' : 'Day ') + st0.round) : '',
+        lover: mate ? '♥ ' + mate : '',
         badgeBg: look ? look.badgeBg : 'transparent', badgeFg: look ? look.badgeFg : '#12091c',
         roleName: hide ? 'Hidden' : r.name, roleColor: hide ? '#a99bc2' : r.color,
         roleSoft: hide ? 'rgba(255,255,255,.06)' : 'rgba(' + r.rgb + ',.14)',
@@ -576,7 +603,7 @@ export class HostView extends React.Component<any, any> {
       const r = roleOf(nm); const how = status[nm].how; const k = r.key;
       if (how === 'removed') return;
       if (k === 'wolfcub') push('cub-' + nm, 'Wolf Cub · ' + nm, 'Next night, the wolves take TWO victims', nm + ' was the Wolf Cub. When the werewolves wake next night, tell them to choose two players instead of one.', '255,111,97', '#ff8f84', r.icon);
-      if (k === 'hunter') push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. That player is eliminated too. Mark them in the list.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
+      if (k === 'hunter') push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter”.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
       if (k === 'seer') {
         const app = aliveWith('apprentice')[0];
         if (app) push('app-' + nm, 'Seer · ' + nm, 'The Apprentice Seer takes over', 'From tonight, wake ' + app + ' (Apprentice Seer) in the Seer’s place. They now check one player each night.', '166,200,255', '#a6c8ff', byKey.apprentice.icon);
@@ -586,9 +613,8 @@ export class HostView extends React.Component<any, any> {
       if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' }, log: unlog(log, nm).concat([ev('cursed', { name: nm })]) }); } });
       if (k === 'tanner' && how === 'voted') push('tanner-' + nm, 'Tanner · ' + nm, 'The Tanner wins!', nm + ' wanted to be voted out — and got their wish. The Tanner wins alone. You can keep playing for everyone else.', '201,162,122', '#d9b48a', r.icon);
       const lv = st('lovers', null);
-      if (cupidIn && lv && lv.indexOf(nm) >= 0) {
-        const mate = lv.find(x => x !== nm);
-        if (mate && !isOut(mate)) push('love-' + nm, 'Cupid’s lovers', mate + ' dies of heartbreak', nm + ' and ' + mate + ' were lovers. ' + mate + ' is eliminated right away.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark ' + mate + ' out', fn: () => mark(mate, 'night') });
+      if (cupidIn && lv) {
+        // recorded lovers: the heartbreak death is applied automatically
       } else if (cupidIn && !lv) push('love-' + nm, 'Cupid’s lovers', 'Was ' + nm + ' one of the lovers?', 'If so, the other lover dies of heartbreak right away. Mark them out too.', '240,143,184', '#f08fb8', byKey.cupid.icon, { label: 'Mark the other lover', fn: () => this.setState({ markOpen: true }) });
     });
     if (dgDone) {
@@ -792,7 +818,7 @@ export class HostView extends React.Component<any, any> {
       return e.by + ' chose ' + (t || 'no one');
     };
     const evLine = (e) => ({
-      out: { night: who(e) + (e.cause === 'poison' ? ' was poisoned by the Witch' : ' was killed'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
+      out: { night: who(e) + ({ poison: ' was poisoned by the Witch', hunter: ' was shot by the Hunter', heartbreak: ' died of a broken heart' }[e.cause] || ' was killed by the wolves'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
       back: e.name + ' is back in the game',
       tough: e.name + ' was attacked but, as the Tough Guy, lives until sunset',
       cursed: e.name + ' was attacked and, being Cursed, turned into a Werewolf',
@@ -1008,11 +1034,16 @@ export class HostView extends React.Component<any, any> {
         const poisoned = witch && witch.poison && !isOut(witch.poison) ? witch.poison : null;
         if (poisoned) deaths.push(poisoned);
         const dead = deaths.filter((nm, i) => deaths.indexOf(nm) === i);
+        // a lover's death takes the other lover with them
+        const broken = [];
+        dead.forEach(nm => { const m = mateOf(nm); if (m && !isOut(m) && dead.indexOf(m) < 0 && broken.indexOf(m) < 0) broken.push(m); });
+        broken.forEach(m => dead.push(m));
         const nextStatus = { ...status };
         // a poison death keeps its cause: the player's phone shows the poison card instead of the wolves'
-        dead.forEach(nm => { nextStatus[nm] = { how: 'night', round, phase: 'night', ...(nm === poisoned ? { cause: 'poison' } : {}) }; });
+        const causeOf = (nm) => (broken.indexOf(nm) >= 0 ? 'heartbreak' : nm === poisoned ? 'poison' : null);
+        dead.forEach(nm => { nextStatus[nm] = { how: 'night', round, phase: 'night', ...(causeOf(nm) ? { cause: causeOf(nm) } : {}) }; });
         const nightLog = saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
-          .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name, ...(nm === poisoned ? { cause: 'poison' } : {}) })));
+          .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name, ...(causeOf(nm) ? { cause: causeOf(nm) } : {}) })));
         const patch = { phase: 'day', round, status: nextStatus, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
         dgTakeOver(patch, dead); // the Doppelgänger takes over the copied player's role
         this.setState(patch);
@@ -2545,6 +2576,11 @@ export class HostView extends React.Component<any, any> {
                               {(d.out) ? (
                                 <span style={{ alignSelf: 'flex-start', padding: '2px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '800', letterSpacing: '.06em', textTransform: 'uppercase', background: d.badgeBg, color: d.badgeFg }}>
                                   {d.badge}
+                                </span>
+                              ) : null}
+                              {(d.lover) ? (
+                                <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#f08fb8' }}>
+                                  {d.lover}
                                 </span>
                               ) : null}
                             </span>
