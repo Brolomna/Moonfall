@@ -7,8 +7,21 @@ import { LIB_I18N } from './i18n';
 
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
-  componentDidUpdate(prev) {
+  componentDidUpdate(prev, prevState) {
     if (prev.fate !== this.props.fate || prev.role !== this.props.role) this.setState({ revealed: false });
+    // Auto-hide so nobody can peek: a revealed card flips back by itself —
+    // after 5 s while alive, after 3 s (back to the death card) once the player is out
+    const revealed = !!(this.state && this.state.revealed), was = !!(prevState && prevState.revealed);
+    if (revealed && !was) {
+      clearTimeout(this._hide);
+      const fate = (this.state && this.state.fate) || this.props.fate || 'none';
+      this._hide = setTimeout(() => this.setState({ revealed: false }), fate === 'none' ? 5000 : 3000);
+    }
+    if (!revealed && was) clearTimeout(this._hide);
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this._hide);
   }
 
   roles() {
