@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { PlayerView } from './views/PlayerView';
+import { installAudioUnlock, playHowl, playSunrise } from './sound';
 
 type View = {
   name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned';
@@ -13,6 +14,16 @@ export function PlayerApp() {
   const socket = useMemo(() => connect('player'), []);
   const [view, setView] = useState<View>(null);
   const [online, setOnline] = useState(true);
+
+  // the howl / sunrise plays on every phone in the game when the host switches phase
+  const lastPhase = useRef<string | null>(null);
+  useEffect(() => { installAudioUnlock(); }, []);
+  useEffect(() => {
+    const inGame = !!view && (view.dealt || !!view.spectator);
+    const phase = inGame ? view!.phase : null;
+    if (phase && lastPhase.current && phase !== lastPhase.current) (phase === 'night' ? playHowl : playSunrise)();
+    lastPhase.current = phase;
+  }, [view]);
 
   useEffect(() => {
     socket.on('player:view', setView);

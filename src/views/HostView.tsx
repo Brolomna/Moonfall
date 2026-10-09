@@ -1473,6 +1473,12 @@ export class HostView extends React.Component<any, any> {
                       {v.phaseLine}
                     </span>
                   </span>
+                  <span style={{ flex: '1' }} />
+                  <button className="press" onClick={this.props.onToggleSound} aria-label={this.props.soundOn ? 'Turn sound off' : 'Turn sound on'} aria-pressed={!!this.props.soundOn} style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(0,0,0,.18)', color: this.props.soundOn ? '#e9dcff' : '#7f7397', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d={this.props.soundOn ? 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12' : 'M4 9h4l5-4v14l-5-4H4z M17 9l5 6 M22 9l-5 6'} />
+                    </svg>
+                  </button>
                 </section>
                 <div role="group" aria-label="Switch phase" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px', padding: '6px', borderRadius: '20px', background: 'rgba(10,6,18,.6)', border: '1px solid rgba(236,230,246,.1)' }}>
                   <button className="press" onClick={v.setNight} aria-pressed={v.isNightPhase} style={{ height: '56px', borderRadius: '15px', border: 'none', background: v.nightBtnBg, color: v.nightBtnFg, fontSize: '17px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
