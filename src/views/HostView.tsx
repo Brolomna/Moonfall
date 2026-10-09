@@ -7,7 +7,7 @@ import { MECH, DAY_REMINDERS } from './roleMechanics';
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner'];
 
   constructor(props) {
     super(props);
@@ -20,6 +20,12 @@ export class HostView extends React.Component<any, any> {
     if ((!s.counts || !s.picked) && this.props.onPatch) {
       this.props.onPatch({ counts: s.counts || { werewolf: 2, villager: 2, mason: 0 }, picked: s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'] });
     }
+  }
+
+  // NET: who won goes to every phone (end-result card); recomputed each render, sent only when it changes
+  componentDidUpdate() {
+    const w = this._winner || null, cur = this.state.winner || null;
+    if (JSON.stringify(w) !== JSON.stringify(cur)) this.setState({ winner: w });
   }
 
   setState(patch, cb) {
@@ -1097,6 +1103,8 @@ export class HostView extends React.Component<any, any> {
     if (inGame('doppelganger')) endTips.push('The Doppelgänger wins with the team of the role they copied.');
     endTips.push('Ask everyone to show their cards and enjoy the reveal!');
     const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
+    const winSide = !gameOver ? null : tannerWin ? 'solo' : soloWins ? 'solo' : villageWins ? 'village' : 'wolves';
+    this._winner = !winSide ? null : winSide === 'solo' ? { side: 'solo', key: tannerWin ? 'tanner' : roleOf(killers[0]).key, names: tannerWin ? [tannerWin] : killers.slice() } : { side: winSide };
 
     // ---------- history view ----------
     const who = (e) => e.name + (hide || !e.role ? '' : ' (' + e.role + ')');
@@ -1317,6 +1325,7 @@ export class HostView extends React.Component<any, any> {
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
       endGlow: (soloWins || tannerWin) ? 'rgba(242,166,90,.24)' : villageWins ? 'rgba(98,212,166,.22)' : 'rgba(224,71,95,.25)',
       endBg: (soloWins || tannerWin) ? 'linear-gradient(170deg, rgba(110,60,20,.65), rgba(18,10,31,.92))' : villageWins ? 'linear-gradient(170deg, rgba(20,80,60,.6), rgba(18,10,31,.92))' : 'linear-gradient(170deg, rgba(110,20,38,.65), rgba(18,10,31,.92))',
+      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : '',
       endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(killers[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
 
       dgOpen, dgChoices,
@@ -1927,11 +1936,15 @@ export class HostView extends React.Component<any, any> {
                 {(v.gameOver) ? (
                   <>
                     <section className="rise" aria-label="Game over" style={{ padding: '22px 20px', borderRadius: '24px', background: v.endBg, border: `1px solid ${v.endBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', boxShadow: `0 0 60px ${v.endGlow}` }}>
-                      <span style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.25)', border: `1px solid ${v.endBorder}` }}>
-                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={v.endColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                          <path d={v.endIcon} />
-                        </svg>
-                      </span>
+                      {(v.endImg) ? (
+                        <img src={v.endImg} alt={v.endTitle} style={{ width: '100%', aspectRatio: '746 / 1008', objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
+                      ) : (
+                        <span style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.25)', border: `1px solid ${v.endBorder}` }}>
+                          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={v.endColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                            <path d={v.endIcon} />
+                          </svg>
+                        </span>
+                      )}
                       <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: v.endColor }}>
                         Game over
                       </span>

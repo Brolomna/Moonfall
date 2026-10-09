@@ -81,7 +81,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -541,6 +541,20 @@ export class PlayerView extends React.Component<any, any> {
       cardHint: fate !== 'none' ? (revealed ? T.hintFell : T.hintHad) : (revealed ? T.hintHide : T.hintPeek),
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
+      ...(() => {
+        // NET: the end-result card everyone sees when the host's game ends
+        const w = this.props.winner; const id = w ? JSON.stringify(w) : '';
+        if (!w || s.endHidden === id) return { endShow: false };
+        const solo = w.side === 'solo';
+        return {
+          endShow: true,
+          endImg: w.side === 'village' ? '/end-village.webp' : w.side === 'wolves' ? '/end-wolves.webp' : '/splash.webp',
+          endSolo: solo, endSoloName: solo ? (w.names || []).join(' & ') : '',
+          endCaption: w.side === 'village' ? T.endVillage : w.side === 'wolves' ? T.endWolves : fmt(T.endSolo, { role: all[w.key] ? loc(w.key).name : '' }),
+          endSub: T.endSub,
+          endClose: () => this.setState({ endHidden: id }),
+        };
+      })(),
       demo: !!this.props.demo, // NET: prototype-only buttons stay hidden in the real app
       showRoleList: this.props.showRoles !== false && deck.length > 0
     };
@@ -783,27 +797,11 @@ export class PlayerView extends React.Component<any, any> {
                     {(v.isAlive) ? (
                       <>
                         <div className="face" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 42%, #33205a 0%, #1a0f30 55%, #0e0819 100%)', border: '1px solid rgba(199,168,255,.42)', boxShadow: '0 30px 80px rgba(0,0,0,.6), 0 0 60px rgba(167,127,240,.2)' }}>
-                          <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(199,168,255,.22)' }} />
-                          <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
-                            <g fill="#e9dcff" opacity=".5">
-                              <circle cx="54" cy="70" r="1.2" />
-                              <circle cx="272" cy="96" r="1" />
-                              <circle cx="90" cy="420" r="1" />
-                              <circle cx="250" cy="440" r="1.3" />
-                              <circle cx="40" cy="270" r=".9" />
-                              <circle cx="290" cy="290" r=".9" />
-                              <circle cx="160" cy="60" r="1" />
-                            </g>
-                            <circle cx="163" cy="226" r="98" fill="none" stroke="rgba(199,168,255,.25)" strokeWidth="1" />
-                            <circle cx="163" cy="226" r="116" fill="none" stroke="rgba(199,168,255,.12)" strokeWidth="1" strokeDasharray="2 6" />
-                            <path d="M163 112v-14 M163 354v-14 M49 226h14 M277 226h-14" stroke="rgba(199,168,255,.4)" strokeWidth="1" />
-                            <path d="M193 256A44 44 0 1 1 145 188a36 36 0 0 0 48 68z" fill="rgba(241,233,210,.92)" />
-                          </svg>
-                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '50px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                            <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '20px', letterSpacing: '.3em', marginRight: '-.3em' }}>
-                              MOONFALL
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', background: 'rgba(167,127,240,.2)', border: '1px solid rgba(199,168,255,.4)', fontSize: '14px', fontWeight: '700', color: '#f1e9ff' }}>
+                          {/* card back: the Moonfall title art */}
+                          <img src="/splash.webp" alt="" draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', height: '45%', background: 'linear-gradient(180deg, rgba(14,8,25,0), rgba(14,8,25,.85))' }} />
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '34px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', background: 'rgba(30,16,56,.72)', backdropFilter: 'blur(4px)', border: '1px solid rgba(199,168,255,.4)', fontSize: '14px', fontWeight: '700', color: '#f1e9ff' }}>
                               <svg className="tap" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11 M12 10.5V9a1.5 1.5 0 0 1 3 0v2 M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.5a6 6 0 0 1-4.6-2.2L4.5 15.6a1.5 1.5 0 0 1 2.3-1.9L9 16" />
                               </svg>
@@ -1530,6 +1528,22 @@ export class PlayerView extends React.Component<any, any> {
           <Village key={this.props.scene.phase + this.props.scene.round} players={this.props.scene.players} phase={this.props.scene.phase} justOut={this.props.scene.justOut}
             label={v.fmt(this.props.scene.phase === 'day' ? v.T.specDayN : v.T.specNightN, { n: this.props.scene.round })}
             height={this.props.frameH || 844} onDone={this.props.onSceneDone} />
+        ) : null}
+        {(v.endShow) ? (
+          <div className="fade" role="dialog" aria-label={v.endCaption} onClick={v.endClose} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.82)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', padding: '24px', fontFamily: v.fB }}>
+            <div className="rise" style={{ position: 'relative', width: '326px', aspectRatio: '746 / 1008', borderRadius: '26px', overflow: 'hidden', border: '1px solid rgba(232,211,160,.5)', boxShadow: '0 30px 80px rgba(0,0,0,.7), 0 0 60px rgba(242,166,90,.25)' }}>
+              <img src={v.endImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              {(v.endSolo) ? (
+                <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '60px 20px 26px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.92))', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '28px', color: '#f6e7c1', textShadow: '0 0 20px rgba(242,166,90,.6)' }}>{v.endSoloName}</span>
+                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#ffd3a8' }}>{v.endCaption}</span>
+                </div>
+              ) : null}
+            </div>
+            {(!v.endSolo) ? <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#f6e7c1', textAlign: 'center' }}>{v.endCaption}</span> : null}
+            <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#d8cfe8', textAlign: 'center', maxWidth: '300px' }}>{v.endSub}</span>
+            <span aria-hidden="true" style={{ fontSize: '12px', color: '#8f84a8' }}>✕</span>
+          </div>
         ) : null}
         {(this.props.offline) ? (
           <div className="offline" role="status" style={{ fontFamily: v.fB }}>
