@@ -87,5 +87,10 @@ export default {
     evPrince: "{name} เปิดเผยว่าเป็นเจ้าชายและรอดจากการโหวต",
     evDg: "{name} กลายเป็น{role}",
     evSaved: "{name} ถูกโจมตีแต่รอดมาได้",
+    // poison death card
+    whenPoisoned: "กลางคืน · ถูกวางยา",
+    poisonT1: "ถูกแม่มด",
+    poisonT2: "วางยาพิษ",
+    poisonLine: "จิบเดียวในความมืด แล้วยาพิษก็จัดการที่เหลือ",
   },
 };

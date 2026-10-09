@@ -121,14 +121,21 @@ function roleDefsFor(list: string[]) {
 function playerView(p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
-  const fate = !mark ? 'none' : mark.how === 'night' ? 'killed' : mark.how === 'voted' ? 'voted' : 'none';
+  const fate = !mark ? 'none' : mark.how === 'night' ? (mark.cause === 'poison' ? 'poisoned' : 'killed') : mark.how === 'voted' ? 'voted' : 'none';
   const role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
 
   const counts: Record<string, number> = {};
   Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
-  const deck = Object.entries(counts);
+  // Before the deal, phones see the deck the host is building (live, as the host taps); after it, the dealt cards.
+  const showRoles = !(sh.rules && sh.rules.showRoles === false);
+  const hidden: string[] = sh.hidden || [];
+  const draft: [string, number][] = showRoles
+    ? [...Object.entries((sh.counts || {}) as Record<string, number>), ...((sh.picked || []) as string[]).map(k => [k, 1] as [string, number])]
+        .filter(([k, n]) => n > 0 && !hidden.includes(k))
+    : [];
+  const deck = room.dealt ? Object.entries(counts) : draft;
 
-  const roleDefs = roleDefsFor([...Object.keys(counts), ...(role ? [role] : [])]);
+  const roleDefs = roleDefsFor([...deck.map(([k]) => k), ...(role ? [role] : [])]);
 
   return {
     joined: true,
@@ -138,7 +145,7 @@ function playerView(p: Player) {
     phase: sh.phase || 'night',
     fate,
     roomLang: sh.roomLang || 'en',
-    showRoles: !(sh.rules && sh.rules.showRoles === false),
+    showRoles,
     deck,
     roleDefs,
     playerCount: room.players.length,

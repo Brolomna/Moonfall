@@ -87,5 +87,10 @@ export default {
     evPrince: "{name} révèle être le Prince et survit au vote",
     evDg: "{name} devient : {role}",
     evSaved: "{name} a été attaqué mais sauvé",
+    // poison death card
+    whenPoisoned: "Nuit · empoisonné",
+    poisonT1: "EMPOISONNÉ PAR",
+    poisonT2: "LA SORCIÈRE",
+    poisonLine: "Une gorgée dans le noir — le poison a fait le reste.",
   },
 };

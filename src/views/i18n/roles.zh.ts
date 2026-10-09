@@ -87,5 +87,10 @@ export default {
     evPrince: "{name}亮出王子身份，躲过了投票",
     evDg: "{name}变成了{role}",
     evSaved: "{name}遭到袭击，但被救下了",
+    // poison death card
+    whenPoisoned: "夜晚 · 中毒",
+    poisonT1: "被女巫",
+    poisonT2: "毒杀",
+    poisonLine: "黑暗中的一口——剩下的交给了毒药。",
   },
 };

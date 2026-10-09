@@ -4,7 +4,7 @@ import { PhoneFrame } from './PhoneFrame';
 import { PlayerView } from './views/PlayerView';
 
 type View = {
-  name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted';
+  name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned';
   roomLang: string; showRoles: boolean; deck: [string, number][]; roleDefs: Record<string, unknown>; playerCount: number;
   spectator?: boolean; // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;

@@ -13,6 +13,14 @@ export class HostView extends React.Component<any, any> {
     this.state = { ...(props.sharedInit || {}) };
   }
 
+  componentDidMount() {
+    // NET: the deck defaults only live in render(); send them once so waiting phones can show the roles before the host taps anything
+    const s = this.state;
+    if ((!s.counts || !s.picked) && this.props.onPatch) {
+      this.props.onPatch({ counts: s.counts || { werewolf: 2, villager: 2, mason: 0 }, picked: s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'] });
+    }
+  }
+
   setState(patch, cb) {
     if (patch && typeof patch === 'object') {
       const shared = {};
@@ -515,7 +523,7 @@ export class HostView extends React.Component<any, any> {
         opacity: out ? 0.6 : 1, strike: out ? 'line-through' : 'none',
         rowBg: look ? look.bg : 'rgba(20,12,34,.75)',
         rowBorder: look ? look.border : 'rgba(236,230,246,.09)',
-        badge: look ? look.label + (st0.how === 'removed' ? '' : ' · ' + (st0.phase === 'night' ? 'Night ' : 'Day ') + st0.round) : '',
+        badge: look ? (st0.cause === 'poison' ? 'Poisoned' : look.label) + (st0.how === 'removed' ? '' : ' · ' + (st0.phase === 'night' ? 'Night ' : 'Day ') + st0.round) : '',
         badgeBg: look ? look.badgeBg : 'transparent', badgeFg: look ? look.badgeFg : '#12091c',
         roleName: hide ? 'Hidden' : r.name, roleColor: hide ? '#a99bc2' : r.color,
         roleSoft: hide ? 'rgba(255,255,255,.06)' : 'rgba(' + r.rgb + ',.14)',
@@ -762,7 +770,7 @@ export class HostView extends React.Component<any, any> {
       return e.by + ' chose ' + (t || 'no one');
     };
     const evLine = (e) => ({
-      out: { night: who(e) + ' was killed', voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
+      out: { night: who(e) + (e.cause === 'poison' ? ' was poisoned by the Witch' : ' was killed'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
       back: e.name + ' is back in the game',
       tough: e.name + ' was attacked but, as the Tough Guy, lives until sunset',
       cursed: e.name + ' was attacked and, being Cursed, turned into a Werewolf',
@@ -973,12 +981,14 @@ export class HostView extends React.Component<any, any> {
           else if (guard && guard.targets[0] === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); deaths.push(guardian); }
           else deaths.push(v);
         });
-        if (witch && witch.poison && !isOut(witch.poison)) deaths.push(witch.poison);
+        const poisoned = witch && witch.poison && !isOut(witch.poison) ? witch.poison : null;
+        if (poisoned) deaths.push(poisoned);
         const dead = deaths.filter((nm, i) => deaths.indexOf(nm) === i);
         const nextStatus = { ...status };
-        dead.forEach(nm => { nextStatus[nm] = { how: 'night', round, phase: 'night' }; });
+        // a poison death keeps its cause: the player's phone shows the poison card instead of the wolves'
+        dead.forEach(nm => { nextStatus[nm] = { how: 'night', round, phase: 'night', ...(nm === poisoned ? { cause: 'poison' } : {}) }; });
         const nightLog = saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
-          .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name })));
+          .concat(dead.map(nm => ({ t: 'out', round, phase: 'night', how: 'night', name: nm, role: roleOf(nm).name, ...(nm === poisoned ? { cause: 'poison' } : {}) })));
         const patch = { phase: 'day', round, status: nextStatus, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
         dgTakeOver(patch, dead); // the Doppelgänger takes over the copied player's role
         this.setState(patch);

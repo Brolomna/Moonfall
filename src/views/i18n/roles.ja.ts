@@ -87,5 +87,10 @@ export default {
     evPrince: "{name}は王子だと明かし、投票を生き延びました",
     evDg: "{name}は{role}になりました",
     evSaved: "{name}は襲われましたが、救われました",
+    // poison death card
+    whenPoisoned: "夜 · 毒殺",
+    poisonT1: "魔女に",
+    poisonT2: "毒を盛られた",
+    poisonLine: "闇の中のひと口——あとは毒がすべてを終わらせた。",
   },
 };

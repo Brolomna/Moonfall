@@ -65,7 +65,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…',
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -424,7 +424,7 @@ export class PlayerView extends React.Component<any, any> {
             ? actRole(e.key) + ' → ' + ([e.save ? '💧 ' + e.save : '', e.poison ? '☠ ' + e.poison : ''].filter(Boolean).join(' · ') || '—')
             : actRole(e.key) + ' → ' + ((e.targets || []).join(' & ') || '—'))
           : e.t === 'saved' ? fmt(T.evSaved, { name: e.name })
-          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) })
+          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) }) + (e.cause === 'poison' ? ' ☠' : '')
           : fmt({ back: T.evBack, tough: T.evTough, cursed: T.evCursed, prince: T.evPrince, dg: T.evDg }[e.t] || '{name}', { name: e.name, role: roleNameOf(e.name) });
         const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ act: '#a6c8ff', saved: '#62d4a6', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
         chapters[chapters.length - 1].items.push({ text, color, note: e.t === 'note' });
@@ -487,13 +487,13 @@ export class PlayerView extends React.Component<any, any> {
       pillBorder: night ? 'rgba(199,168,255,.35)' : 'rgba(255,211,168,.45)',
       togglePhase: () => this.setState({ phase: night ? 'day' : 'night' }),
       phaseDemoLabel: night ? T.toDay : T.toNight,
-      isAlive: fate === 'none', isKilled: fate === 'killed', isVoted: fate === 'voted',
+      isAlive: fate === 'none', isKilled: fate === 'killed', isVoted: fate === 'voted', isPoisoned: fate === 'poisoned',
       killLabel: fate === 'killed' ? T.revive : T.killed,
       voteLabel: fate === 'voted' ? T.revive : T.voted,
       markKilled: () => this.setState({ fate: fate === 'killed' ? 'none' : 'killed', revealed: false }),
       markVoted: () => this.setState({ fate: fate === 'voted' ? 'none' : 'voted', revealed: false }),
       vigOpacity: fate === 'none' ? 0 : 1,
-      vigBg: fate === 'voted' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,62,14,.5) 100%)' : 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(130,10,30,.55) 100%)',
+      vigBg: fate === 'poisoned' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(40,120,30,.5) 100%)' : fate === 'voted' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,62,14,.5) 100%)' : 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(130,10,30,.55) 100%)',
 
       cardTransform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
       cardAria: revealed ? T.hintHide : T.tapToSee,
@@ -584,6 +584,34 @@ export class PlayerView extends React.Component<any, any> {
                   <span className="pulse" style={{ width: '8px', height: '8px', flex: 'none', borderRadius: '50%', background: '#c7a8ff' }} />
                   {' '}{v.waitingHost}
                 </div>
+                {/* NET: the roles the host is picking — updates live as the host taps */}
+                {(v.guideRoles && v.guideRoles.length) ? (
+                  <div className="fade" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', borderRadius: '18px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(190,165,235,.18)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#a99bc2' }}>
+                        {v.T.rolesHead}
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#c7a8ff' }}>
+                        {v.cardsChip}
+                      </span>
+                    </span>
+                    <div className="scroll" style={{ maxHeight: '168px', overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                      {(v.guideRoles || []).map((r: any) => (
+                        <span key={r.key} style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 10px 0 7px', borderRadius: '999px', background: r.soft, border: `1px solid ${r.edge}`, fontSize: '13px', fontWeight: '700', color: r.color }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d={r.icon} />
+                          </svg>
+                          {r.name}
+                          {(r.multi) ? (
+                            <span style={{ color: '#ece6f6', opacity: 0.8 }}>
+                              ×{r.count}
+                            </span>
+                          ) : null}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div style={{ flex: '1' }} />
                 <button className="press guidebtn" onClick={v.openGuide} style={{ height: '48px', padding: '0 22px 0 16px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(30,18,52,.88)', backdropFilter: 'blur(10px)', color: '#f1e9ff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -785,6 +813,79 @@ export class PlayerView extends React.Component<any, any> {
                               </span>
                             </span>
                             <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#d9b8be' }}>
+                              {v.T.killedRule}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+                    {(v.isPoisoned) ? (
+                      <>
+                        <div className="face fateIn" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 26%, #2f5a14 0%, #13260c 46%, #060a05 100%)', border: '1px solid rgba(140,230,90,.45)', boxShadow: '0 20px 60px rgba(0,0,0,.6), 0 0 50px rgba(110,220,70,.18)' }}>
+                          <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(140,230,90,.25)' }} />
+                          <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
+                            <defs>
+                              <radialGradient id="toxmoon" cx="42%" cy="38%" r="70%">
+                                <stop offset="0%" stopColor="#d6ff8a" />
+                                <stop offset="45%" stopColor="#7fd23a" />
+                                <stop offset="100%" stopColor="#2f6b12" />
+                              </radialGradient>
+                              <filter id="toxblur"><feGaussianBlur stdDeviation="6" /></filter>
+                            </defs>
+                            <circle cx="163" cy="128" r="118" fill="rgba(140,230,90,.05)" />
+                            <circle cx="163" cy="128" r="88" fill="rgba(140,230,90,.09)" />
+                            <g className="toxmoon">
+                              <circle cx="163" cy="128" r="62" fill="url(#toxmoon)" />
+                              <circle cx="163" cy="128" r="62" fill="none" stroke="rgba(220,255,170,.45)" strokeWidth="1.2" />
+                            </g>
+                            {/* corrosion eating through the moon */}
+                            <g fill="#0d1a07">
+                              <path className="corrode" d="M131 96c8-6 18-2 19 7s-6 15-14 13-12-14-5-20z" />
+                              <path className="corrode" d="M178 138c7-3 15 2 14 10s-10 11-16 7-4-14 2-17z" style={{ animationDelay: '.5s' }} />
+                              <path className="corrode" d="M150 156c5-2 10 2 9 7s-7 7-11 4-2-9 2-11z" style={{ animationDelay: '1s' }} />
+                              <path className="corrode" d="M186 98c4-1 8 2 7 6s-5 6-8 4-3-8 1-10z" style={{ animationDelay: '1.4s' }} />
+                            </g>
+                            {/* the vial, cracked */}
+                            <g transform="translate(163 176) scale(.8)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M-9 -40h18 M-6 -40v16l-22 38a10 10 0 0 0 9 15h38a10 10 0 0 0 9-15l-22-38v-16" stroke="#cfffa0" strokeWidth="2.2" />
+                              <path d="M-21 10h42l5 9a6 6 0 0 1-5 9h-42a6 6 0 0 1-5-9z" fill="rgba(127,210,58,.7)" stroke="none" />
+                              <path d="M4 -18l-5 9 6 5-4 8" stroke="#0d1a07" strokeWidth="1.6" />
+                              <circle className="bubble" cx="-6" cy="14" r="2.4" fill="#e8ffc4" />
+                              <circle className="bubble" cx="5" cy="18" r="1.8" fill="#e8ffc4" style={{ animationDelay: '.8s' }} />
+                              <circle className="bubble" cx="0" cy="20" r="1.5" fill="#e8ffc4" style={{ animationDelay: '1.5s' }} />
+                            </g>
+                          </svg>
+                          <span className="drip" style={{ position: 'absolute', left: '144px', top: '200px', width: '5px', height: '9px', borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%', background: '#8fe04a' }} />
+                          <span className="drip" style={{ position: 'absolute', left: '178px', top: '198px', width: '4px', height: '8px', borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%', background: '#8fe04a', animationDelay: '1.3s' }} />
+                          <span className="drip" style={{ position: 'absolute', left: '161px', top: '204px', width: '4px', height: '7px', borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%', background: '#b6f070', animationDelay: '.7s' }} />
+                          <span className="toxsmoke" style={{ position: 'absolute', left: '130px', top: '116px', width: '46px', height: '46px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(170,230,120,.38), rgba(170,230,120,0) 70%)' }} />
+                          <span className="toxsmoke" style={{ position: 'absolute', left: '150px', top: '110px', width: '56px', height: '56px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(150,210,110,.32), rgba(150,210,110,0) 70%)', animationDelay: '1.4s' }} />
+                          <span className="toxsmoke" style={{ position: 'absolute', left: '142px', top: '120px', width: '40px', height: '40px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,250,150,.3), rgba(200,250,150,0) 70%)', animationDelay: '2.6s' }} />
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '0 28px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: '#a9ef72' }}>
+                              {v.T.whenPoisoned}
+                            </span>
+                            <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '30px', lineHeight: '1.12', letterSpacing: '.04em', color: '#f2ffe6', textShadow: '0 0 24px rgba(127,210,58,.6)' }}>
+                              {v.T.poisonT1}
+                              <br />
+                              {v.T.poisonT2}
+                            </span>
+                            <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: '#d2ecbc' }}>
+                              {v.T.poisonLine}
+                            </span>
+                            <span style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '34px', padding: '0 14px 0 8px', borderRadius: '999px', background: 'rgba(0,0,0,.35)', border: `1px solid ${v.rc.frame}`, fontSize: '13px', fontWeight: '600', color: '#e8f5dc' }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <path d={v.rc.icon} />
+                              </svg>
+                              <span>
+                                {v.T.youWereA}
+                                <span style={{ color: v.rc.color }}>
+                                  {v.rc.name}
+                                </span>
+                                {v.T.youWereB}
+                              </span>
+                            </span>
+                            <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#bcd4a8' }}>
                               {v.T.killedRule}
                             </span>
                           </div>
