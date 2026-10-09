@@ -7,6 +7,9 @@ import { LIB_I18N, TIPS_I18N } from './i18n';
 import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 import { Village } from '../Village';
 
+// the players' Instagram group chat — shown as a button on the waiting screen
+const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
+
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
   componentDidUpdate(prev, prevState) {
@@ -81,7 +84,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", igJoin: "Join our group", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -1276,6 +1279,17 @@ export class PlayerView extends React.Component<any, any> {
               <path d={this.props.soundOn ? 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12' : 'M4 9h4l5-4v14l-5-4H4z M17 9l5 6 M22 9l-5 6'} />
             </svg>
           </button>
+        ) : null}
+        {(v.isWaiting) ? (
+          // the players' Instagram group chat (invite link)
+          <a className="press" href={IG_INVITE} target="_blank" rel="noopener noreferrer" aria-label={v.T.igJoin + ' (Instagram)'} style={{ height: '36px', padding: '0 13px 0 4px', borderRadius: '999px', background: 'linear-gradient(45deg, #f9ce34, #ee2a7b 45%, #6228d7)', color: '#fff', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '7px', textDecoration: 'none', boxShadow: '0 4px 18px rgba(238,42,123,.35)', whiteSpace: 'nowrap' }}>
+            <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z M12 8.2a3.8 3.8 0 1 0 0 7.6a3.8 3.8 0 1 0 0-7.6z M17.3 6.7h.01" />
+              </svg>
+            </span>
+            {v.T.igJoin}
+          </a>
         ) : null}
         </div>
         {(v.guideOpen) ? (

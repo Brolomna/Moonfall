@@ -92,6 +92,7 @@ export default {
     shotT1: "被猎人",
     shotT2: "射杀",
     shotLine: "黑暗中的最后一箭——正中了你。",
+    igJoin: "加入群聊",
     endVillage: "村民获胜！",
     endWolves: "狼人获胜！",
     endSolo: "{role}独自获胜！",

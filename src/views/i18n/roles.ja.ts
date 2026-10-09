@@ -92,6 +92,7 @@ export default {
     shotT1: "狩人に",
     shotT2: "射抜かれた",
     shotLine: "闇の中の最後の一矢——それはあなたを射抜いた。",
+    igJoin: "グループに参加",
     endVillage: "村人の勝利！",
     endWolves: "人狼の勝利！",
     endSolo: "{role}の単独勝利！",

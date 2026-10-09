@@ -92,6 +92,7 @@ export default {
     shotT1: "ABATIDO POR",
     shotT2: "EL CAZADOR",
     shotLine: "Una última flecha en la oscuridad… y te encontró.",
+    igJoin: "Únete al grupo",
     endVillage: "¡Gana la aldea!",
     endWolves: "¡Ganan los hombres lobo!",
     endSolo: "¡{role} gana en solitario!",

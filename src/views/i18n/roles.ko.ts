@@ -92,6 +92,7 @@ export default {
     shotT1: "사냥꾼의 화살에",
     shotT2: "쓰러졌다",
     shotLine: "어둠 속 마지막 화살 — 그것이 당신을 찾았습니다.",
+    igJoin: "단체 채팅 참여",
     endVillage: "마을의 승리!",
     endWolves: "늑대인간의 승리!",
     endSolo: "{role} 단독 승리!",
