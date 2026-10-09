@@ -1149,12 +1149,21 @@ export class PlayerView extends React.Component<any, any> {
             </>
           ) : null}
         </div>
-        <button className="press" onClick={v.openLang} aria-label={v.T.langTitle} style={{ position: 'absolute', top: '56px', left: '24px', height: '36px', padding: '0 12px 0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.72)', backdropFilter: 'blur(10px)', color: '#e9dcff', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ position: 'absolute', top: '56px', left: '24px', display: 'flex', gap: '8px' }}>
+        <button className="press" onClick={v.openLang} aria-label={v.T.langTitle} style={{ height: '36px', padding: '0 12px 0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.72)', backdropFilter: 'blur(10px)', color: '#e9dcff', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" />
           </svg>
           {' '}{v.langShort}
         </button>
+        {(this.props.onToggleSound) ? (
+          <button className="press" onClick={this.props.onToggleSound} aria-label={this.props.soundOn ? 'Sound off' : 'Sound on'} aria-pressed={!!this.props.soundOn} style={{ width: '36px', height: '36px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.72)', backdropFilter: 'blur(10px)', color: this.props.soundOn ? '#e9dcff' : '#7f7397', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d={this.props.soundOn ? 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12' : 'M4 9h4l5-4v14l-5-4H4z M17 9l5 6 M22 9l-5 6'} />
+            </svg>
+          </button>
+        ) : null}
+        </div>
         {(v.guideOpen) ? (
           <>
             <div className="fade" onClick={v.closeGuide} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />

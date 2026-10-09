@@ -58,45 +58,86 @@ function bus(c: AudioContext, level: number, wet: number, pan = 0) {
   return g;
 }
 
-/** One wolf: a rising, wavering, falling howl. */
-function wolf(c: AudioContext, t0: number, base: number, level: number, pan: number) {
-  const out = bus(c, level, 0.9, pan);
-  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900; lp.Q.value = 0.7; lp.connect(out);
-  const formant = c.createBiquadFilter(); formant.type = 'bandpass'; formant.frequency.value = 950; formant.Q.value = 1.4;
-  const fg = c.createGain(); fg.gain.value = 0.6; formant.connect(fg); fg.connect(lp);
-  const env = c.createGain(); env.gain.value = 0; env.connect(lp); env.connect(formant);
-  const dur = 3.4;
-  env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(0.9, t0 + 0.45);
-  env.gain.setValueAtTime(0.9, t0 + 2.2);
-  env.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-  const f = (o: OscillatorNode) => {
-    o.frequency.setValueAtTime(base * 0.62, t0);
-    o.frequency.exponentialRampToValueAtTime(base, t0 + 0.55);
-    o.frequency.setValueAtTime(base, t0 + 1.9);
-    o.frequency.exponentialRampToValueAtTime(base * 0.7, t0 + dur);
-  };
-  const o1 = c.createOscillator(); o1.type = 'sine'; f(o1);
-  const o2 = c.createOscillator(); o2.type = 'triangle'; f(o2); o2.detune.value = 1200;
-  const g2 = c.createGain(); g2.gain.value = 0.18; o2.connect(g2); g2.connect(env);
-  o1.connect(env);
-  // the waver in a wolf's voice
-  const lfo = c.createOscillator(); lfo.frequency.value = 5.2;
-  const depth = c.createGain(); depth.gain.value = base * 0.018;
-  lfo.connect(depth); depth.connect(o1.frequency); depth.connect(o2.frequency);
-  // breath
-  const n = c.createBufferSource(); n.buffer = noiseBuffer(c, dur);
-  const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1400; nf.Q.value = 0.8;
-  const ng = c.createGain(); ng.gain.value = 0.05; n.connect(nf); nf.connect(ng); ng.connect(env);
-  [o1, o2, lfo, n].forEach(s => { s.start(t0); s.stop(t0 + dur + 0.1); });
+/** A gentler outdoor reverb for the howl (a big cathedral tail makes it sound like a ghost). */
+let forest: ConvolverNode | null = null;
+function forestVerb(c: AudioContext): ConvolverNode {
+  if (forest) return forest;
+  const len = Math.floor(c.sampleRate * 1.8), buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4) * (i < c.sampleRate * 0.02 ? 0.3 : 1);
+  }
+  forest = c.createConvolver(); forest.buffer = buf;
+  const dark = c.createBiquadFilter(); dark.type = 'lowpass'; dark.frequency.value = 2200;
+  forest.connect(dark); dark.connect(c.destination);
+  return forest;
 }
 
-/** Night falls: a wolf howls, a second answers from far away. */
+/**
+ * One wolf. A real howl is a fairly low, breathy, throaty voice: it scoops up quickly, holds with small
+ * irregular wobbles (not a smooth vibrato), the mouth opens and closes ("aoo-oo" — the formants move),
+ * and it ends with a downward break. A buzzy source through moving vocal formants gives that animal timbre.
+ */
+function wolf(c: AudioContext, t0: number, f: number, level: number, pan: number, dur: number) {
+  const out = c.createGain(); out.gain.value = level;
+  const p = c.createStereoPanner ? c.createStereoPanner() : null;
+  if (p) { p.pan.value = pan; out.connect(p); p.connect(c.destination); } else out.connect(c.destination);
+  const wet = c.createGain(); wet.gain.value = 0.32; out.connect(wet); wet.connect(forestVerb(c));
+
+  // voice: sawtooth + softer square an octave down for body
+  const v1 = c.createOscillator(); v1.type = 'sawtooth';
+  const v2 = c.createOscillator(); v2.type = 'triangle';
+  const sub = c.createGain(); sub.gain.value = 0.35; v2.connect(sub);
+  const voice = c.createGain(); voice.gain.value = 0; v1.connect(voice); sub.connect(voice);
+  const end = t0 + dur;
+  for (const o of [v1, v2]) {
+    const m = o === v2 ? 0.5 : 1;
+    o.frequency.setValueAtTime(f * 0.55 * m, t0);                         // throaty start
+    o.frequency.exponentialRampToValueAtTime(f * 0.96 * m, t0 + 0.32);   // the scoop up
+    o.frequency.linearRampToValueAtTime(f * 1.04 * m, t0 + dur * 0.55);  // slow lift while holding
+    o.frequency.linearRampToValueAtTime(f * 0.98 * m, t0 + dur * 0.78);
+    o.frequency.exponentialRampToValueAtTime(f * 0.62 * m, end);          // the break down at the end
+  }
+  // small irregular pitch wobble (jitter), not a singer's vibrato
+  const jit = c.createBufferSource(); jit.buffer = noiseBuffer(c, dur + 0.2);
+  const jf = c.createBiquadFilter(); jf.type = 'lowpass'; jf.frequency.value = 9;
+  const jd = c.createGain(); jd.gain.value = f * 0.06;
+  jit.connect(jf); jf.connect(jd); jd.connect(v1.frequency);
+
+  // vocal tract: three formants that open ("aa") and close ("oo") during the howl
+  const formants: [number, number, number, number][] = [[480, 820, 8, 1], [1050, 1350, 10, 0.55], [2600, 2800, 12, 0.18]];
+  const mix = c.createGain(); mix.gain.value = 1;
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; mix.connect(lp); lp.connect(out);
+  for (const [lo, hi, q, g] of formants) {
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+    bp.frequency.setValueAtTime(lo, t0);
+    bp.frequency.linearRampToValueAtTime(hi, t0 + 0.45);                  // mouth opens
+    bp.frequency.setValueAtTime(hi, t0 + dur * 0.5);
+    bp.frequency.linearRampToValueAtTime(lo * 0.9, end);                  // closes to "oo"
+    const gg = c.createGain(); gg.gain.value = g * 3; voice.connect(bp); bp.connect(gg); gg.connect(mix);
+  }
+  // breath through the nose and mouth
+  const br = c.createBufferSource(); br.buffer = noiseBuffer(c, dur + 0.2);
+  const bf = c.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 1100; bf.Q.value = 0.7;
+  const bg = c.createGain(); bg.gain.value = 0;
+  bg.gain.setValueAtTime(0, t0); bg.gain.linearRampToValueAtTime(0.06, t0 + 0.2); bg.gain.linearRampToValueAtTime(0.025, end);
+  br.connect(bf); bf.connect(bg); bg.connect(mix);
+
+  // loudness: quick swell, hold, fade with the break
+  voice.gain.setValueAtTime(0, t0);
+  voice.gain.linearRampToValueAtTime(0.5, t0 + 0.18);
+  voice.gain.linearRampToValueAtTime(0.62, t0 + dur * 0.5);
+  voice.gain.linearRampToValueAtTime(0.45, t0 + dur * 0.8);
+  voice.gain.exponentialRampToValueAtTime(0.001, end);
+  [v1, v2, jit, br].forEach(s => { s.start(t0); s.stop(end + 0.1); });
+}
+
+/** Night falls: a wolf howls, a second one answers from further off (wolves harmonize rather than match). */
 export function playHowl() {
   const c = audio(); if (!c || c.state !== 'running') return;
   const t = c.currentTime + 0.05;
-  wolf(c, t, 640, 0.32, -0.2);
-  wolf(c, t + 1.1, 540, 0.14, 0.45);
+  wolf(c, t, 440, 0.5, -0.15, 3.4);
+  wolf(c, t + 1.5, 523, 0.2, 0.5, 2.8);
 }
 
 /** Day breaks: a warm swell, bell tones climbing, and birds. */
@@ -141,38 +182,77 @@ export function startAmbience() {
   const c = audio(); if (!c || amb) return;
   // still locked (no tap yet): start as soon as audio is allowed
   if (c.state !== 'running') { c.resume().then(() => { if (wantAmb) startAmbience(); }).catch(() => {}); return; }
-  const master = c.createGain(); master.gain.setValueAtTime(0, c.currentTime); master.gain.linearRampToValueAtTime(0.11, c.currentTime + 4);
+  const master = c.createGain(); master.gain.setValueAtTime(0, c.currentTime); master.gain.linearRampToValueAtTime(0.16, c.currentTime + 4);
   master.connect(c.destination);
-  const send = c.createGain(); send.gain.value = 0.5; master.connect(send); send.connect(reverb(c));
+  const send = c.createGain(); send.gain.value = 0.7; master.connect(send); send.connect(reverb(c));
   const nodes: AudioScheduledSourceNode[] = [];
-  // low drone, slowly breathing
-  [55, 82.4, 110.3].forEach((f, i) => {
-    const o = c.createOscillator(); o.type = i === 1 ? 'triangle' : 'sine'; o.frequency.value = f; o.detune.value = i * 7;
-    const g = c.createGain(); g.gain.value = i === 0 ? 0.5 : 0.18;
-    const l = c.createOscillator(); l.frequency.value = 0.05 + i * 0.03;
-    const ld = c.createGain(); ld.gain.value = 0.12; l.connect(ld); ld.connect(g.gain);
-    o.connect(g); g.connect(master); o.start(); l.start(); nodes.push(o, l);
+  const timers: number[] = [];
+  const later = (fn: () => void, ms: number) => { timers.push(window.setTimeout(fn, ms)); };
+
+  // a faint eerie hum: two low tones a tritone apart, slowly swelling
+  [[65.4, 0.32], [92.5, 0.14], [130.8, 0.06]].forEach(([f, g], i) => {
+    const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.detune.value = i * 6;
+    const gg = c.createGain(); gg.gain.value = g;
+    const l = c.createOscillator(); l.frequency.value = 0.04 + i * 0.025;
+    const ld = c.createGain(); ld.gain.value = g * 0.6; l.connect(ld); ld.connect(gg.gain);
+    o.connect(gg); gg.connect(master); o.start(); l.start(); nodes.push(o, l);
   });
-  // wind
-  const n = c.createBufferSource(); n.buffer = noiseBuffer(c, 6); n.loop = true;
-  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 0.9;
-  const sweep = c.createOscillator(); sweep.frequency.value = 0.07;
-  const sd = c.createGain(); sd.gain.value = 260; sweep.connect(sd); sd.connect(bp.frequency);
-  const wg = c.createGain(); wg.gain.value = 0.22;
-  n.connect(bp); bp.connect(wg); wg.connect(master); n.start(); sweep.start(); nodes.push(n, sweep);
-  // a far-off bell now and then
-  let timer = 0;
-  const toll = () => {
-    const s = c.currentTime + 0.05, o = c.createOscillator(); o.type = 'sine'; o.frequency.value = 196;
-    const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = 196 * 2.4;
-    const g = c.createGain(); g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.25, s + 0.02); g.gain.exponentialRampToValueAtTime(0.0005, s + 4);
-    o.connect(g); o2.connect(g); g.connect(master); o.start(s); o2.start(s); o.stop(s + 4.2); o2.stop(s + 4.2);
-    timer = window.setTimeout(toll, 12000 + Math.random() * 14000);
+
+  // metal wind chimes: inharmonic partials, a few strikes at a time like a breeze moving them
+  const CHIMES = [1318.5, 1480, 1568, 1760, 1975.5, 2093, 2349.3, 2637]; // E6 F#6 G6 A6 B6 C7 D7 E7 — minor, a little cold
+  const strike = (when: number, f: number, vel: number, pan: number) => {
+    const out = c.createGain(); out.gain.value = vel;
+    const pn = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pn) { pn.pan.value = pan; out.connect(pn); pn.connect(master); } else out.connect(master);
+    [[1, 1, 4.2], [2.76, 0.42, 2.2], [5.4, 0.18, 1.1], [8.93, 0.07, 0.6]].forEach(([m, a, d]) => {
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f * m * (1 + (Math.random() - 0.5) * 0.004);
+      const g = c.createGain(); g.gain.setValueAtTime(0, when); g.gain.linearRampToValueAtTime(a, when + 0.003); g.gain.exponentialRampToValueAtTime(0.0003, when + d);
+      o.connect(g); g.connect(out); o.start(when); o.stop(when + d + 0.05);
+    });
   };
-  timer = window.setTimeout(toll, 7000);
+  const gust = () => {
+    const n = 2 + Math.floor(Math.random() * 5);
+    let t = c.currentTime + 0.05;
+    for (let i = 0; i < n; i++) {
+      strike(t, CHIMES[Math.floor(Math.random() * CHIMES.length)], 0.05 + Math.random() * 0.07, Math.random() * 1.2 - 0.6);
+      t += 0.08 + Math.random() * 0.32;
+    }
+    later(gust, 2500 + Math.random() * 6500);
+  };
+  later(gust, 1500);
+
+  // a broken music box: a few slow notes of a minor lullaby, slightly out of tune
+  const BOX = [[880, 783.99, 698.46, 659.25], [659.25, 698.46, 587.33], [523.25, 622.25, 587.33, 523.25]];
+  const musicBox = () => {
+    const phrase = BOX[Math.floor(Math.random() * BOX.length)];
+    let t = c.currentTime + 0.05;
+    phrase.forEach(f => {
+      [[1, 0.09], [3.02, 0.03]].forEach(([m, a]) => {
+        const o = c.createOscillator(); o.type = m === 1 ? 'triangle' : 'sine'; o.frequency.value = f * m; o.detune.value = -18 + Math.random() * 10;
+        const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0003, t + 2.4);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + 2.5);
+      });
+      t += 0.55 + Math.random() * 0.25;
+    });
+    later(musicBox, 22000 + Math.random() * 20000);
+  };
+  later(musicBox, 9000);
+
+  // a far-off bell now and then
+  const toll = () => {
+    const s0 = c.currentTime + 0.05;
+    [[146.8, 0.2], [146.8 * 2.4, 0.06], [146.8 * 3.9, 0.03]].forEach(([f, a]) => {
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = c.createGain(); g.gain.setValueAtTime(0, s0); g.gain.linearRampToValueAtTime(a, s0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0004, s0 + 5);
+      o.connect(g); g.connect(master); o.start(s0); o.stop(s0 + 5.2);
+    });
+    later(toll, 25000 + Math.random() * 20000);
+  };
+  later(toll, 16000);
+
   amb = {
     stop: () => {
-      clearTimeout(timer);
+      timers.forEach(clearTimeout);
       const t = c.currentTime;
       master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 1.5);
       window.setTimeout(() => { nodes.forEach(x => { try { x.stop(); } catch { /* already stopped */ } }); master.disconnect(); }, 1700);

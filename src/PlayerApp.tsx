@@ -17,11 +17,14 @@ export function PlayerApp() {
 
   // the howl / sunrise plays on every phone in the game when the host switches phase
   const lastPhase = useRef<string | null>(null);
+  const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
+  const soundRef = useRef(soundOn); soundRef.current = soundOn;
+  const toggleSound = () => setSoundOn(on => { try { localStorage.setItem('moonfall.playerSound', on ? 'off' : 'on'); } catch { /* private mode */ } return !on; });
   useEffect(() => { installAudioUnlock(); }, []);
   useEffect(() => {
     const inGame = !!view && (view.dealt || !!view.spectator);
     const phase = inGame ? view!.phase : null;
-    if (phase && lastPhase.current && phase !== lastPhase.current) (phase === 'night' ? playHowl : playSunrise)();
+    if (phase && lastPhase.current && phase !== lastPhase.current && soundRef.current) (phase === 'night' ? playHowl : playSunrise)();
     lastPhase.current = phase;
   }, [view]);
 
@@ -57,6 +60,8 @@ export function PlayerApp() {
             playerCount={view?.playerCount}
             onJoin={join}
             offline={!online}
+            soundOn={soundOn}
+            onToggleSound={toggleSound}
             spectate={view?.spectator ? view : null}
           />
         )}
