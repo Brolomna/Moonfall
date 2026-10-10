@@ -1,4 +1,5 @@
 import { preloadVillage } from './Village';
+import { useWakeLock } from './wakeLock';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
@@ -49,6 +50,8 @@ export function PlayerApp() {
   useEffect(() => {
     socket.on('player:view', setView);
     socket.on('player:kicked', () => { playerId.clear(); setView(null); });
+    // the server restarted and the host put the game back: reconnect to find this phone's seat again
+    socket.on('room:restored', () => { socket.disconnect(); socket.connect(); });
     socket.on('connect', () => setOnline(true));
     socket.on('disconnect', () => setOnline(false));
     return () => { socket.disconnect(); };
@@ -59,6 +62,7 @@ export function PlayerApp() {
     socket.emit('player:join', { name }, (r: { playerId: string }) => playerId.set(r.playerId));
   };
 
+  useWakeLock(!!view && (view.dealt || !!view.spectator)); // keep the screen on during a game
   const screen = !view ? 'join' : view.spectator ? 'spectate' : view.dealt ? 'card' : 'waiting';
   return (
     <>

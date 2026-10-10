@@ -20,3 +20,19 @@ body {
 .splash img { width: 100%; height: 100%; object-fit: cover; animation: splashZoom 4s ease-out forwards; }
 @keyframes splashLife { 0% { opacity: 0 } 10% { opacity: 1 } 85% { opacity: 1 } 100% { opacity: 0 } }
 @keyframes splashZoom { from { transform: scale(1.06) } to { transform: scale(1) } }
+
+/* host PIN screen (src/HostApp.tsx) */
+.pin-screen { position: relative; width: 390px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #ece6f6; font-family: 'Manrope', sans-serif;
+  background: radial-gradient(120% 70% at 80% 6%, #3b2163 0%, #1a0f2e 42%, #0a0612 78%); }
+.pin-moon { width: 64px; height: 64px; opacity: .95; filter: drop-shadow(0 0 24px rgba(241,233,210,.35)); }
+.pin-title { font: 700 30px 'Cinzel', serif; letter-spacing: .14em; margin-right: -.14em; }
+.pin-sub { margin: 0; font-size: 14px; color: #c4b8da; }
+.pin-dots { display: flex; gap: 14px; margin: 8px 0 6px; }
+.pin-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(233,220,255,.55); }
+.pin-dots span.on { background: #e9dcff; box-shadow: 0 0 12px rgba(199,168,255,.6); }
+.pin-shake { animation: pinShake .4s ease; }
+@keyframes pinShake { 20%, 60% { transform: translateX(-8px) } 40%, 80% { transform: translateX(8px) } }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 76px); gap: 12px 22px; }
+.pin-pad button { width: 76px; height: 64px; border-radius: 20px; border: 1px solid rgba(199,168,255,.25); background: rgba(20,12,34,.7); color: #f1e9ff; font: 600 24px 'Manrope', sans-serif; }
+.pin-go { margin-top: 8px; width: 270px; height: 54px; border-radius: 16px; border: none; background: #e9dcff; color: #160b28; font: 700 17px 'Manrope', sans-serif; }
+.pin-go:disabled { opacity: .45; }

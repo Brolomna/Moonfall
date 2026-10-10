@@ -13,6 +13,8 @@ import { Server, type Socket } from 'socket.io';
 import QRCode from 'qrcode';
 
 const PORT = Number(process.env.PORT || 3000);
+// The host screen asks for this PIN (set HOST_PIN in the environment to change it).
+const HOST_PIN = String(process.env.HOST_PIN || '6969');
 const PROD = process.env.NODE_ENV === 'production';
 // In dev the phones load the Vite dev server (5173), which proxies /socket.io + /api here.
 const WEB_PORT = PROD ? PORT : Number(process.env.WEB_PORT || 5173);
@@ -241,8 +243,16 @@ if (PROD) {
   app.use((req, res, next) => (req.method === 'GET' && !req.path.startsWith('/socket.io') ? res.sendFile(path.join(dist, 'index.html')) : next()));
 }
 
+/** Everything needed to rebuild the room. The host's phone keeps a copy, so a server restart
+ *  (redeploy, crash, free-plan sleep) doesn't end the game: the host sends it back when it reconnects. */
+function snapshot() {
+  return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt };
+}
+const isFresh = () => !room.players.length && !room.dealt && !Object.keys(room.shared).length;
+
 function pushAll() {
   io.to('host').emit('room', hostView());
+  io.to('host').emit('host:snapshot', snapshot());
   for (const p of room.players) io.to(`p:${p.id}`).emit('player:view', playerView(p));
   for (const sp of room.spectators) io.to(`p:${sp.id}`).emit('player:view', spectatorView(sp));
 }
@@ -251,8 +261,28 @@ io.on('connection', (socket: Socket) => {
   const auth = socket.handshake.auth || {};
 
   if (auth.role === 'host') {
+    if (String(auth.pin || '') !== HOST_PIN) {
+      socket.emit('host:denied');
+      setTimeout(() => socket.disconnect(true), 100);
+      return;
+    }
     socket.join('host');
-    socket.emit('host:init', { shared: room.shared, room: hostView() });
+    socket.emit('host:init', { shared: room.shared, room: hostView(), fresh: isFresh() });
+    socket.emit('host:snapshot', snapshot());
+
+    // after a restart the room is empty: the host's phone sends back its last copy of the game
+    socket.on('host:restore', (snap: ReturnType<typeof snapshot>) => {
+      if (!isFresh() || !snap || !Array.isArray(snap.players)) return;
+      const seat = (p: Player): Player => ({ id: String(p.id), name: String(p.name), color: String(p.color || nextColor()), connected: !!p.fake, ...(p.fake ? { fake: true } : {}) });
+      room.players = snap.players.map(seat);
+      room.spectators = (snap.spectators || []).map(seat);
+      room.shared = snap.shared || {};
+      room.assign = snap.assign || {};
+      room.dealt = !!snap.dealt;
+      socket.emit('host:init', { shared: room.shared, room: hostView(), fresh: false, restored: true });
+      io.emit('room:restored'); // phones reconnect and find their seat (and card) again
+      pushAll();
+    });
 
     socket.on('host:patch', (patch: Shared) => {
       Object.assign(room.shared, patch);

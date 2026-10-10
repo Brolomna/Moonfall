@@ -16,6 +16,12 @@ the host a guide (wake-up order, special-case reminders, win check).
   - host events: `host:patch` (mirror of host-owned state), `host:kick`, `host:deal` (role keys → shuffled & assigned by name), `host:end`
   - player events: `player:join` ({name}) → ack {playerId}; server pushes `player:view` (only that player's own role)
 - `src/HostApp.tsx`, `src/PlayerApp.tsx` — socket wiring; render the views inside `PhoneFrame`
+  - `/host` is behind a PIN (`HOST_PIN` env, default 6969), checked by the server on the host socket; the phone remembers it
+  - the host's phone keeps a copy of the whole room (`host:snapshot` → localStorage); if the server comes back empty
+    (restart / redeploy / sleep) it sends it back with `host:restore` and players' phones reconnect (`room:restored`)
+- `src/main.tsx` — lazy-loads HostApp or PlayerApp (separate chunks), adds the app manifest (`public/manifest*.webmanifest`, icons in `public/icons`) and `public/sw.js` (installable; caches nothing)
+- `src/wakeLock.ts` — keeps phones' screens on during a game
+- `src/Village.tsx` + `src/villageMap.ts` — the sunrise village scene (one painting in `public/village`; house outlines in `scripts/village-houses.json`)
 - `src/PhoneFrame.tsx` — designs are 390×844; scaled to fit any phone, height stretched to fill
 - `src/views/HostView.tsx`, `src/views/PlayerView.tsx` (+ `.css`) — the UI, generated from the design canvas
 - `design/*.dc.html` — the design sources exported from the Claude design canvas
