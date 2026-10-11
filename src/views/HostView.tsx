@@ -14,7 +14,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake'];
 
   constructor(props) {
     super(props);
@@ -993,7 +993,7 @@ export class HostView extends React.Component<any, any> {
       const around = (nm) => { const ring = names.filter(m => !isOut(m) || m === nm); const i = ring.indexOf(nm); return ring.length > 2 && i >= 0 ? [ring[(i - 1 + ring.length) % ring.length], ring[(i + 1) % ring.length]] : []; };
       const saved = x.kind === 'insomniac' ? ((mech.seat || {})[x.who[0]] || []).filter(nm => !isOut(nm)) : [];
       const seat = x.kind === 'insomniac' ? (saved.length === 2 ? saved : around(x.who[0])) : [];
-      this.setState({ nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null });
+      this.setState({ awake: x.key, nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null });
     };
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
@@ -1009,7 +1009,7 @@ export class HostView extends React.Component<any, any> {
         // steps with a choice open the picker; the rest just tick as before
         tick: () => {
           if (actSpec(x)) return openAct(x);
-          this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) });
+          this.setState({ awake: x.key, checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) });
         },
         chosen: (() => {
           const a = actOf(x.key); if (!a) return '';
@@ -1140,7 +1140,7 @@ export class HostView extends React.Component<any, any> {
         if (spec.kind === 'copy') patch.dgCopy = pick[0] || null;
         if (rules.phoneAnswers) {
           const wh = whisperFor(spec.kind, pick[0], actors, pick);
-          if (wh) { const all0 = { ...(s.whispers || {}) }; actors.filter(nm => !isOut(nm)).forEach(nm => { all0[nm] = { ...wh, round }; }); patch.whispers = all0; }
+          if (wh) { const all0 = { ...(s.whispers || {}) }; actors.filter(nm => !isOut(nm)).forEach(nm => { all0[nm] = { ...wh, round, key: actX.key }; }); patch.whispers = all0; }
         }
         this.setState(patch);
       };
@@ -1423,7 +1423,7 @@ export class HostView extends React.Component<any, any> {
         const from = near.length ? near : pool;
         const drunkAs = hasDrunk ? (from.length ? from[Math.floor(Math.random() * from.length)] : 'villager') : null;
         const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: byKey[drunkAs].name }] : [];
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       };
 
     // ---------- history view ----------
@@ -1633,7 +1633,7 @@ export class HostView extends React.Component<any, any> {
       rematch: () => {
         // same players, same deck, reshuffled — or back to the roles screen when the table changed (spectators joining)
         const spect = (this.props.net && this.props.net.spectators) || 0;
-        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, whispers: {}, winner: null }); return; }
+        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, whispers: {}, awake: null, winner: null }); return; }
         this.props.onEnd && this.props.onEnd();
         dealNow();
       },
@@ -1765,7 +1765,7 @@ export class HostView extends React.Component<any, any> {
       confirmYes: () => {
         const to = s.confirmEnd || 'players';
         this.props.onEnd && this.props.onEnd(); // NET
-        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, whispers: {}, ivory: null });
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, whispers: {}, awake: null, ivory: null });
       },
       confirmNo: () => this.setState({ confirmEnd: null }),
       // spectator QR during the game (same join link — the server makes late joiners spectators)

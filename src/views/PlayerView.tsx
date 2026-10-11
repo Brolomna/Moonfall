@@ -555,7 +555,7 @@ export class PlayerView extends React.Component<any, any> {
         // NET: the private night answer, the host's timer, the secret phone vote, the Ivory Tower
         const inCard = screen === 'card';
         const nm = (k) => (all[k] ? loc(k).name : '');
-        const w = this.props.whisper, wid = w ? [w.round, w.kind, w.target || ''].join('|') : '';
+        const w = this.props.whisper;
         const ans = !w ? '' : w.kind === 'check' ? (w.role ? fmt(T.ansCheckRole, { name: w.target, role: nm(w.role) }) : fmt(w.wolf ? T.ansCheckWolf : T.ansCheckNot, { name: w.target }))
           : w.kind === 'seek' ? fmt(w.yes ? T.ansSeekYes : T.ansSeekNo, { name: w.target })
           : w.kind === 'aura' ? fmt(w.yes ? T.ansAuraYes : T.ansAuraNo, { name: w.target })
@@ -571,7 +571,7 @@ export class PlayerView extends React.Component<any, any> {
         const tLeft = t ? (t.running ? Math.max(0, (t.endsAt || 0) - (Date.now() + skew)) : (t.leftMs || 0)) : 0;
         const b = this.props.ballot;
         return {
-          ansShow: inCard && !!ans && s.ansSeen !== wid, ansText: ans, ansClose: () => this.setState({ ansSeen: wid }),
+          ansShow: inCard && !!ans, ansText: ans, // closes by itself when the host calls the next role
           timerShow: inCard && !!t && !night, timerText: tLeft === 0 ? T.timeUp : Math.floor(tLeft / 60000) + ':' + String(Math.floor((tLeft % 60000) / 1000)).padStart(2, '0'), timerUp: !!t && tLeft === 0, timerLow: tLeft > 0 && tLeft <= 10000,
           // the secret vote is about one nominee: eliminate or spare
           ballotShow: inCard && !!b && fate === 'none',
@@ -1662,7 +1662,6 @@ export class PlayerView extends React.Component<any, any> {
             <section className="rise" style={{ width: '100%', padding: '22px 20px', borderRadius: '24px', background: 'linear-gradient(170deg, rgba(60,36,110,.85), rgba(18,10,31,.95))', border: '1px solid rgba(199,168,255,.5)', boxShadow: '0 0 60px rgba(167,127,240,.3)', display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'center' }}>
               <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: '#c7a8ff' }}>{v.T.ansTitle}</span>
               <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.3', color: '#f6f1ff' }}>{v.ansText}</span>
-              <button className="press" onClick={v.ansClose} style={{ height: '50px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>{v.T.ansOk}</button>
             </section>
           </div>
         ) : null}
