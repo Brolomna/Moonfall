@@ -2426,15 +2426,9 @@ export class HostView extends React.Component<any, any> {
                       {v.phaseLine}
                     </span>
                     {(v.balView.show) ? (
-                      <span aria-label={'Village ' + v.balView.village + '%, ' + v.balView.otherLabel + ' ' + v.balView.other + '%'} style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', width: '150px' }}>
-                        <span style={{ display: 'flex', height: '5px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(0,0,0,.3)' }}>
-                          <span style={{ width: v.balView.village + '%', background: '#62d4a6', transition: 'width .8s ease' }} />
-                          <span style={{ flex: '1', background: v.balView.otherColor, transition: 'background .8s ease' }} />
-                        </span>
-                        <span style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '700', letterSpacing: '.04em' }}>
-                          <span style={{ color: '#8fe0b8' }}>Village {v.balView.village}%</span>
-                          <span style={{ color: v.balView.otherColor }}>{v.balView.otherLabel} {v.balView.other}%</span>
-                        </span>
+                      <span role="img" aria-label={'Village ' + v.balView.village + '%, ' + v.balView.otherLabel + ' ' + v.balView.other + '%'} style={{ display: 'flex', width: '100%', height: '4px', marginTop: '5px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(0,0,0,.3)' }}>
+                        <span style={{ width: v.balView.village + '%', background: '#62d4a6', transition: 'width .8s ease' }} />
+                        <span style={{ flex: '1', background: v.balView.otherColor, transition: 'background .8s ease' }} />
                       </span>
                     ) : null}
                   </span>
