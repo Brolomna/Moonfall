@@ -149,8 +149,6 @@ export default {
     sacrificeL: "늑대와 그 사람 사이에 서서 — 끝까지 물러서지 않았다.",
     endLovers: "연인의 승리!",
     endCult: "교단의 승리!",
-    wakeTitle: "당신의 차례",
-    wakeLine: "조용히 눈을 뜨세요 — 호스트가 당신을 부르고 있어요.",
     ansTitle: "오늘 밤의 답",
     ansCheckWolf: "{name}님은 늑대인간이에요.",
     ansCheckNot: "{name}님은 늑대인간이 아니에요.",

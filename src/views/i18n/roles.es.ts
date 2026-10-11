@@ -149,8 +149,6 @@ export default {
     sacrificeL: "Te interpusiste entre los lobos y otra persona, sin retroceder.",
     endLovers: "¡Ganan los enamorados!",
     endCult: "¡Gana la secta!",
-    wakeTitle: "Tu turno",
-    wakeLine: "Abre los ojos en silencio: el anfitrión te está llamando.",
     ansTitle: "Tu respuesta de la noche",
     ansCheckWolf: "{name} es un hombre lobo.",
     ansCheckNot: "{name} no es un hombre lobo.",

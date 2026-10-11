@@ -175,8 +175,6 @@ function playerView(p: Player) {
     dawnDeaths: dawnDeaths(),
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
-    // silent wake-up: only this phone learns that its own role is being called
-    woken: !!(room.dealt && sh.wake && Array.isArray(sh.wake.names) && sh.wake.names.includes(p.name)),
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
     now: Date.now(),

@@ -149,8 +149,6 @@ export default {
     sacrificeL: "Tu t’es dressé entre les loups et un autre — sans reculer.",
     endLovers: "Les amoureux gagnent !",
     endCult: "La secte gagne !",
-    wakeTitle: "À toi",
-    wakeLine: "Ouvre les yeux sans bruit — le meneur t’appelle.",
     ansTitle: "Ta réponse de la nuit",
     ansCheckWolf: "{name} est un loup-garou.",
     ansCheckNot: "{name} n’est pas un loup-garou.",

@@ -149,8 +149,6 @@ export default {
     sacrificeL: "你挡在狼群与他人之间——一步也没有退。",
     endLovers: "恋人获胜！",
     endCult: "教团获胜！",
-    wakeTitle: "轮到你了",
-    wakeLine: "悄悄睁开眼睛——主持人在叫你。",
     ansTitle: "你的夜晚答案",
     ansCheckWolf: "{name}是狼人。",
     ansCheckNot: "{name}不是狼人。",

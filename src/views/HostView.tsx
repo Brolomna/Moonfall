@@ -14,7 +14,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'wake', 'whispers', 'timer', 'ivory', 'seats'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats'];
 
   constructor(props) {
     super(props);
@@ -33,11 +33,9 @@ export class HostView extends React.Component<any, any> {
 
   // NET: who won goes to every phone (end-result card); recomputed each render, sent only when it changes
   componentDidUpdate() {
+    if (this._flip || this._drag) this.seatAnimate();
     const w = this._winner || null, cur = this.state.winner || null;
     if (JSON.stringify(w) !== JSON.stringify(cur)) this.setState({ winner: w });
-    // silent wake-ups: the phones of the role being called right now (null when no one is awake)
-    const wk = this._wake || null, curW = this.state.wake || null;
-    if (JSON.stringify(wk && wk.names) !== JSON.stringify(curW && curW.names)) this.setState({ wake: wk });
     // a finished game is remembered once: Hall of Fame + who holds the Ivory Tower next game
     const rec = this._record;
     if (rec && HostView.store('moonfall.lastGame') !== rec.id) {
@@ -55,6 +53,57 @@ export class HostView extends React.Component<any, any> {
   }
 
   componentWillUnmount() { clearInterval(this._tick); }
+
+  // ---------- seating drag (players screen) ----------
+  seatRow(name) { return document.querySelector(`[data-seat="${CSS.escape(name)}"]`); }
+  seatDown(e, name, order) {
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* old browsers */ }
+    const row = this.seatRow(name);
+    this._drag = { name, startY: e.clientY, lastY: e.clientY, startTop: row ? row.offsetTop : 0 };
+    this.setState({ dragSeat: name, seats: order.slice() });
+  }
+  seatMove(e) {
+    const d = this._drag; if (!d) return;
+    d.lastY = e.clientY;
+    // where the finger is among the OTHER rows (the dragged row itself doesn't count) → its new seat
+    const rows = [...document.querySelectorAll('[data-seat]')].filter(r => r.getAttribute('data-seat') !== d.name);
+    const to = rows.filter(r => { const rc = r.getBoundingClientRect(); return rc.top + rc.height / 2 < e.clientY; }).length;
+    const cur = (this.state.seats || []).slice(), from = cur.indexOf(d.name);
+    if (from >= 0 && to !== from) {
+      // remember where every other row is, so they can glide to their new places after the re-render
+      this._flip = {}; rows.forEach(r => { this._flip[r.getAttribute('data-seat')] = r.getBoundingClientRect().top; });
+      cur.splice(from, 1); cur.splice(to, 0, d.name);
+      this.setState({ seats: cur });
+    }
+    this.seatFollow();
+  }
+  seatFollow() {
+    const d = this._drag; if (!d) return;
+    const row = this.seatRow(d.name); if (!row) return;
+    row.style.transition = 'none';
+    row.style.transform = `translateY(${(d.lastY - d.startY) - (row.offsetTop - d.startTop)}px) scale(1.03)`;
+  }
+  seatUp() {
+    const d = this._drag; if (!d) return;
+    this._drag = null;
+    const row = this.seatRow(d.name);
+    if (row) { row.style.transition = 'transform .18s ease'; row.style.transform = ''; }
+    this.setState({ dragSeat: null });
+  }
+  seatAnimate() {
+    const f = this._flip; if (!f) return;
+    this._flip = null;
+    Object.keys(f).forEach(nm => {
+      const row = this.seatRow(nm); if (!row) return;
+      const dy = f[nm] - row.getBoundingClientRect().top;
+      if (!dy) return;
+      row.style.transition = 'none'; row.style.transform = `translateY(${dy}px)`;
+      row.getBoundingClientRect(); // apply before animating back
+      row.style.transition = 'transform .18s ease'; row.style.transform = '';
+    });
+    this.seatFollow();
+  }
 
   static store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } return null; }
   static fame() { try { return JSON.parse(localStorage.getItem('moonfall.fame') || '{}') || {}; } catch { return {}; } }
@@ -222,7 +271,7 @@ export class HostView extends React.Component<any, any> {
 
     // ---------- house rules ----------
     // our classic rules: wolves must agree, no skipping the vote, ties vote again, cards stay hidden
-    const ruleDefaults = { peaceful: false, wolfPick: 'unanimous', seerSees: 'wolf', selfHeal: true, skipVote: false, majority: true, silentWake: true, phoneAnswers: true, phoneVote: false, tie: 'revote', reveal: false, silentDead: true, showRoles: true };
+    const ruleDefaults = { peaceful: false, wolfPick: 'unanimous', seerSees: 'wolf', selfHeal: true, skipVote: false, majority: true, phoneAnswers: true, tie: 'revote', reveal: false, silentDead: true, showRoles: true };
     const rules = { ...ruleDefaults, ...(s.rules || {}) };
     const setRule = (k, v) => this.setState({ rules: { ...rules, [k]: v } });
     const tgl = (k, label, desc) => ({ isToggle: true, isChoice: false, label, desc, on: rules[k], track: rules[k] ? '#e8d3a0' : 'rgba(255,255,255,.16)', knob: rules[k] ? '23px' : '3px', border: rules[k] !== ruleDefaults[k] ? 'rgba(232,211,160,.45)' : 'rgba(236,230,246,.08)', flip: () => setRule(k, !rules[k]) });
@@ -232,13 +281,11 @@ export class HostView extends React.Component<any, any> {
         tgl('peaceful', 'Peaceful first night', 'On night 1 the werewolves only meet each other — nobody is eliminated.'),
         chc('wolfPick', 'How the werewolves choose', 'What happens when the pack points at different players.', [['majority', 'Most points wins'], ['unanimous', 'Must all agree']]),
         chc('seerSees', 'What the Seer learns', 'How much the host reveals when the Seer checks a player.', [['wolf', 'Werewolf or not'], ['role', 'Exact role']]),
-        tgl('silentWake', 'Silent wake-ups', 'When you open a role’s step, only those players’ phones vibrate and glow — your voice gives nothing away.'),
         tgl('phoneAnswers', 'Night answers on the phone', 'The Seer, Fortune Teller, Medium and other information roles read their answer privately on their own phone.'),
         tgl('selfHeal', 'Healer can protect themselves', 'Turn off for a harder game: the Healer must always save someone else.')
       ] },
       { label: 'Day & voting', color: '#ffc98a', icon: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M2 12h2 M20 12h2', items: [
         tgl('majority', 'Majority needed', 'A player is voted out only if more than half of the living players vote against them (official Ultimate Werewolf rule).'),
-        tgl('phoneVote', 'Secret phone voting', 'Only turn this on if every player agrees: players vote anonymously on their phones and the host sees only the counts.'),
         tgl('skipVote', 'Village may skip the vote', 'If most players agree, nobody is voted out that day.'),
         chc('tie', 'If the vote is tied', 'What to do when two players get the same number of votes.', [['none', 'No one is out'], ['revote', 'Vote again'], ['host', 'Host decides']])
       ] },
@@ -270,18 +317,9 @@ export class HostView extends React.Component<any, any> {
     const names = seated.map(p => p.name);
     const n = names.length;
     const players = seated.map((p, i) => ({ name: p.name, seat: i + 1, initial: (p.name[0] || '?').toUpperCase(), color: p.color, connected: p.connected, dragging: s.dragSeat === p.name, kick: () => this.props.onKick && this.props.onKick(p.name),
-      dragStart: (e) => { e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* old browsers */ } this.setState({ dragSeat: p.name, seats: names.slice() }); },
-      dragMove: (e) => {
-        if (this.state.dragSeat !== p.name) return;
-        const rows = [...document.querySelectorAll('[data-seat]')];
-        let to = rows.length - 1;
-        for (let k = 0; k < rows.length; k++) { const r = rows[k].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = k; break; } }
-        const cur = (this.state.seats || names).slice(); const from = cur.indexOf(p.name);
-        if (from < 0 || from === to) return;
-        cur.splice(from, 1); cur.splice(to, 0, p.name);
-        this.setState({ seats: cur });
-      },
-      dragEnd: () => this.setState({ dragSeat: null }),
+      dragStart: (e) => this.seatDown(e, p.name, names),
+      dragMove: (e) => this.seatMove(e),
+      dragEnd: () => this.seatUp(),
     }));
 
     // ---------- deck ----------
@@ -957,9 +995,6 @@ export class HostView extends React.Component<any, any> {
       const seat = x.kind === 'insomniac' ? (saved.length === 2 ? saved : around(x.who[0])) : [];
       this.setState({ nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null });
     };
-    const wakeStep = night && rules.silentWake ? defs.find(d => d.key === (s.nightAct || (s.wakeTick && s.wakeTick.key))) : null;
-    const wakeNames = wakeStep && !wakeStep.ghost ? wakeStep.who.filter(nm => !isOut(nm) || wakeStep.deadRole) : [];
-    this._wake = wakeNames.length ? { names: wakeNames, key: wakeStep.key } : null;
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
       const done = checks.indexOf(ck(x.key)) >= 0;
@@ -974,9 +1009,7 @@ export class HostView extends React.Component<any, any> {
         // steps with a choice open the picker; the rest just tick as before
         tick: () => {
           if (actSpec(x)) return openAct(x);
-          // no choice to record: tick it, and buzz those phones for a few seconds so they know to open their eyes
-          this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]), wakeTick: done ? null : { key: x.key } });
-          clearTimeout(this._wakeT); if (!done) this._wakeT = setTimeout(() => this.setState({ wakeTick: null }), 7000);
+          this.setState({ checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) });
         },
         chosen: (() => {
           const a = actOf(x.key); if (!a) return '';
@@ -1208,7 +1241,7 @@ export class HostView extends React.Component<any, any> {
           inc: () => set(n.count + 1), dec: () => set(n.count - 1),
           remove: () => { setVote({ noms: vote.noms.filter(x => x.name !== n.name) }); if (ballot && ballot.nominee === n.name) this.props.onBallot && this.props.onBallot(null); },
           canEdit: !vote.closed && !(ballot && ballot.nominee === n.name),
-          canPhone: rules.phoneVote && !vote.closed && !ballot, phone: () => openBallot(n.name),
+          canPhone: !vote.closed && !ballot, phone: () => openBallot(n.name),
           onTrial: !!(ballot && ballot.nominee === n.name),
           canRemove: !vote.closed,
         };
@@ -1235,10 +1268,10 @@ export class HostView extends React.Component<any, any> {
       revoteFirst: tieRule !== 'none',
       reopen,
       // phone voting
-      phoneVote: rules.phoneVote && !vote.closed, ballotOpen: !!ballot,
+      ballotOpen: !!ballot,
       ballotText: ballot ? ballot.nominee + ' on trial · 🔥 ' + ballot.kill + ' eliminate · 🛡 ' + ballot.spare + ' spare · ' + ballot.voted + ' of ' + ballot.voters + ' voted' : '',
       canOpenBallot: false,
-      phoneHint: rules.phoneVote && !vote.closed && !ballot && nominees.length > 0 ? 'Tap 📱 next to a nominee to let everyone vote on them secretly.' : '',
+      phoneHint: !vote.closed && !ballot && nominees.length > 0 ? 'Want it anonymous? Tap 📱 next to a nominee and everyone votes secretly on their phone.' : '',
       closeBallot,
     };
     // ---------- discussion timer (host controls; phones show it) ----------
@@ -1390,7 +1423,7 @@ export class HostView extends React.Component<any, any> {
         const from = near.length ? near : pool;
         const drunkAs = hasDrunk ? (from.length ? from[Math.floor(Math.random() * from.length)] : 'villager') : null;
         const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: byKey[drunkAs].name }] : [];
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, wake: null, whispers: {}, timer: null, wakeTick: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       };
 
     // ---------- history view ----------
@@ -1600,7 +1633,7 @@ export class HostView extends React.Component<any, any> {
       rematch: () => {
         // same players, same deck, reshuffled — or back to the roles screen when the table changed (spectators joining)
         const spect = (this.props.net && this.props.net.spectators) || 0;
-        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, wake: null, whispers: {}, winner: null }); return; }
+        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, whispers: {}, winner: null }); return; }
         this.props.onEnd && this.props.onEnd();
         dealNow();
       },
@@ -1732,7 +1765,7 @@ export class HostView extends React.Component<any, any> {
       confirmYes: () => {
         const to = s.confirmEnd || 'players';
         this.props.onEnd && this.props.onEnd(); // NET
-        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, wake: null, whispers: {}, ivory: null });
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, whispers: {}, ivory: null });
       },
       confirmNo: () => this.setState({ confirmEnd: null }),
       // spectator QR during the game (same join link — the server makes late joiners spectators)
@@ -1894,7 +1927,7 @@ export class HostView extends React.Component<any, any> {
                   <ul style={{ listStyle: 'none', margin: '0', padding: '0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {((v.players) || []).map((p: any, $index: number) => (
                       <React.Fragment key={p.name}>
-                        <li data-seat={p.name} style={{ userSelect: 'none', WebkitUserSelect: 'none', display: 'flex', alignItems: 'center', gap: '12px', height: '52px', padding: '0 6px 0 4px', borderRadius: '14px', transform: p.dragging ? 'scale(1.02)' : 'none', boxShadow: p.dragging ? '0 8px 24px rgba(0,0,0,.45)' : 'none', outline: p.dragging ? '1.5px solid #c7a8ff' : 'none', background: 'rgba(20,12,34,.66)', border: '1px solid rgba(236,230,246,.07)' }}>
+                        <li data-seat={p.name} style={{ userSelect: 'none', WebkitUserSelect: 'none', position: 'relative', zIndex: p.dragging ? 5 : 1, display: 'flex', alignItems: 'center', gap: '12px', height: '52px', padding: '0 6px 0 4px', borderRadius: '14px', boxShadow: p.dragging ? '0 8px 24px rgba(0,0,0,.45)' : 'none', outline: p.dragging ? '1.5px solid #c7a8ff' : 'none', background: 'rgba(20,12,34,.66)', border: '1px solid rgba(236,230,246,.07)' }}>
                           <span onPointerDown={p.dragStart} onPointerMove={p.dragMove} onPointerUp={p.dragEnd} onPointerCancel={p.dragEnd} aria-label={`Drag ${p.name} to their seat`} role="button" style={{ width: '34px', height: '44px', flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px', cursor: 'grab', touchAction: 'none', color: '#8f84a8' }}>
                             <span style={{ fontSize: '10px', fontWeight: '800', color: '#a99bc2' }}>{p.seat}</span>
                             <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 2h12 M2 6h12 M2 10h12" /></svg>
