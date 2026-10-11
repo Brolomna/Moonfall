@@ -716,6 +716,11 @@ export class HostView extends React.Component<any, any> {
     const isLibA = (nm, lib) => libOfA(roleOf(nm).key) === lib;
     const mechA = st('mech', {});
     if ((mechA.hits || 0) >= 3) { const g = names.find(nm => isLibA(nm, 'Gambler')); if (g) push('gambler-win', 'Gambler · ' + g, 'The Gambler wins!', g + ' guessed the wolves’ victim three times and wins alone. You can keep playing for everyone else.', '242,166,90', '#f2a65a', roleOf(g).icon); }
+    // Baker: every third day after the Baker died, someone starves — on that day the host picks who
+    const bakerDead = names.find(nm => isOut(nm) && isLibA(nm, 'Baker') && status[nm].how !== 'removed');
+    const hungryToday = !!bakerDead && !night && round > status[bakerDead].round && (round - status[bakerDead].round) % 3 === 0;
+    const starvedToday = names.find(nm => status[nm] && status[nm].cause === 'starved' && status[nm].round === round);
+    if (hungryToday && !starvedToday && alive.length) push('starve-' + round, 'Baker · ' + bakerDead, 'The village starves today', 'It has been ' + (round - status[bakerDead].round) + ' days without the Baker. One player starves today — choose them yourself, or let the village agree on who to sacrifice.', '232,211,160', '#e8d3a0', roleOf(bakerDead).icon, { label: 'Choose who starves', fn: () => this.setState({ starveOpen: true }) });
     const alien = names.find(nm => isLibA(nm, 'Alien') && !isOut(nm));
     if (alien && alive.length === 3) push('alien-' + round, 'Alien · ' + alien, 'The Alien wins!', 'Exactly three players are left and ' + alien + ' is one of them — the Alien wins alone.', '143,211,232', '#8fd3e8', roleOf(alien).icon);
     names.filter(isOut).forEach(nm => {
@@ -734,7 +739,7 @@ export class HostView extends React.Component<any, any> {
         } });
       }
       if (lb === 'Wolf King' && fresh) push('wolfking-' + nm, 'Wolf King · ' + nm, 'The Wolf King takes one player down — now', 'Ask ' + nm + ' to point at one player. In Mark players, set that player to “Wolf King”.', '224,71,95', '#ff8a9b', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
-      if (lb === 'Baker' && fresh) push('baker-' + nm, 'Baker · ' + nm, 'The village starts starving', 'With the Baker gone, every third day from now the host eliminates one more player (of your choice, or at random).', '232,211,160', '#e8d3a0', r.icon);
+      if (lb === 'Baker' && fresh) push('baker-' + nm, 'Baker · ' + nm, 'The village starts starving', 'With the Baker gone, every third day one more player starves. The first hungry day is day ' + (status[nm].round + 3) + ' — you’ll get a reminder that morning.', '232,211,160', '#e8d3a0', r.icon);
       if (lb === 'Angel' && status[nm].round === 1) push('angel-' + nm, 'Angel · ' + nm, 'The Angel wins!', nm + ' was eliminated in the first round and wins alone. Keep playing for everyone else.', '242,208,107', '#f2d06b', r.icon);
       if (how === 'voted' && mechA.target === nm) { const ex = names.find(p => isLibA(p, 'Executioner')); if (ex) push('exe-' + nm, 'Executioner · ' + ex, 'The Executioner wins!', nm + ' was the Executioner’s target and got voted out — ' + ex + ' wins alone.', '201,162,122', '#d9b48a', roleOf(ex).icon); }
       if (k === 'hunter' && fresh) push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter”.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
@@ -1454,6 +1459,10 @@ export class HostView extends React.Component<any, any> {
       nightSteps, stepsDone: doneCount + ' / ' + nightSteps.length + ' done',
       daySteps, dayRules, hasDayRules: dayRules.length > 0, voteView,
       showVote: !night && (!gameOver || !!(vote.result && vote.result.out)),
+      starveOpen: !!s.starveOpen && alive.length > 0,
+      starveRows: alive.map(nm => ({ name: nm, initial: nm[0], color: palette[nm], pick: () => { const pt = markPatch(nm, 'starved'); this.setState({ ...pt, starveOpen: false }); } })),
+      starveRandom: () => { const nm = alive[Math.floor(Math.random() * alive.length)]; const pt = markPatch(nm, 'starved'); this.setState({ ...pt, starveOpen: false }); },
+      starveClose: () => this.setState({ starveOpen: false }),
       veil: !!s.veil, toggleVeil: () => this.setState({ veil: !s.veil }),
       gameOver,
       histOpen: screen === 'play' && !!s.histOpen, openHist: () => this.setState({ histOpen: true }), closeHist: () => this.setState({ histOpen: false }),
@@ -3394,6 +3403,29 @@ export class HostView extends React.Component<any, any> {
                 <button className="press" onClick={v.dgSkip} style={{ height: '48px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '14px', fontWeight: '700' }}>
                   No, they copied someone else
                 </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.starveOpen) ? (
+          <>
+            <div className="fade" onClick={v.starveClose} style={{ position: 'absolute', inset: '0', zIndex: 110, background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Who starves" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '760px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2a2410 0%, #120a20 70%)', borderTop: '1px solid rgba(232,211,160,.4)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px 20px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '21px', color: '#f6e7c1' }}>Who starves today?</span>
+                <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#cbbfa0' }}>Pick the player yourself, or let the players agree on a sacrifice and tap their name. Their phone shows the “Starved” card.</span>
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '4px 20px 12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {((v.starveRows) || []).map((r: any) => (
+                  <button key={r.name} className="press" onClick={r.pick} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '14px', border: '1px solid rgba(232,211,160,.18)', background: 'rgba(20,12,34,.75)', color: '#ece6f6', textAlign: 'left', fontSize: '15px', fontWeight: '700' }}>
+                    <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: r.color }}>{r.initial}</span>
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+              <div style={{ padding: '10px 20px 30px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button className="press" onClick={v.starveRandom} style={{ height: '52px', borderRadius: '16px', border: 'none', background: '#e8d3a0', color: '#1c140a', fontSize: '16px', fontWeight: '700' }}>Pick someone at random</button>
+                <button className="press" onClick={v.starveClose} style={{ height: '44px', border: 'none', background: 'none', color: '#a99bc2', fontSize: '14px', fontWeight: '700' }}>Not now</button>
               </div>
             </section>
           </>
