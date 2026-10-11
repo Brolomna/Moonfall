@@ -35,6 +35,7 @@ const room = {
   shared: {} as Shared, // everything the host screen owns (deck, rules, phase, marks…)
   assign: {} as Record<string, string>, // player name -> dealt role key
   dealt: false,
+  ballot: null as null | { nominees: string[]; votes: Record<string, string | null> },
 };
 
 // ---------- helpers ----------
@@ -174,6 +175,13 @@ function playerView(p: Player) {
     dawnDeaths: dawnDeaths(),
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
+    // silent wake-up: only this phone learns that its own role is being called
+    woken: !!(room.dealt && sh.wake && Array.isArray(sh.wake.names) && sh.wake.names.includes(p.name)),
+    whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
+    timer: room.dealt && sh.timer ? sh.timer : null,
+    now: Date.now(),
+    ballot: room.dealt && room.ballot && !(sh.status || {})[p.name] ? { nominees: room.ballot.nominees, mine: p.name in room.ballot.votes ? room.ballot.votes[p.name] : undefined } : null,
+    ivory: !!(room.dealt && sh.ivory === p.name),
     lover,
     deck,
     roleDefs,
@@ -195,6 +203,8 @@ function spectatorView(sp: Player) {
     phase: sh.phase || 'night',
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
+    timer: room.dealt && sh.timer ? sh.timer : null,
+    now: Date.now(),
     roomLang: sh.roomLang || 'en',
     players,
     log: sh.log || [],
@@ -211,6 +221,12 @@ function hostView() {
     players: room.players.map(({ name, color, connected, fake }) => ({ name, color, connected, fake: !!fake })),
     assign: room.assign,
     dealt: room.dealt,
+    ballot: room.ballot ? {
+      nominees: room.ballot.nominees,
+      counts: Object.fromEntries(room.ballot.nominees.map(n => [n, Object.values(room.ballot!.votes).filter(v => v === n).length])),
+      voted: Object.keys(room.ballot.votes).length,
+      voters: room.players.filter(p => !(room.shared.status || {})[p.name]).length,
+    } : null,
   };
 }
 
@@ -276,7 +292,14 @@ io.on('connection', (socket: Socket) => {
     });
 
     socket.on('host:patch', (patch: Shared) => {
+      if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       Object.assign(room.shared, patch);
+      pushAll();
+    });
+    // secret phone vote: open with the nominees, close to stop it (the host only ever sees the counts)
+    socket.on('host:ballot', (nominees: string[] | null) => {
+      room.ballot = Array.isArray(nominees) && nominees.length ? { nominees: nominees.map(String), votes: room.ballot ? room.ballot.votes : {} } : null;
+      if (room.ballot) for (const k of Object.keys(room.ballot.votes)) if (room.ballot.votes[k] && !room.ballot.nominees.includes(room.ballot.votes[k] as string)) delete room.ballot.votes[k];
       pushAll();
     });
     socket.on('host:kick', (name: string) => {
@@ -304,6 +327,7 @@ io.on('connection', (socket: Socket) => {
       // Roles the host fixed to players are handed out first (each takes one card of that role from the deck);
       // the remaining cards are shuffled among everyone else.
       room.assign = {};
+      room.ballot = null;
       const rest = keys.slice();
       for (const [name, key] of Object.entries(fixed || {})) {
         const i = rest.indexOf(key);
@@ -315,6 +339,7 @@ io.on('connection', (socket: Socket) => {
       pushAll();
     });
     socket.on('host:end', () => {
+      room.ballot = null;
       room.assign = {};
       room.dealt = false;
       for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor() }); // they join the next game
@@ -335,6 +360,14 @@ io.on('connection', (socket: Socket) => {
   };
   if (me) attach(me);
   else socket.emit('player:view', null);
+
+  // secret phone vote: one choice per living player (a nominee, or null to abstain); can be changed until it closes
+  socket.on('player:vote', (choice: string | null) => {
+    if (!me || !room.ballot || !room.players.includes(me) || (room.shared.status || {})[me.name]) return;
+    if (choice !== null && !room.ballot.nominees.includes(String(choice))) return;
+    room.ballot.votes[me.name] = choice === null ? null : String(choice);
+    pushAll();
+  });
 
   socket.on('player:join', ({ name }: { name: string }, ack?: (r: { playerId: string; name: string }) => void) => {
     // Same name as a seat whose phone has dropped (new browser, cleared storage…) → take that seat back, card included

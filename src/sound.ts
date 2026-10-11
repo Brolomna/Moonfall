@@ -304,3 +304,24 @@ export function stopAmbience() {
   wantAmb = false;
   if (amb) { amb.stop(); amb = null; }
 }
+
+/** The discussion timer ran out: three soft bell strikes. */
+export function playTimeUp() {
+  const c = audio(); if (!c || c.state !== 'running') return;
+  [0, 0.45, 0.9].forEach((dt, i) => {
+    const t = c.currentTime + 0.05 + dt;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(i === 2 ? 660 : 880, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + 1.3);
+  });
+}
+
+/** The last seconds of the timer: a quiet tick. */
+export function playTick() {
+  const c = audio(); if (!c || c.state !== 'running') return;
+  const t = c.currentTime + 0.01, o = c.createOscillator(), g = c.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(1400, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t + 0.08);
+}

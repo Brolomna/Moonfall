@@ -153,6 +153,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}
             onRemoveFakes={() => socket.emit('host:unfake')}
+            onBallot={(nominees: string[] | null) => socket.emit('host:ballot', nominees)}
             installMode={inst.mode}
             onInstall={inst.install}
             onLock={onLock}

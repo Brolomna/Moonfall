@@ -27,8 +27,14 @@ export class PlayerView extends React.Component<any, any> {
     if (!revealed && was) clearTimeout(this._hide);
   }
 
+  componentDidMount() {
+    // NET: the host's discussion timer counts down on this phone
+    this._tick = setInterval(() => { const t = this.props.timer; if (t && t.running) this.forceUpdate(); }, 500);
+  }
+
   componentWillUnmount() {
     clearTimeout(this._hide);
+    clearInterval(this._tick);
   }
 
   roles() {
@@ -85,7 +91,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", knifeW: "Night · a blade in the dark", knife1: "STABBED BY", knife2: "THE SERIAL KILLER", knifeL: "No howl, no warning — just a quiet step behind you.", burnedW: "Night · fire", burned1: "BURNED BY", burned2: "THE ARSONIST", burnedL: "The oil was poured nights ago. Tonight, the match was struck.", betrayedW: "Night · betrayed", betrayed1: "TORN APART BY", betrayed2: "THE WHITE WEREWOLF", betrayedL: "Your own pack hid a traitor — and it chose you.", stakedW: "Night · the hunt", staked1: "STAKED BY", staked2: "THE VAMPIRE HUNTER", stakedL: "The hunter found the bite marks, and ended the curse.", revealedW: "Night · revealed", revealed1: "EXPOSED BY", revealed2: "THE REVEALER", revealedL: "A finger pointed in the dark — and it was right.", misfireW: "Night · a wrong guess", misfire1: "BETRAYED BY", misfire2: "YOUR OWN GUESS", misfireL: "You pointed at an innocent, and paid the price.", vengeanceW: "Night · a restless spirit", vengeance1: "TAKEN BY", vengeance2: "THE VENGEFUL SPIRIT", vengeanceL: "The dead never forget who wronged them.", deathcurseW: "Death’s mark", deathcurse1: "CLAIMED BY", deathcurse2: "DEATH", deathcurseL: "Your name was marked long ago. Today, the debt came due.", kingshotW: "The king’s last command", kingshot1: "FELLED BY", kingshot2: "THE WOLF KING", kingshotL: "As the king fell, he took you with him.", starvedW: "A hungry village", starved1: "STARVED", starved2: "WITHOUT BREAD", starvedL: "With the Baker gone, the ovens went cold.", ghostW: "Night one · fated", ghost1: "YOUR FATE WAS", ghost2: "SEALED", ghostL: "You were always meant to haunt this village. Now, whisper your clues.", sacrificeW: "Night · a sacrifice", sacrifice1: "FELL PROTECTING", sacrifice2: "ANOTHER", sacrificeL: "You stood between the wolves and someone else — and did not move.", endAlso: "Also winning", endLovers: "The lovers win!", endCult: "The cult wins!", igJoin: "Join our group", installApp: "Install the app", iosTitle: "Add Moonfall to your Home Screen", iosStep1: "In Safari, tap the Share button (the square with an arrow).", iosStep2: "Scroll down and tap “Add to Home Screen”.", iosDone: "Got it", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", knifeW: "Night · a blade in the dark", knife1: "STABBED BY", knife2: "THE SERIAL KILLER", knifeL: "No howl, no warning — just a quiet step behind you.", burnedW: "Night · fire", burned1: "BURNED BY", burned2: "THE ARSONIST", burnedL: "The oil was poured nights ago. Tonight, the match was struck.", betrayedW: "Night · betrayed", betrayed1: "TORN APART BY", betrayed2: "THE WHITE WEREWOLF", betrayedL: "Your own pack hid a traitor — and it chose you.", stakedW: "Night · the hunt", staked1: "STAKED BY", staked2: "THE VAMPIRE HUNTER", stakedL: "The hunter found the bite marks, and ended the curse.", revealedW: "Night · revealed", revealed1: "EXPOSED BY", revealed2: "THE REVEALER", revealedL: "A finger pointed in the dark — and it was right.", misfireW: "Night · a wrong guess", misfire1: "BETRAYED BY", misfire2: "YOUR OWN GUESS", misfireL: "You pointed at an innocent, and paid the price.", vengeanceW: "Night · a restless spirit", vengeance1: "TAKEN BY", vengeance2: "THE VENGEFUL SPIRIT", vengeanceL: "The dead never forget who wronged them.", deathcurseW: "Death’s mark", deathcurse1: "CLAIMED BY", deathcurse2: "DEATH", deathcurseL: "Your name was marked long ago. Today, the debt came due.", kingshotW: "The king’s last command", kingshot1: "FELLED BY", kingshot2: "THE WOLF KING", kingshotL: "As the king fell, he took you with him.", starvedW: "A hungry village", starved1: "STARVED", starved2: "WITHOUT BREAD", starvedL: "With the Baker gone, the ovens went cold.", ghostW: "Night one · fated", ghost1: "YOUR FATE WAS", ghost2: "SEALED", ghostL: "You were always meant to haunt this village. Now, whisper your clues.", sacrificeW: "Night · a sacrifice", sacrifice1: "FELL PROTECTING", sacrifice2: "ANOTHER", sacrificeL: "You stood between the wolves and someone else — and did not move.", wakeTitle: "Your turn", wakeLine: "Open your eyes quietly — the host is calling you.", ansTitle: "Your night answer", ansCheckWolf: "{name} is a werewolf.", ansCheckNot: "{name} is not a werewolf.", ansCheckRole: "{name} is the {role}.", ansSeekYes: "{name} is the Seer.", ansSeekNo: "{name} is not the Seer.", ansAuraYes: "{name} has a special role.", ansAuraNo: "{name} is a plain Villager or Werewolf.", ansFortune: "{name} is the {role}.", ansMedium: "{name} was the {role}.", ansInvestigate: "{name} is one of these: {roles}.", ansSpy: "{name} is one of the werewolves.", ansInsYes: "At least one of your neighbours woke up tonight.", ansInsNo: "Neither of your neighbours woke up tonight.", ansTrack: "{name} visited {list} tonight.", ansTrackNone: "{name} visited no one tonight.", ansWatch: "{list} visited {name} tonight.", ansWatchNone: "No one visited {name} tonight.", ansOk: "Got it", timeUp: "Time’s up", voteTitle: "Secret vote", voteSub: "Tap who you vote to eliminate. No one sees your choice.", voteAbstain: "Abstain", voteYour: "Your vote: {name}", voteAbstained: "You abstained", voteChange: "Tap another name to change your vote.", ivoryLine: "Ivory Tower: you can’t be the first one out this game.", endAlso: "Also winning", endLovers: "The lovers win!", endCult: "The cult wins!", igJoin: "Join our group", installApp: "Install the app", iosTitle: "Add Moonfall to your Home Screen", iosStep1: "In Safari, tap the Share button (the square with an arrow).", iosStep2: "Scroll down and tap “Add to Home Screen”.", iosDone: "Got it", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -545,6 +551,36 @@ export class PlayerView extends React.Component<any, any> {
       cardHint: fate !== 'none' ? (revealed ? T.hintFell : T.hintHad) : (revealed ? T.hintHide : T.hintPeek),
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
+      ...(() => {
+        // NET: silent wake-up, the private night answer, the host's timer, the secret phone vote, the Ivory Tower
+        const inCard = screen === 'card';
+        const nm = (k) => (all[k] ? loc(k).name : '');
+        const w = this.props.whisper, wid = w ? [w.round, w.kind, w.target || ''].join('|') : '';
+        const ans = !w ? '' : w.kind === 'check' ? (w.role ? fmt(T.ansCheckRole, { name: w.target, role: nm(w.role) }) : fmt(w.wolf ? T.ansCheckWolf : T.ansCheckNot, { name: w.target }))
+          : w.kind === 'seek' ? fmt(w.yes ? T.ansSeekYes : T.ansSeekNo, { name: w.target })
+          : w.kind === 'aura' ? fmt(w.yes ? T.ansAuraYes : T.ansAuraNo, { name: w.target })
+          : w.kind === 'fortune' ? fmt(T.ansFortune, { name: w.target, role: nm(w.role) })
+          : w.kind === 'medium' ? fmt(T.ansMedium, { name: w.target, role: nm(w.role) })
+          : w.kind === 'investigate' ? fmt(T.ansInvestigate, { name: w.target, roles: (w.roles || []).map(nm).join(', ') })
+          : w.kind === 'spy' ? fmt(T.ansSpy, { name: w.target })
+          : w.kind === 'insomniac' ? (w.yes ? T.ansInsYes : T.ansInsNo)
+          : w.kind === 'track' ? ((w.list || []).length ? fmt(T.ansTrack, { name: w.target, list: w.list.join(', ') }) : fmt(T.ansTrackNone, { name: w.target }))
+          : w.kind === 'watch' ? ((w.list || []).length ? fmt(T.ansWatch, { name: w.target, list: w.list.join(', ') }) : fmt(T.ansWatchNone, { name: w.target }))
+          : '';
+        const t = this.props.timer, skew = this.props.skew || 0;
+        const tLeft = t ? (t.running ? Math.max(0, (t.endsAt || 0) - (Date.now() + skew)) : (t.leftMs || 0)) : 0;
+        const b = this.props.ballot;
+        return {
+          woken: inCard && !!this.props.woken,
+          ansShow: inCard && !!ans && s.ansSeen !== wid, ansText: ans, ansClose: () => this.setState({ ansSeen: wid }),
+          timerShow: inCard && !!t && !night, timerText: tLeft === 0 ? T.timeUp : Math.floor(tLeft / 60000) + ':' + String(Math.floor((tLeft % 60000) / 1000)).padStart(2, '0'), timerUp: !!t && tLeft === 0, timerLow: tLeft > 0 && tLeft <= 10000,
+          ballotShow: inCard && !!b && fate === 'none',
+          ballotRows: b ? (b.nominees || []).map(n0 => ({ name: n0, on: b.mine === n0, pick: () => this.props.onVote && this.props.onVote(n0) })) : [],
+          ballotAbstainOn: !!b && b.mine === null, ballotAbstain: () => this.props.onVote && this.props.onVote(null),
+          ballotStatus: !b || b.mine === undefined ? '' : b.mine === null ? T.voteAbstained : fmt(T.voteYour, { name: b.mine }),
+          ivoryShow: inCard && !!this.props.ivory,
+        };
+      })(),
       ...(() => {
         // NET: the end-result card everyone sees when the host's game ends; it stays until the host starts a new game.
         // Same colours as the host's game-over card: green village, red werewolves, amber for a lone winner.
@@ -1342,6 +1378,16 @@ export class PlayerView extends React.Component<any, any> {
           </a>
         ) : null}
         </div>
+        {(v.timerShow || v.ivoryShow) ? (
+          <div style={{ position: 'absolute', left: '0', right: '0', top: '102px', zIndex: 5, display: 'flex', justifyContent: 'center', gap: '8px', pointerEvents: 'none', fontFamily: v.fB }}>
+            {(v.timerShow) ? (
+              <span style={{ height: '34px', padding: '0 14px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '6px', background: v.timerUp ? 'rgba(224,71,95,.3)' : 'rgba(20,12,34,.78)', border: `1px solid ${v.timerUp || v.timerLow ? 'rgba(255,138,155,.7)' : 'rgba(255,211,168,.45)'}`, color: v.timerUp || v.timerLow ? '#ffb3bf' : '#ffe0bf', fontSize: '15px', fontWeight: '800', fontVariantNumeric: 'tabular-nums' }}>⏳ {v.timerText}</span>
+            ) : null}
+            {(v.ivoryShow) ? (
+              <span style={{ maxWidth: '300px', minHeight: '34px', padding: '4px 12px', boxSizing: 'border-box', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(20,12,34,.78)', border: '1px solid rgba(230,238,252,.5)', color: '#e6eefc', fontSize: '12px', fontWeight: '700', lineHeight: '1.3' }}>🏰 {v.T.ivoryLine}</span>
+            ) : null}
+          </div>
+        ) : null}
         {(v.guideOpen) ? (
           <>
             <div className="fade" onClick={v.closeGuide} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
@@ -1608,6 +1654,44 @@ export class PlayerView extends React.Component<any, any> {
               <button className="press" onClick={() => this.setState({ iosHelp: false })} style={{ height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>{v.T.iosDone}</button>
             </section>
           </>
+        ) : null}
+        {/* NET: silent wake-up — only this phone glows and buzzes */}
+        {(v.woken) ? (
+          <div aria-live="polite" style={{ position: 'absolute', inset: '0', zIndex: 74, pointerEvents: 'none', fontFamily: v.fB }}>
+            <div style={{ position: 'absolute', inset: '0', boxShadow: 'inset 0 0 70px 18px rgba(199,168,255,.55)', animation: 'pulse 1.6s ease-in-out infinite' }} />
+            <div style={{ position: 'absolute', left: '24px', right: '24px', top: '104px', padding: '12px 16px', borderRadius: '18px', background: 'rgba(30,16,56,.88)', border: '1px solid rgba(199,168,255,.6)', textAlign: 'center', boxShadow: '0 0 30px rgba(167,127,240,.45)' }}>
+              <div style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '22px', color: '#f1e9ff' }}>{v.T.wakeTitle}</div>
+              <div style={{ fontSize: '13.5px', color: '#d9cdf2', marginTop: '2px' }}>{v.T.wakeLine}</div>
+            </div>
+          </div>
+        ) : null}
+        {/* NET: this player's night answer, private on their phone */}
+        {(v.ansShow) ? (
+          <div className="fade" style={{ position: 'absolute', inset: '0', zIndex: 76, background: 'rgba(5,3,10,.78)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: v.fB }}>
+            <section className="rise" style={{ width: '100%', padding: '22px 20px', borderRadius: '24px', background: 'linear-gradient(170deg, rgba(60,36,110,.85), rgba(18,10,31,.95))', border: '1px solid rgba(199,168,255,.5)', boxShadow: '0 0 60px rgba(167,127,240,.3)', display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'center' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: '#c7a8ff' }}>{v.T.ansTitle}</span>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.3', color: '#f6f1ff' }}>{v.ansText}</span>
+              <button className="press" onClick={v.ansClose} style={{ height: '50px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>{v.T.ansOk}</button>
+            </section>
+          </div>
+        ) : null}
+        {/* NET: the secret phone vote */}
+        {(v.ballotShow) ? (
+          <section className="sheet" aria-label={v.T.voteTitle} style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 77, maxHeight: '70%', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2a1846 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.45)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column', fontFamily: v.fB }}>
+            <div style={{ padding: '18px 20px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '22px', color: '#f1e9ff' }}>🗳 {v.T.voteTitle}</span>
+              <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#c4b8da' }}>{v.T.voteSub}</span>
+            </div>
+            <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {((v.ballotRows) || []).map((r: any) => (
+                <button key={r.name} className="press" onClick={r.pick} aria-pressed={r.on} style={{ height: '50px', borderRadius: '14px', border: `1.5px solid ${r.on ? '#e9dcff' : 'rgba(236,230,246,.12)'}`, background: r.on ? 'rgba(233,220,255,.16)' : 'rgba(20,12,34,.75)', color: '#f1e9ff', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}>
+                  {r.name}<span>{r.on ? '✓' : ''}</span>
+                </button>
+              ))}
+              <button className="press" onClick={v.ballotAbstain} aria-pressed={v.ballotAbstainOn} style={{ height: '44px', borderRadius: '14px', border: `1px dashed ${v.ballotAbstainOn ? '#e9dcff' : 'rgba(236,230,246,.25)'}`, background: 'transparent', color: '#c4b8da', fontSize: '14px', fontWeight: '700' }}>{v.T.voteAbstain}{v.ballotAbstainOn ? ' ✓' : ''}</button>
+            </div>
+            <div style={{ padding: '10px 20px 26px', textAlign: 'center', fontSize: '13px', color: '#d9cdf2' }}>{v.ballotStatus ? v.ballotStatus + ' · ' + v.T.voteChange : ''}</div>
+          </section>
         ) : null}
         {(v.endShow) ? (
           <div role="dialog" aria-label={v.endCaption} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.86)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', fontFamily: v.fB }}>

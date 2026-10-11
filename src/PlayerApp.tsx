@@ -11,6 +11,8 @@ type View = {
   roomLang: string; showRoles: boolean; deck: [string, number][]; roleDefs: Record<string, unknown>; playerCount: number;
   spectator?: boolean;
   winner?: { side: 'village' | 'wolves' | 'solo'; key?: string; lib?: string; names?: string[]; also?: { name: string; key: string }[] } | null; // the end-result card
+  woken?: boolean; whisper?: Record<string, unknown> | null; timer?: { running: boolean; leftMs: number; endsAt?: number } | null; now?: number;
+  ballot?: { nominees: string[]; mine?: string | null } | null; ivory?: boolean;
   lover?: string | null; // Cupid's partner, shown as a heart on the card // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
@@ -18,6 +20,7 @@ export function PlayerApp() {
   const socket = useMemo(() => connect('player'), []);
   const [view, setView] = useState<View>(null);
   const [online, setOnline] = useState(true);
+  const skew = useRef(0); // server clock − phone clock, for the timer
 
   // the howl / sunrise plays on every phone in the game when the host switches phase
   const lastPhase = useRef<string | null>(null);
@@ -38,7 +41,7 @@ export function PlayerApp() {
   }, [view]);
 
   useEffect(() => {
-    socket.on('player:view', setView);
+    socket.on('player:view', (v: View) => { setView(v); if (v && (v as { now?: number }).now) skew.current = (v as { now: number }).now - Date.now(); });
     socket.on('player:kicked', () => { playerId.clear(); setView(null); });
     // the server restarted and the host put the game back: reconnect to find this phone's seat again
     socket.on('room:restored', () => { socket.disconnect(); socket.connect(); });
@@ -52,6 +55,13 @@ export function PlayerApp() {
     socket.emit('player:join', { name }, (r: { playerId: string }) => playerId.set(r.playerId));
   };
 
+  // silent wake-up: a buzz when this phone's role is called
+  const wokeRef = useRef(false);
+  useEffect(() => {
+    const w = !!view?.woken;
+    if (w && !wokeRef.current) { try { navigator.vibrate?.([220, 120, 220]); } catch { /* not supported */ } }
+    wokeRef.current = w;
+  }, [view?.woken]);
   useWakeLock(!!view && (view.dealt || !!view.spectator)); // keep the screen on during a game
   const inst = useInstall();
   const screen = !view ? 'join' : view.spectator ? 'spectate' : view.dealt ? 'card' : 'waiting';
@@ -68,6 +78,13 @@ export function PlayerApp() {
             fate={view?.fate || 'none'}
             lover={view?.lover || null}
             winner={view?.winner || null}
+            woken={!!view?.woken}
+            whisper={view?.whisper || null}
+            timer={view?.timer || null}
+            skew={skew.current}
+            ballot={view?.ballot || null}
+            onVote={(choice: string | null) => socket.emit('player:vote', choice)}
+            ivory={!!view?.ivory}
             installMode={inst.mode}
             onInstall={inst.install}
             language={view?.roomLang || 'en'}
