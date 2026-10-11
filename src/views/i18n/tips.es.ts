@@ -80,6 +80,8 @@ export default {
     'Necromancer': ['Resucita a un muerto que tuviera un rol poderoso.', 'Espera a que caiga el jugador adecuado.', 'Tu aliado resucitado puede sorprender a todos.'],
     'Executioner': ['Haz que tu objetivo parezca sospechoso sin parecer obsesionado.', 'Empuja la votación contra tu objetivo el día adecuado.', 'Dale la razón a quien acuse a tu objetivo.'],
     'Survivor': ['No te ganes enemigos: sé la segunda opción de todos.', 'Nunca lideres una votación; síguela sin riesgos.', 'Sigue vivo hasta el final y ganas.'],
+    'Lone Wolf': ["Al principio ayuda a la manada: la necesitas para diezmar la aldea.", "Al final, desvía en silencio las sospechas hacia los otros lobos.", "Sé el último lobo en pie y la victoria será solo tuya."],
+    'Cult Leader': ["Recluta primero a los jugadores callados: no llaman la atención.", "Defiende a tus fieles en la votación sin que se note.", "Sigue con vida: si caes, la secta cae contigo."],
     'Alien': ['Tienes que estar entre los tres últimos: mantente neutral.', 'Ayuda a eliminar a quien te dejaría fuera.', 'No parezcas una amenaza para ningún bando.'],
     'Devil': ['Haz tratos con jugadores con pinta de sobrevivir.', 'Protege a los que pactaron contigo en las votaciones.', 'Mantén tus tratos en secreto.'],
     'Death': ['Marca a jugadores que probablemente reciban votos.', 'Reparte tus marcas entre los dos equipos.', 'Paciencia: tus marcas dan fruto cuando caen los votos.'],

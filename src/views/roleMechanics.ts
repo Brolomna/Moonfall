@@ -60,6 +60,7 @@ export const MECH: Record<string, Mech> = {
   'Fallen Angel': { kind: 'curse', prio: 74, ask: 'Whom does the Fallen Angel curse? They can’t vote tomorrow.' },
   'Devil': { kind: 'deal', prio: 75, ask: 'Whom does the Devil make a deal with?' },
   'Death': { kind: 'mark', prio: 76, ask: 'Whom does Death mark?' },
+  'Cult Leader': { kind: 'cult', prio: 36, ask: 'Whom does the Cult Leader bring into the cult?' },
   'Gambler': { kind: 'gamble', prio: 77, ask: 'Whom does the Gambler bet the wolves attacked?' },
   // watchers go last so they see everything that happened tonight
   'Tracker': { kind: 'track', prio: 80, ask: 'Whom does the Tracker follow?' },

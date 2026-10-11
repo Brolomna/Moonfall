@@ -6,6 +6,7 @@ import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 import { MECH, DAY_REMINDERS } from './roleMechanics';
 import { ROLE_PAIRS } from './rolePairs';
 import { CAUSES } from '../deathCauses';
+import { endArt } from '../endArt';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
@@ -812,7 +813,7 @@ export class HostView extends React.Component<any, any> {
       investigate: 'Hears three roles — one of them is the player’s.', medium: 'Learns a dead player’s role.', spy: 'Is shown one of the wolves.',
       reveal: 'Points at a player — a wolf or Lycan dies, otherwise the Revealer does.', vhunt: 'Points at a player — a vampire dies.', raise: 'Raises a dead player.',
       banish: 'Banishes a player from tomorrow.', silence: 'Silences a player for tomorrow.', hypnotize: 'Controls a player’s vote tomorrow.', curse: 'Curses a player — no vote tomorrow.',
-      deal: 'Makes a deal with a player.', mark: 'Marks a player.', gamble: 'Bets on whom the wolves attacked.',
+      deal: 'Makes a deal with a player.', cult: 'Brings a player into the cult.', mark: 'Marks a player.', gamble: 'Bets on whom the wolves attacked.',
       track: 'Learns whom a player visited tonight.', watch: 'Learns who visited a player tonight.', insomniac: 'Learns whether at least one of their two neighbours woke up tonight.',
     };
     const defs = [];
@@ -869,6 +870,7 @@ export class HostView extends React.Component<any, any> {
       const actors = x.who.filter(nm => !isOut(nm));
       const others = alive.filter(nm => actors.indexOf(nm) < 0);
       const before = acts.filter(a => a.key === x.key && a.round !== round).reduce((s0, a) => s0.concat(a.targets || []), []); // earlier targets
+      const cultMembers = acts.filter(a => a.kind === 'cult' && a.round !== round).reduce((s0, a) => s0.concat(a.targets || []), []);
       const one = (pool, ask, extra) => ({ kind: x.kind, count: 1, pool, ask: ask || (MECH[libOf(x.key)] || {}).ask || 'Who did the ' + x.title + ' choose?', ...(extra || {}) });
       switch (x.kind) {
         case 'kill': return x.peaceful || sick ? null : { kind: 'kill', count: victimsWanted, pool: alive.filter(nm => !isWolf(roleOf(nm))), alpha: alphaReady, ask: victimsWanted > 1 ? 'Who did the wolves choose? Pick ' + victimsWanted + '.' : 'Who did the wolves choose to eliminate?' };
@@ -885,6 +887,7 @@ export class HostView extends React.Component<any, any> {
         case 'arson': return one(others, null, { arson: true, optional: true });
         case 'medium': case 'raise': return one(dead, null, { emptyText: 'No one has died yet.' });
         case 'bless': return one(others);
+        case 'cult': return one(others.filter(nm => cultMembers.indexOf(nm) < 0), null, { emptyText: 'Everyone alive is already in the cult.' });
         case 'silence': return libOf(x.key) === 'Spellcaster' ? one(others.filter(nm => before.indexOf(nm) < 0), 'Whom does the Spellcaster silence for tomorrow? (never the same player twice)') : one(others);
         case 'vengeance': case 'gamble': return one(alive);
         case 'spy': return { kind: x.kind, count: 0, pool: [], ask: 'Wake the Spy and point at this wolf:' };
@@ -1198,13 +1201,24 @@ export class HostView extends React.Component<any, any> {
     const villageWins = anyOut && wolvesAlive === 0 && killers.length === 0;
     const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive + alliesAlive >= othersAlive; // helpers vote with the pack
     if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'White Werewolf')) solo = { lib: 'White Werewolf', names: wolvesNow };
+    // the two lovers are the last ones alive → they win together (whatever their teams)
+    const lovers0 = st('lovers', null);
+    if (anyOut && lovers0 && alive.length === 2 && lovers0.every(nm => alive.indexOf(nm) >= 0)) solo = { lib: 'Lovers', names: lovers0.slice() };
+    // the Cult Leader wins once everyone still alive is in the cult
+    const leader = alive.find(nm => libA(nm) === 'Cult Leader');
+    const inCult = allActs.filter(a => a.kind === 'cult').reduce((s0, a) => s0.concat(a.targets || []), []);
+    if (!solo && anyOut && leader && alive.length > 1 && alive.every(nm => nm === leader || inCult.indexOf(nm) >= 0)) solo = { lib: 'Cult', names: [leader].concat(alive.filter(nm => nm !== leader)) };
+    // the Lone Wolf wins only as the last wolf standing
+    if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'Lone Wolf')) solo = { lib: 'Lone Wolf', names: wolvesNow };
     const soloWins = !!solo;
     const killerLib = solo ? solo.lib : null;
     // the Tanner voted out wins, and everyone else loses — the game ends there
     const tannerWin = names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
     const gameOver = villageWins || wolvesWin || soloWins || !!tannerWin;
     const soloTitle = tannerWin ? 'The Tanner wins!' : soloWins ? (solo.names.length > 1 ? 'The ' + killerLib + 's win!' : (killerLib === 'Death' ? '' : 'The ') + killerLib + ' wins!') : '';
-    const soloText = tannerWin ? tannerWin + ' got themselves voted out. The Tanner wins — and everyone else loses.' : soloWins ? solo.names.join(' and ') + ' outlasted the whole village. No one is left to stop them.' : '';
+    const soloTitle2 = !soloWins ? '' : killerLib === 'Lovers' ? 'The lovers win!' : killerLib === 'Cult' ? 'The cult wins!' : '';
+    const soloText0 = tannerWin ? tannerWin + ' got themselves voted out. The Tanner wins — and everyone else loses.' : soloWins ? solo.names.join(' and ') + ' outlasted the whole village. No one is left to stop them.' : '';
+    const soloText = soloWins && killerLib === 'Lovers' ? solo.names.join(' and ') + ' are the last two left — love wins over every side.' : soloWins && killerLib === 'Cult' ? 'Everyone still alive has joined ' + solo.names[0] + '’s cult.' : soloText0;
     // everyone else who wins too (their own goals), listed on the end card
     const winSide0 = !gameOver ? null : tannerWin ? 'solo' : soloWins ? 'solo' : villageWins ? 'village' : 'wolves';
     const also = [];
@@ -1222,7 +1236,6 @@ export class HostView extends React.Component<any, any> {
       if (mech.target && status[mech.target] && status[mech.target].how === 'voted') names.filter(nm => libA(nm) === 'Executioner').forEach(nm => add(nm, 'their target was voted out'));
       if ((mech.hits || 0) >= 3) names.filter(nm => libA(nm) === 'Gambler').forEach(nm => add(nm, 'guessed right three times'));
       const lv = st('lovers', null);
-      if (lv && alive.length === 2 && lv.every(nm => alive.indexOf(nm) >= 0)) lv.forEach(nm => add(nm, 'the last two lovers'));
     }
     const endTips = [];
     if (inGame('hunter') && aliveWith('hunter').length === 0 && names.some(nm => roleOf(nm).key === 'hunter' && status[nm] && status[nm].round === round)) endTips.push('The Hunter just fell — let them take their shot first. It can change the result.');
@@ -1272,6 +1285,7 @@ export class HostView extends React.Component<any, any> {
       if (e.kind === 'deal') return e.by + ' made a deal with ' + t;
       if (e.kind === 'mark') return e.by + ' marked ' + t;
       if (e.kind === 'gamble') return e.by + ' bet on ' + t;
+      if (e.kind === 'cult') return e.by + ' brought ' + t + ' into the cult';
       if (e.kind === 'kill' && e.convert) return 'The werewolves chose ' + (t || 'no one') + ' — the Alpha turned them';
       if (e.kind === 'witch') return [e.save ? e.by + ' used the healing potion on ' + e.save : '', e.poison ? e.by + ' poisoned ' + e.poison : ''].filter(Boolean).join(' · ') || e.by + ' did nothing';
       return e.by + ' chose ' + (t || 'no one');
@@ -1307,7 +1321,7 @@ export class HostView extends React.Component<any, any> {
       c.icon = c.night ? 'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z' : 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4';
       c.tint = c.night ? '#c7a8ff' : '#f2c58a';
     });
-    const outcome = gameOver ? (soloWins || tannerWin) ? soloTitle + ' ' + soloText : (villageWins ? 'The village wins! Every werewolf has been found.' : 'The werewolves win! ' + wolfNames.join(' and ') + ' now rule the village.') : '';
+    const outcome = gameOver ? (soloWins || tannerWin) ? (soloTitle2 || soloTitle) + ' ' + soloText : (villageWins ? 'The village wins! Every werewolf has been found.' : 'The werewolves win! ' + wolfNames.join(' and ') + ' now rule the village.') : '';
     const storyText = ['Moonfall — the story so far', '']
       .concat(...chapters.map(c => [c.title + (c.sub ? ' — ' + c.sub : '')].concat(c.empty ? ['  ' + c.emptyText] : c.items.map(it => '  • ' + it.text), [''])))
       .concat(outcome ? ['The end: ' + outcome] : []).join('\n').trim();
@@ -1469,16 +1483,17 @@ export class HostView extends React.Component<any, any> {
       chapters, outcome, hasOutcome: !!outcome, copyStory, copyLabel: s.copied ? 'Copied!' : 'Copy as text',
       noteInput: s.noteDraft || '', setNote: e => this.setState({ noteDraft: e.target.value }),
       addNote: e => { e.preventDefault(); const t = (s.noteDraft || '').trim(); if (t) this.setState({ log: log.concat([ev('note', { text: t })]), noteDraft: '' }); },
-      endTitle: (soloWins || tannerWin) ? soloTitle : villageWins ? 'The village wins!' : 'The werewolves win!',
+      endTitle: (soloWins || tannerWin) ? (soloTitle2 || soloTitle) : villageWins ? 'The village wins!' : 'The werewolves win!',
       endText: (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : (wolfNames.join(' and ') + ' now equal the rest of the village. Nobody can outvote them.'),
       endTips,
       endColor: (soloWins || tannerWin) ? '#f2a65a' : villageWins ? '#8fe0b8' : '#ff8a9b',
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
       endGlow: (soloWins || tannerWin) ? 'rgba(242,166,90,.24)' : villageWins ? 'rgba(98,212,166,.22)' : 'rgba(224,71,95,.25)',
       endBg: (soloWins || tannerWin) ? 'linear-gradient(170deg, rgba(110,60,20,.65), rgba(18,10,31,.92))' : villageWins ? 'linear-gradient(170deg, rgba(20,80,60,.6), rgba(18,10,31,.92))' : 'linear-gradient(170deg, rgba(110,20,38,.65), rgba(18,10,31,.92))',
-      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : soloWins ? '/end/' + solo.lib.toLowerCase().replace(/[^a-z]+/g, '-') + '.webp' : '',
-      endImgRatio: winSide === 'solo' ? '941 / 1672' : '746 / 1008',
-      endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(killers[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
+      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : soloWins ? endArt(solo.lib).src : '',
+      endImgRatio: winSide === 'solo' ? String(tannerWin ? 941 / 1672 : endArt(solo.lib).ratio) : '746 / 1008',
+      endImgTall: winSide === 'solo' && (tannerWin ? true : endArt(solo.lib).ratio < 0.7),
+      endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(solo.names[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
 
       dgOpen, dgChoices,
       dg: {
@@ -2149,7 +2164,7 @@ export class HostView extends React.Component<any, any> {
                   <>
                     <section className="rise" aria-label="Game over" style={{ padding: '22px 20px', borderRadius: '24px', background: v.endBg, border: `1px solid ${v.endBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', boxShadow: `0 0 60px ${v.endGlow}` }}>
                       {(v.endImg) ? (
-                        <img src={v.endImg} alt={v.endTitle} onError={(e: any) => { if (!/splash/.test(e.currentTarget.src)) e.currentTarget.src = '/splash.webp'; }} style={{ width: v.endImgRatio === '941 / 1672' ? '78%' : '100%', aspectRatio: v.endImgRatio, objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
+                        <img src={v.endImg} alt={v.endTitle} onError={(e: any) => { if (!/splash/.test(e.currentTarget.src)) e.currentTarget.src = '/splash.webp'; }} style={{ width: v.endImgTall ? '78%' : '100%', aspectRatio: v.endImgRatio, objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
                       ) : (
                         <span style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.25)', border: `1px solid ${v.endBorder}` }}>
                           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={v.endColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">

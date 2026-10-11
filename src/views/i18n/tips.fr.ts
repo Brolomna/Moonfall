@@ -80,6 +80,8 @@ export default {
     'Necromancer': ['Ranime un mort qui avait un rôle puissant.', 'Attends que le bon joueur soit tombé.', 'Ton allié ranimé peut surprendre tout le monde.'],
     'Executioner': ['Rends ta cible suspecte sans paraître obsédé.', 'Pousse le vote contre ta cible le bon jour.', 'Abonde dans le sens des autres quand ils accusent ta cible.'],
     'Survivor': ['Évite de te faire des ennemis — sois le second choix de tout le monde.', 'Ne mène jamais un vote ; suis prudemment.', 'Reste en vie jusqu’au bout et tu gagnes.'],
+    'Lone Wolf': ["Aide la meute au début — tu as besoin d’elle pour éclaircir le village.", "En fin de partie, oriente discrètement les soupçons vers les autres loups.", "Sois le dernier loup debout et la victoire est à toi seul."],
+    'Cult Leader': ["Recrute d’abord les joueurs discrets — ils n’attirent pas l’attention.", "Défends tes fidèles au vote sans te faire remarquer.", "Reste en vie : si tu tombes, la secte tombe avec toi."],
     'Alien': ['Tu dois faire partie des trois derniers — reste neutre.', 'Aide à éliminer ceux qui te laisseraient de côté.', 'N’aie l’air d’une menace pour aucun des deux camps.'],
     'Devil': ['Passe des pactes avec les joueurs qui semblent partis pour survivre.', 'Protège tes pactisants au moment du vote.', 'Garde tes pactes secrets.'],
     'Death': ['Marque les joueurs susceptibles d’être visés par le vote.', 'Répartis tes marques entre les deux camps.', 'Patience — tes marques paient quand les votes tombent.'],

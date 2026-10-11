@@ -27,6 +27,8 @@ export default {
     // ---------- Werewolf ----------
     'Alpha Werewolf': ['Loup alpha', 'Mène la meute', 'Tu te réveilles avec les loups. Une fois par partie, au lieu d’éliminer la victime, tu peux la changer en loup-garou.'],
     'White Werewolf': ['Loup Blanc', 'Un loup parmi les loups', 'Tu chasses avec la meute, mais tu gagnes seul. Une nuit sur deux, le meneur te réveille pour éliminer un loup-garou si tu le veux.'],
+    'Lone Wolf': ["Loup solitaire", "Seul sous la lune", "Tu te réveilles avec les loups-garous, mais tu ne gagnes que si tu es le dernier loup en vie."],
+    'Cult Leader': ["Gourou", "Rejoins-nous — tout le monde finit par le faire", "Chaque nuit, fais entrer un joueur dans ta secte. Tu gagnes quand tous les survivants en font partie."],
     'Wolf King': ['Roi des loups', 'Vive le roi !', 'Tu mènes la meute. Quand tu es éliminé, tu emportes un joueur avec toi.'],
     'Nightmare Wolf': ['Loup cauchemar', 'Fini, les beaux rêves', 'Tu chasses avec la meute. Chaque nuit, tu peux aussi choisir un joueur dont le pouvoir échoue cette nuit.'],
     'Shadow Wolf': ['Loup de l’ombre', 'Invisible, insaisissable', 'Tu chasses avec la meute, mais tous les rôles qui enquêtent te voient comme un simple Villageois.'],
@@ -145,6 +147,8 @@ export default {
     sacrifice1: "TOMBÉ EN PROTÉGEANT",
     sacrifice2: "UN AUTRE",
     sacrificeL: "Tu t’es dressé entre les loups et un autre — sans reculer.",
+    endLovers: "Les amoureux gagnent !",
+    endCult: "La secte gagne !",
     endAlso: "Gagnent aussi",
     igJoin: "Rejoins le groupe",
     endVillage: "Le village gagne !",

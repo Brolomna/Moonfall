@@ -83,6 +83,8 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'Necromancer': ['Raise a dead player with a powerful role.', 'Wait until the right player has fallen.', 'Your raised ally can surprise everyone.'],
   'Executioner': ['Make your target look suspicious without looking obsessed.', 'Push the vote on your target on the right day.', 'Agree with others when they accuse your target.'],
   'Survivor': ['Avoid making enemies — be everyone’s second choice.', 'Never lead a vote; follow safely.', 'Stay alive until the end and you win.'],
+  'Lone Wolf': ["Help the pack early — you need them to thin the village.", "Late in the game, quietly steer suspicion onto the other wolves.", "Be the last wolf standing and the win is yours alone."],
+  'Cult Leader': ["Recruit quiet players first — they won’t draw attention.", "Defend your cult members in the vote without looking obvious.", "Stay alive: if you fall, the cult falls with you."],
   'Alien': ['You need to be one of the last three — stay neutral.', 'Help eliminate whoever would leave you out.', 'Don’t look like a threat to either side.'],
   'Devil': ['Make deals with players who look likely to survive.', 'Protect your dealers in the vote.', 'Keep your deals secret.'],
   'Death': ['Mark players who are likely to be voted for.', 'Spread your marks across both teams.', 'Patience — your marks pay off when votes fall.'],

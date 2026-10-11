@@ -27,6 +27,8 @@ export default {
     // ---------- Werewolf ----------
     'Alpha Werewolf': ['Lobo alfa', 'Guía a la manada', 'Despiertas con los hombres lobo. Una vez por partida, en lugar de eliminar a la víctima, puedes convertirla en hombre lobo.'],
     'White Werewolf': ['Lobo Blanco', 'Un lobo entre lobos', 'Cazas con la manada, pero ganas solo. Una noche sí y otra no, el anfitrión te despierta para eliminar a un hombre lobo si quieres.'],
+    'Lone Wolf': ["Lobo solitario", "Solo bajo la luna", "Despiertas con los hombres lobo, pero solo ganas si eres el último lobo en pie."],
+    'Cult Leader': ["Líder de la secta", "Únete — todos acaban haciéndolo", "Cada noche, suma a un jugador a tu secta. Ganas cuando todos los que siguen vivos pertenecen a ella."],
     'Wolf King': ['Rey lobo', 'Larga vida al rey', 'Lideras la manada. Si te eliminan, te llevas a un jugador contigo.'],
     'Nightmare Wolf': ['Lobo de pesadilla', 'Se acabaron los dulces sueños', 'Cazas con la manada. Además, cada noche puedes elegir a un jugador cuyo poder falla esta noche.'],
     'Shadow Wolf': ['Lobo sombrío', 'Invisible, desconocido', 'Cazas con la manada, pero todos los roles que investigan te ven como un simple Aldeano.'],
@@ -145,6 +147,8 @@ export default {
     sacrifice1: "CAÍSTE PROTEGIENDO",
     sacrifice2: "A OTRO",
     sacrificeL: "Te interpusiste entre los lobos y otra persona, sin retroceder.",
+    endLovers: "¡Ganan los enamorados!",
+    endCult: "¡Gana la secta!",
     endAlso: "También ganan",
     igJoin: "Únete al grupo",
     endVillage: "¡Gana la aldea!",
