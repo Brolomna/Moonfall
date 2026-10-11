@@ -1,4 +1,3 @@
-import { preloadVillage } from './Village';
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -22,12 +21,9 @@ export function PlayerApp() {
 
   // the howl / sunrise plays on every phone in the game when the host switches phase
   const lastPhase = useRef<string | null>(null);
-  const lastVillage = useRef<{ name: string; out: boolean }[]>([]);
-  // the village scene shown for a few seconds when the phase changes
-  const [scene, setScene] = useState<{ phase: string; round: number; players: { name: string; out: boolean; me?: boolean }[]; justOut: string[] } | null>(null);
   // splash art first, then the name page
   const [splash, setSplash] = useState(true);
-  useEffect(() => { preloadVillage(); const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
   const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
   const soundRef = useRef(soundOn); soundRef.current = soundOn;
   const toggleSound = () => setSoundOn(on => { try { localStorage.setItem('moonfall.playerSound', on ? 'off' : 'on'); } catch { /* private mode */ } return !on; });
@@ -35,16 +31,9 @@ export function PlayerApp() {
   useEffect(() => {
     const inGame = !!view && (view.dealt || !!view.spectator);
     const phase = inGame ? view!.phase : null;
-    const village = ((view as any)?.village || []) as { name: string; out: boolean }[];
     if (phase && lastPhase.current && phase !== lastPhase.current) {
       if (soundRef.current) { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
-      // houses whose owner went out since the last scene crumble on screen
-      const before = new Set(lastVillage.current.filter(v => v.out).map(v => v.name));
-      // only sunrise gets the village scene; nightfall just remembers who was already out
-      if (phase === 'day') setScene({ phase, round: (view as any).round || 1, players: village.map(v => ({ ...v, me: v.name === view!.name })), justOut: village.filter(v => v.out && !before.has(v.name)).map(v => v.name) });
-      lastVillage.current = village;
     }
-    if (!lastPhase.current) lastVillage.current = village;
     lastPhase.current = phase;
   }, [view]);
 
@@ -91,8 +80,6 @@ export function PlayerApp() {
             soundOn={soundOn}
             onToggleSound={toggleSound}
             spectate={view?.spectator ? view : null}
-            scene={scene}
-            onSceneDone={() => setScene(null)}
           />
         )}
       </PhoneFrame>

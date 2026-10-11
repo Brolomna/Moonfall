@@ -5,7 +5,6 @@ import './PlayerView.css';
 import { ROLE_LIBRARY } from './roleLibrary';
 import { LIB_I18N, TIPS_I18N } from './i18n';
 import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
-import { Village } from '../Village';
 import { FATE_LOOK, FateArt } from './fateCards';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
@@ -1588,11 +1587,6 @@ export class PlayerView extends React.Component<any, any> {
               </span>
             </div>
           </>
-        ) : null}
-        {(this.props.scene) ? (
-          <Village key={this.props.scene.phase + this.props.scene.round} players={this.props.scene.players} phase={this.props.scene.phase} justOut={this.props.scene.justOut}
-            label={v.fmt(this.props.scene.phase === 'day' ? v.T.specDayN : v.T.specNightN, { n: this.props.scene.round })}
-            height={this.props.frameH || 844} onDone={this.props.onSceneDone} />
         ) : null}
         {(s0 => s0.iosHelp)(this.state || {}) ? (
           <>

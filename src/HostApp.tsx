@@ -3,7 +3,6 @@ import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HostView } from './views/HostView';
 import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
-import { Village, preloadVillage } from './Village';
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
 
@@ -67,10 +66,8 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
   const [stage, setStage] = useState<{ phase?: string; screen?: string }>({});
   const phaseRef = useRef<string | undefined>(undefined);
   const statusRef = useRef<Record<string, unknown>>({});
-  const sceneOut = useRef<Set<string>>(new Set());
-  const [scene, setScene] = useState<{ phase: 'night' | 'day'; round: number; players: { name: string; out: boolean }[]; justOut: string[] } | null>(null);
 
-  useEffect(() => { installAudioUnlock(); preloadVillage(); }, []);
+  useEffect(() => { installAudioUnlock(); }, []);
   useEffect(() => {
     if (soundOn && stage.screen === 'play' && stage.phase === 'night') startAmbience(); else stopAmbience();
   }, [soundOn, stage.screen, stage.phase]);
@@ -80,18 +77,6 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
     socket.emit('host:patch', patch);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     if (patch.status) statusRef.current = patch.status as Record<string, unknown>;
-    // Day: show the village scene at sunrise (houses of everyone; the dead ones abandoned). Nightfall has no scene,
-    // but still marks who was already out, so the dawn scene only dims the houses of the night's deaths.
-    if (phase && !screen && phase !== phaseRef.current) {
-      const now = statusRef.current;
-      if (phase === 'day') setScene({
-        phase: phase as 'night' | 'day', round: (patch.round as number) || 1,
-        players: net.players.map(p => ({ name: p.name, out: !!now[p.name] })),
-        // houses whose owner went out since the last scene crumble on screen
-        justOut: net.players.filter(p => now[p.name] && !sceneOut.current.has(p.name)).map(p => p.name),
-      });
-      sceneOut.current = new Set(net.players.filter(p => now[p.name]).map(p => p.name));
-    }
     // Night / Day buttons send phase without screen; deal and end-game also send screen (no sound for those)
     if (phase && !screen && phase !== phaseRef.current && soundOn) {
       if (phase === 'night') playHowl();
@@ -124,7 +109,6 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
       setInit(shared || {}); setNet(room);
       phaseRef.current = (shared && shared.phase) || 'night';
       statusRef.current = (shared && shared.status) || {};
-      sceneOut.current = new Set(Object.keys(statusRef.current));
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
     });
     socket.on('room', setNet);
@@ -173,7 +157,6 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
             onInstall={inst.install}
             onLock={onLock}
           />
-          {scene && <Village key={scene.phase + scene.round} players={scene.players} phase={scene.phase} justOut={scene.justOut} label={(scene.phase === 'night' ? 'Night ' : 'Day ') + scene.round} height={frameH} onDone={() => setScene(null)} />}
           </>
         )}
       </PhoneFrame>
