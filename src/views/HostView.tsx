@@ -1417,7 +1417,7 @@ export class HostView extends React.Component<any, any> {
     this._record = gameOver && !forced && s.story !== undefined ? { id: String(s.story) + '|' + ((log[0] && log[0].text) || ''), players: names.slice(), winners: winnersAll, roles: Object.fromEntries(names.map(nm => [nm, roleOf(nm).name])), firstOut: firstOutEv ? firstOutEv.name : '' } : null;
     const alsoOut = also.map(x => ({ name: x.name, key: x.key }));
     this._winner = !winSide ? null : winSide === 'solo'
-      ? { side: 'solo', key: tannerWin ? 'tanner' : roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
+      ? { side: 'solo', key: tannerWin ? 'tanner' : keyOfLib(solo.lib) || roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
       : { side: winSide, also: alsoOut };
 
     const dealNow = () => {
@@ -1734,7 +1734,7 @@ export class HostView extends React.Component<any, any> {
       endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : soloWins ? endArt(solo.lib).src : '',
       endImgRatio: winSide === 'solo' ? String(tannerWin ? 941 / 1672 : endArt(solo.lib).ratio) : '746 / 1008',
       endImgTall: winSide === 'solo' && (tannerWin ? true : endArt(solo.lib).ratio < 0.7),
-      endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(solo.names[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
+      endIcon: tannerWin ? byKey.tanner.icon : soloWins ? (keyOfLib(solo.lib) && byKey[keyOfLib(solo.lib)] ? byKey[keyOfLib(solo.lib)] : roleOf(solo.names[0])).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
 
       dgOpen, dgChoices,
       dg: {

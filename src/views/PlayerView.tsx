@@ -599,7 +599,7 @@ export class PlayerView extends React.Component<any, any> {
           endTall: w.side === 'solo' && endArt(tanner ? 'Tanner' : w.lib).ratio < 0.7, // phone-shaped pictures sit narrower
           endSolo: w.side === 'solo' && !tanner && !/end\//.test(endArt(w.lib).src), // the title art needs the winner's name on it
           endSoloName: w.side === 'solo' ? (w.names || []).join(' & ') : '',
-          endCaption: w.side === 'village' ? T.endVillage : w.side === 'wolves' ? T.endWolves : w.lib === 'Lovers' ? T.endLovers : w.lib === 'Cult' ? T.endCult : fmt(T.endSolo, { role: all[w.key] ? loc(w.key).name : '' }),
+          endCaption: w.side === 'village' ? T.endVillage : w.side === 'wolves' ? T.endWolves : w.lib === 'Lovers' ? T.endLovers : w.lib === 'Cult' ? T.endCult : fmt(T.endSolo, { role: (LT && LT.roles[w.lib] && LT.roles[w.lib][0]) || w.lib || (all[w.key] ? loc(w.key).name : '') }) /* the winning role by its library name, in this phone's language */,
           endSub: T.endSub,
           endColor: tone.c, endBorder: 'rgba(' + tone.rgb + ',.55)', endGlow: 'rgba(' + tone.rgb + ',.25)',
           endBg: 'linear-gradient(170deg, ' + tone.bg + ', rgba(18,10,31,.94))',

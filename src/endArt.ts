@@ -4,10 +4,10 @@ export const END_ART: Record<string, number> = {
   'serial-killer': 941 / 1672,
   arsonist: 751 / 1016,
   vampire: 752 / 1016,
-  'white-werewolf': 750 / 503,
-  'lone-wolf': 756 / 503,
-  lovers: 750 / 504,
-  cult: 756 / 504,
+  'white-werewolf': 941 / 1672,
+  'lone-wolf': 941 / 1672,
+  lovers: 941 / 1672,
+  cult: 941 / 1672,
 };
 export const endSlug = (lib: string) => String(lib || '').toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
 /** { src, ratio } for a lone winner's end card (Tanner keeps its own file). */
