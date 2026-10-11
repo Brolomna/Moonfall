@@ -35,7 +35,7 @@ const room = {
   shared: {} as Shared, // everything the host screen owns (deck, rules, phase, marks…)
   assign: {} as Record<string, string>, // player name -> dealt role key
   dealt: false,
-  ballot: null as null | { nominees: string[]; votes: Record<string, string | null> },
+  ballot: null as null | { nominee: string; votes: Record<string, 'kill' | 'spare'> }, // one accused player at a time
 };
 
 // ---------- helpers ----------
@@ -180,7 +180,7 @@ function playerView(p: Player) {
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
     now: Date.now(),
-    ballot: room.dealt && room.ballot && !(sh.status || {})[p.name] ? { nominees: room.ballot.nominees, mine: p.name in room.ballot.votes ? room.ballot.votes[p.name] : undefined } : null,
+    ballot: room.dealt && room.ballot && !(sh.status || {})[p.name] ? { nominee: room.ballot.nominee, mine: room.ballot.votes[p.name] || null } : null,
     ivory: !!(room.dealt && sh.ivory === p.name),
     lover,
     deck,
@@ -222,8 +222,9 @@ function hostView() {
     assign: room.assign,
     dealt: room.dealt,
     ballot: room.ballot ? {
-      nominees: room.ballot.nominees,
-      counts: Object.fromEntries(room.ballot.nominees.map(n => [n, Object.values(room.ballot!.votes).filter(v => v === n).length])),
+      nominee: room.ballot.nominee,
+      kill: Object.values(room.ballot.votes).filter(v => v === 'kill').length,
+      spare: Object.values(room.ballot.votes).filter(v => v === 'spare').length,
       voted: Object.keys(room.ballot.votes).length,
       voters: room.players.filter(p => !(room.shared.status || {})[p.name]).length,
     } : null,
@@ -296,10 +297,9 @@ io.on('connection', (socket: Socket) => {
       Object.assign(room.shared, patch);
       pushAll();
     });
-    // secret phone vote: open with the nominees, close to stop it (the host only ever sees the counts)
-    socket.on('host:ballot', (nominees: string[] | null) => {
-      room.ballot = Array.isArray(nominees) && nominees.length ? { nominees: nominees.map(String), votes: room.ballot ? room.ballot.votes : {} } : null;
-      if (room.ballot) for (const k of Object.keys(room.ballot.votes)) if (room.ballot.votes[k] && !room.ballot.nominees.includes(room.ballot.votes[k] as string)) delete room.ballot.votes[k];
+    // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
+    socket.on('host:ballot', (nominee: string | null) => {
+      room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll();
     });
     socket.on('host:kick', (name: string) => {
@@ -361,11 +361,11 @@ io.on('connection', (socket: Socket) => {
   if (me) attach(me);
   else socket.emit('player:view', null);
 
-  // secret phone vote: one choice per living player (a nominee, or null to abstain); can be changed until it closes
-  socket.on('player:vote', (choice: string | null) => {
+  // secret phone vote: each living player chooses eliminate or spare for the nominee; they can change until it closes
+  socket.on('player:vote', (choice: 'kill' | 'spare') => {
     if (!me || !room.ballot || !room.players.includes(me) || (room.shared.status || {})[me.name]) return;
-    if (choice !== null && !room.ballot.nominees.includes(String(choice))) return;
-    room.ballot.votes[me.name] = choice === null ? null : String(choice);
+    if (choice !== 'kill' && choice !== 'spare') return;
+    room.ballot.votes[me.name] = choice;
     pushAll();
   });
 

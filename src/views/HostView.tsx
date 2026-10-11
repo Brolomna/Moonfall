@@ -1169,9 +1169,12 @@ export class HostView extends React.Component<any, any> {
     };
     // secret phone vote (house rule): the server keeps who voted for whom; the host sees only the counts
     const ballot = (this.props.net && this.props.net.ballot) || null;
-    const countOf = (n) => (ballot ? (ballot.counts[n.name] || 0) : n.count);
+    // a phone vote is about one nominee at a time: while it's open, that nominee's count is the live "eliminate" votes
+    const countOf = (n) => (ballot && ballot.nominee === n.name ? ballot.kill : n.count);
     let frozenNoms = null; // the phone counts, kept on the panel once the phone vote closes
-    const freeze = () => { if (ballot) { frozenNoms = vote.noms.map(x => ({ ...x, count: ballot.counts[x.name] || 0 })); this.props.onBallot && this.props.onBallot(null); } };
+    const freeze = () => { if (ballot) { frozenNoms = vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: ballot.kill } : x)); this.props.onBallot && this.props.onBallot(null); } };
+    // closing a nominee's phone vote keeps their "eliminate" count on the panel
+    const closeBallot = () => { if (!ballot) return; setVote({ noms: vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: ballot.kill } : x)) }); this.props.onBallot && this.props.onBallot(null); };
     const tallyOf = () => vote.noms.map(n => ({ ...n, count: countOf(n) })).filter(n => n.count > 0).sort((a, b) => b.count - a.count).map(n => [n.name, n.count]);
     const noOneOut = (why) => setVote({ ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: null, why, tally: tallyOf() } }, { log: log.concat([ev('vote', { tally: tallyOf(), out: null, why })]), nominating: false });
     const endVote = () => {
@@ -1183,7 +1186,7 @@ export class HostView extends React.Component<any, any> {
       if (top.length === 1) return voteOut(top[0], t);
       setVote({ ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { tie: top, tally: t } }, { nominating: false });
     };
-    const openBallot = (list) => this.props.onBallot && this.props.onBallot(list.map(n => n.name || n));
+    const openBallot = (name) => this.props.onBallot && this.props.onBallot(name);
     const reopen = () => {
       const r = vote.result || {};
       const base = r.out && status[r.out] && status[r.out].how === 'voted' ? markPatch(r.out, 'alive') : { log };
@@ -1203,15 +1206,17 @@ export class HostView extends React.Component<any, any> {
           name: n.name + (n.name === s.ivory ? ' 🏰' : ''), initial: n.name.charAt(0).toUpperCase(), count: countOf(n), lead,
           majority: countOf(n) > voters / 2,
           inc: () => set(n.count + 1), dec: () => set(n.count - 1),
-          remove: () => { const nx = vote.noms.filter(x => x.name !== n.name); setVote({ noms: nx }); if (ballot) openBallot(nx); },
-          canEdit: !vote.closed && !ballot,
+          remove: () => { setVote({ noms: vote.noms.filter(x => x.name !== n.name) }); if (ballot && ballot.nominee === n.name) this.props.onBallot && this.props.onBallot(null); },
+          canEdit: !vote.closed && !(ballot && ballot.nominee === n.name),
+          canPhone: rules.phoneVote && !vote.closed && !ballot, phone: () => openBallot(n.name),
+          onTrial: !!(ballot && ballot.nominee === n.name),
           canRemove: !vote.closed,
         };
       }),
       nominating: !vote.closed && !!s.nominating,
       toggleNominate: () => this.setState({ nominating: !s.nominating }),
       candidates: alive.filter(nm => !vote.noms.some(n => n.name === nm)).map(nm => ({
-        name: nm + (nm === s.ivory ? ' 🏰' : ''), pick: () => { const nx = vote.noms.concat([{ name: nm, count: 0 }]); setVote({ noms: nx }, { nominating: false }); if (ballot) openBallot(nx); },
+        name: nm + (nm === s.ivory ? ' 🏰' : ''), pick: () => setVote({ noms: vote.noms.concat([{ name: nm, count: 0 }]) }, { nominating: false }),
       })),
       canEnd: !vote.closed,
       endLabel: nominees.some(n => countOf(n) > 0) ? 'End vote & reveal' : 'End vote — no one is out',
@@ -1224,17 +1229,17 @@ export class HostView extends React.Component<any, any> {
       noneText: res && res.why === 'skipped' ? 'The village chose to skip the vote. No one is out today.' : res && res.why === 'no majority' ? 'No one reached a majority (' + need + ' votes needed). No one is out today.' : res && res.why === 'tie' ? 'The vote stayed tied. No one is out today.' : 'No votes were cast. No one is out today.',
       tieText: res && res.tie ? 'Tie: ' + res.tie.join(' and ') + ' — ' + res.tally[0][1] + ' votes each.' : '',
       tieHint: { revote: 'House rule: vote again between the tied players.', none: 'House rule: on a tie, no one is out.', host: 'House rule: the host decides.' }[tieRule] || '',
-      tieRevote: () => { const nx = (res.tie || []).map(nm => ({ name: nm, count: 0 })); setVote({ closed: false, result: null, noms: nx }); if (rules.phoneVote) openBallot(nx); },
+      tieRevote: () => { const nx = (res.tie || []).map(nm => ({ name: nm, count: 0 })); setVote({ closed: false, result: null, noms: nx }); },
       tieNone: () => noOneOut('tie'),
       tiePicks: (res && res.tie ? res.tie : []).map(nm => ({ name: nm, pick: () => voteOut(nm, res.tally) })),
       revoteFirst: tieRule !== 'none',
       reopen,
       // phone voting
       phoneVote: rules.phoneVote && !vote.closed, ballotOpen: !!ballot,
-      ballotText: ballot ? ballot.voted + ' of ' + ballot.voters + ' have voted on their phones' : '',
-      canOpenBallot: rules.phoneVote && !vote.closed && !ballot && nominees.length > 0,
-      openBallot: () => openBallot(nominees),
-      closeBallot: () => this.props.onBallot && this.props.onBallot(null),
+      ballotText: ballot ? ballot.nominee + ' on trial · 🔥 ' + ballot.kill + ' eliminate · 🛡 ' + ballot.spare + ' spare · ' + ballot.voted + ' of ' + ballot.voters + ' voted' : '',
+      canOpenBallot: false,
+      phoneHint: rules.phoneVote && !vote.closed && !ballot && nominees.length > 0 ? 'Tap 📱 next to a nominee to let everyone vote on them secretly.' : '',
+      closeBallot,
     };
     // ---------- discussion timer (host controls; phones show it) ----------
     const tm = s.timer || null;
@@ -2566,6 +2571,10 @@ export class HostView extends React.Component<any, any> {
                           {(n.canEdit) ? (
                             <button className="press" onClick={n.inc} aria-label={`One more vote for ${n.name}`} style={{ width: '48px', height: '40px', flex: 'none', borderRadius: '12px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '22px', fontWeight: '800' }}>+</button>
                           ) : null}
+                          {(n.canPhone) ? (
+                            <button className="press" onClick={n.phone} aria-label={`Secret phone vote on ${n.name}`} style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(199,168,255,.5)', background: 'rgba(167,127,240,.16)', fontSize: '17px' }}>📱</button>
+                          ) : null}
+                          {(n.onTrial) ? <span className="pulse" style={{ fontSize: '11px', fontWeight: '800', color: '#c7a8ff', flex: 'none' }}>VOTING</span> : null}
                           {(n.canRemove) ? (
                             <button className="press" onClick={n.remove} aria-label={`Withdraw ${n.name}'s nomination`} style={{ width: '28px', height: '40px', flex: 'none', border: 'none', background: 'none', color: '#7f7397', fontSize: '18px' }}>×</button>
                           ) : null}
@@ -2593,16 +2602,12 @@ export class HostView extends React.Component<any, any> {
                               </button>
                             ) : null}
                           </div>
-                          {(v.voteView.canOpenBallot) ? (
-                            <button className="press" onClick={v.voteView.openBallot} style={{ height: '46px', borderRadius: '14px', border: '1px solid rgba(199,168,255,.5)', background: 'rgba(167,127,240,.16)', color: '#e9dcff', fontSize: '14.5px', fontWeight: '700' }}>
-                              📱 Start the secret phone vote
-                            </button>
-                          ) : null}
+                          {(v.voteView.phoneHint) ? <span style={{ fontSize: '12.5px', color: '#c7a8ff' }}>{v.voteView.phoneHint}</span> : null}
                           {(v.voteView.ballotOpen) ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: 'rgba(167,127,240,.14)', border: '1px solid rgba(199,168,255,.35)' }}>
                               <span className="pulse" style={{ width: '8px', height: '8px', flex: 'none', borderRadius: '50%', background: '#c7a8ff' }} />
                               <span style={{ flex: '1', fontSize: '13.5px', color: '#e9dcff' }}>{v.voteView.ballotText}</span>
-                              <button className="press" onClick={v.voteView.closeBallot} style={{ height: '32px', padding: '0 10px', borderRadius: '10px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#c4b8da', fontSize: '12.5px', fontWeight: '700' }}>Stop</button>
+                              <button className="press" onClick={v.voteView.closeBallot} style={{ height: '32px', padding: '0 12px', borderRadius: '10px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '12.5px', fontWeight: '800' }}>Done</button>
                             </div>
                           ) : null}
                           <button className="press" onClick={v.voteView.endVote} style={{ height: '52px', borderRadius: '16px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '16px', fontWeight: '800' }}>
