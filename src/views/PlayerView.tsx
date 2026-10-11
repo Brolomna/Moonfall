@@ -517,7 +517,7 @@ export class PlayerView extends React.Component<any, any> {
           font: "'Manrope', " + (f ? "'" + f[1] + "', " : '') + 'sans-serif',
           border: l.code === lang ? 'rgba(233,220,255,.8)' : 'rgba(236,230,246,.1)',
           bg: l.code === lang ? 'rgba(167,127,240,.2)' : 'rgba(255,255,255,.03)',
-          pick: () => this.setState({ lang: l.code, langOpen: false })
+          pick: () => { try { localStorage.setItem('moonfall.lang', l.code); } catch { /* private mode */ } this.setState({ lang: l.code, langOpen: false }); }
         };
       }),
 

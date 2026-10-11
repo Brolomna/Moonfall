@@ -21,6 +21,12 @@ export function PlayerApp() {
   const [view, setView] = useState<View>(null);
   const [online, setOnline] = useState(true);
   const skew = useRef(0); // server clock − phone clock, for the timer
+  // the phone's language: the player's last choice, else the phone's own language when Moonfall has it, else English
+  const startLang = useMemo(() => {
+    try { const saved = localStorage.getItem('moonfall.lang'); if (saved) return saved; } catch { /* private mode */ }
+    const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return ['en', 'zh', 'ko', 'ja', 'fr', 'th', 'es'].includes(nav) ? nav : 'en';
+  }, []);
 
   // the howl / sunrise plays on every phone in the game when the host switches phase
   const lastPhase = useRef<string | null>(null);
@@ -87,7 +93,7 @@ export function PlayerApp() {
             ivory={!!view?.ivory}
             installMode={inst.mode}
             onInstall={inst.install}
-            language={view?.roomLang || 'en'}
+            language={startLang}
             roleDefs={view?.roleDefs}
             deck={view?.deck}
             showRoles={view?.showRoles}

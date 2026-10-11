@@ -14,7 +14,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'wake', 'whispers', 'timer', 'ivory'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'wake', 'whispers', 'timer', 'ivory', 'seats'];
 
   constructor(props) {
     super(props);
@@ -263,9 +263,26 @@ export class HostView extends React.Component<any, any> {
     // NET: players come from the room server
     const netPlayers = (this.props.net && this.props.net.players) || [];
     const palette = {}; netPlayers.forEach(p => { palette[p.name] = p.color; });
-    const names = netPlayers.map(p => p.name);
+    // players in their seats around the table (the host drags them into place); newcomers sit at the end
+    const seats = s.seats || [];
+    const seatOf = (nm) => { const i = seats.indexOf(nm); return i < 0 ? 1e6 : i; };
+    const seated = netPlayers.map((p, i) => ({ p, i })).sort((a, b) => (seatOf(a.p.name) - seatOf(b.p.name)) || (a.i - b.i)).map(x => x.p);
+    const names = seated.map(p => p.name);
     const n = names.length;
-    const players = netPlayers.map(p => ({ name: p.name, initial: (p.name[0] || '?').toUpperCase(), color: p.color, connected: p.connected, kick: () => this.props.onKick && this.props.onKick(p.name) }));
+    const players = seated.map((p, i) => ({ name: p.name, seat: i + 1, initial: (p.name[0] || '?').toUpperCase(), color: p.color, connected: p.connected, dragging: s.dragSeat === p.name, kick: () => this.props.onKick && this.props.onKick(p.name),
+      dragStart: (e) => { e.preventDefault(); try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* old browsers */ } this.setState({ dragSeat: p.name, seats: names.slice() }); },
+      dragMove: (e) => {
+        if (this.state.dragSeat !== p.name) return;
+        const rows = [...document.querySelectorAll('[data-seat]')];
+        let to = rows.length - 1;
+        for (let k = 0; k < rows.length; k++) { const r = rows[k].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { to = k; break; } }
+        const cur = (this.state.seats || names).slice(); const from = cur.indexOf(p.name);
+        if (from < 0 || from === to) return;
+        cur.splice(from, 1); cur.splice(to, 0, p.name);
+        this.setState({ seats: cur });
+      },
+      dragEnd: () => this.setState({ dragSeat: null }),
+    }));
 
     // ---------- deck ----------
     const custom = s.custom || [];
@@ -935,7 +952,9 @@ export class HostView extends React.Component<any, any> {
     };
     const openAct = (x) => {
       const a = actOf(x.key);
-      const seat = x.kind === 'insomniac' ? ((mech.seat || {})[x.who[0]] || []).filter(nm => !isOut(nm)) : [];
+      const around = (nm) => { const ring = names.filter(m => !isOut(m) || m === nm); const i = ring.indexOf(nm); return ring.length > 2 && i >= 0 ? [ring[(i - 1 + ring.length) % ring.length], ring[(i + 1) % ring.length]] : []; };
+      const saved = x.kind === 'insomniac' ? ((mech.seat || {})[x.who[0]] || []).filter(nm => !isOut(nm)) : [];
+      const seat = x.kind === 'insomniac' ? (saved.length === 2 ? saved : around(x.who[0])) : [];
       this.setState({ nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null });
     };
     const wakeStep = night && rules.silentWake ? defs.find(d => d.key === (s.nightAct || (s.wakeTick && s.wakeTick.key))) : null;
@@ -1489,10 +1508,6 @@ export class HostView extends React.Component<any, any> {
       starOpacity: inPlayDay ? 0 : 1,
 
       qrSrc: (this.props.info && this.props.info.qr) || '', joinHost: (this.props.info && this.props.info.host) || '…', // NET
-      roomLangs: [['en', 'English'], ['zh', '中文'], ['ko', '한국어'], ['ja', '日本語'], ['fr', 'Français'], ['th', 'ไทย'], ['es', 'Español']].map(([code, native]) => {
-        const on = (s.roomLang || 'en') === code;
-        return { code, native, on, border: on ? 'rgba(233,220,255,.85)' : 'rgba(236,230,246,.14)', bg: on ? '#e9dcff' : 'rgba(255,255,255,.04)', fg: on ? '#160b28' : '#d8cfe8', pick: () => this.setState({ roomLang: code }) };
-      }),
       players, playerCount: n, tooFew: n < 5,
       // Test players (added by the server, no phone) — handy for trying the game alone
       fakeInput: this.state.fakeN || '', fakeValid: +this.state.fakeN >= 1 && +this.state.fakeN <= 20,
@@ -1811,30 +1826,6 @@ export class HostView extends React.Component<any, any> {
                     </span>
                   </div>
                 </div>
-                <section aria-label="Players' language" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px 16px', borderRadius: '20px', background: 'rgba(22,13,38,.72)', border: '1px solid rgba(190,165,235,.16)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c7a8ff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
-                      <path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" />
-                    </svg>
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: '700' }}>
-                        Language on players’ phones
-                      </span>
-                      <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>
-                        Everyone starts in this language. Each player can still switch on their own phone.
-                      </span>
-                    </span>
-                  </span>
-                  <div role="radiogroup" aria-label="Players' language" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {((v.roomLangs) || []).map((l: any, $index: number) => (
-                      <React.Fragment key={$index}>
-                        <button className="press" role="radio" aria-checked={l.on} onClick={l.pick} lang={l.code} style={{ height: '38px', padding: '0 12px', borderRadius: '999px', border: `1px solid ${l.border}`, background: l.bg, color: l.fg, fontSize: '13.5px', fontWeight: '700' }}>
-                          {l.native}
-                        </button>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </section>
                 <section aria-label="Test players" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px 16px', borderRadius: '20px', background: 'rgba(22,13,38,.72)', border: '1px solid rgba(190,165,235,.16)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c7a8ff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}>
@@ -1892,10 +1883,17 @@ export class HostView extends React.Component<any, any> {
                       Waiting for more
                     </span>
                   </div>
+                  {(v.playerCount > 1) ? (
+                    <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>Drag ☰ to put everyone in the order they sit around the table, going clockwise. The whole game uses this order.</span>
+                  ) : null}
                   <ul style={{ listStyle: 'none', margin: '0', padding: '0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {((v.players) || []).map((p: any, $index: number) => (
-                      <React.Fragment key={$index}>
-                        <li style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '52px', padding: '0 6px 0 10px', borderRadius: '14px', background: 'rgba(20,12,34,.66)', border: '1px solid rgba(236,230,246,.07)' }}>
+                      <React.Fragment key={p.name}>
+                        <li data-seat={p.name} style={{ userSelect: 'none', WebkitUserSelect: 'none', display: 'flex', alignItems: 'center', gap: '12px', height: '52px', padding: '0 6px 0 4px', borderRadius: '14px', transform: p.dragging ? 'scale(1.02)' : 'none', boxShadow: p.dragging ? '0 8px 24px rgba(0,0,0,.45)' : 'none', outline: p.dragging ? '1.5px solid #c7a8ff' : 'none', background: 'rgba(20,12,34,.66)', border: '1px solid rgba(236,230,246,.07)' }}>
+                          <span onPointerDown={p.dragStart} onPointerMove={p.dragMove} onPointerUp={p.dragEnd} onPointerCancel={p.dragEnd} aria-label={`Drag ${p.name} to their seat`} role="button" style={{ width: '34px', height: '44px', flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px', cursor: 'grab', touchAction: 'none', color: '#8f84a8' }}>
+                            <span style={{ fontSize: '10px', fontWeight: '800', color: '#a99bc2' }}>{p.seat}</span>
+                            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 2h12 M2 6h12 M2 10h12" /></svg>
+                          </span>
                           <span style={{ width: '34px', height: '34px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '14px', color: '#12091c', background: p.color }}>
                             {p.initial}
                           </span>
