@@ -4,6 +4,7 @@ import React from 'react';
 import './HostView.css';
 import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 import { MECH, DAY_REMINDERS } from './roleMechanics';
+import { ROLE_PAIRS } from './rolePairs';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
@@ -384,6 +385,28 @@ export class HostView extends React.Component<any, any> {
     const libCustom = (e) => custom.find(c => c.lib === e.name) || custom.find(c => c.name.toLowerCase() === e.name.toLowerCase());
     const libCat = s.libCat || 'Village';
     const libQ = (s.libQ || '').trim().toLowerCase();
+    // ---------- what's in the deck (names at the top of the roles screen) and rival-role tips ----------
+    const libNameOfKey = (k) => { const r = byKey[k]; if (!r) return null; if (r.lib) return r.lib; const e = ROLE_LIBRARY.find(x => x.builtin === k); return e ? e.name : r.name; };
+    const inDeckNames = [];
+    visible.filter(r => r.kind !== 'unique' && (counts[r.key] || 0) > 0).forEach(r => inDeckNames.push({ name: (counts[r.key] > 1 ? counts[r.key] + '× ' : '') + (counts[r.key] > 1 && r.plural ? r.plural : r.name), color: r.color }));
+    visible.filter(r => r.kind === 'unique' && picked.indexOf(r.key) >= 0).forEach(r => inDeckNames.push({ name: r.name, color: r.color }));
+    const pickedLib = picked.filter(k => hidden.indexOf(k) < 0).map(libNameOfKey);
+    const addLib = (nm) => {
+      const e = ROLE_LIBRARY.find(x => x.name === nm); if (!e) return;
+      if (e.builtin && byKey[e.builtin]) { this.setState({ hidden: hidden.filter(k => k !== e.builtin), picked: picked.concat([e.builtin]) }); return; }
+      const had = custom.find(c => c.lib === e.name);
+      if (had) { this.setState({ picked: picked.concat([had.key]) }); return; }
+      const nr = libRole(e); this.setState({ custom: custom.concat([nr]), picked: picked.concat([nr.key]) });
+    };
+    const pairTips = [];
+    ROLE_PAIRS.forEach(pr => {
+      const hasA = pickedLib.indexOf(pr.a) >= 0, hasB = pickedLib.indexOf(pr.b) >= 0;
+      if (hasA === hasB) return; // neither or both are in already
+      const have = hasA ? pr.a : pr.b, want = hasA ? pr.b : pr.a;
+      if (!ROLE_LIBRARY.find(x => x.name === want) || pairTips.find(t => t.want === want)) return;
+      const e = ROLE_LIBRARY.find(x => x.name === want);
+      pairTips.push({ have, want, why: pr.why, color: e.color, add: () => addLib(want) });
+    });
     const libRows = ROLE_LIBRARY.filter(e => (libQ ? (e.name + ' ' + e.desc).toLowerCase().indexOf(libQ) >= 0 : e.cat === libCat)).map(e => {
       const b = e.builtin && byKey[e.builtin];
       const mine = !e.builtin && libCustom(e);
@@ -1271,6 +1294,9 @@ export class HostView extends React.Component<any, any> {
       playersHint: n < 5 ? 'You need at least 5 players to start' : n + ' players are in. Late arrivals can still join.',
 
       counted, groups, totalCards: total, scoreText: this.str(score),
+      inDeckNames, hasDeckNames: inDeckNames.length > 0,
+      pairTips: s.pairsAll ? pairTips : pairTips.slice(0, 3), hasPairTips: pairTips.length > 0,
+      pairsMore: pairTips.length > 3 ? (s.pairsAll ? 'Show fewer' : 'Show all ' + pairTips.length + ' tips') : '', togglePairs: () => this.setState({ pairsAll: !s.pairsAll }),
       balLabel, balColor, balPos: Math.round((clamp + 15) / 30 * 100) + '%',
       deckHint, deckColor, cantDeal: !ready, dealOpacity: ready ? 1 : 0.45,
       presets, presetPlayers: Math.max(5, n),
@@ -1692,6 +1718,16 @@ export class HostView extends React.Component<any, any> {
                     One card per player. Cards are shuffled and dealt at random.
                   </p>
                 </div>
+                {(v.hasDeckNames) ? (
+                  <section aria-label="Roles in the deck" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 14px', borderRadius: '16px', background: 'rgba(22,13,38,.8)', border: '1px solid rgba(199,168,255,.2)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', letterSpacing: '.14em', textTransform: 'uppercase', color: '#a99bc2' }}>In this game</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {((v.inDeckNames) || []).map((r: any, i: number) => (
+                        <span key={i} style={{ height: '26px', padding: '0 10px', borderRadius: '999px', display: 'flex', alignItems: 'center', fontSize: '12.5px', fontWeight: '700', color: r.color, background: 'rgba(255,255,255,.06)', border: `1px solid ${r.color}55` }}>{r.name}</span>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
                 <section aria-label="Presets" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', borderRadius: '18px', background: 'rgba(232,211,160,.08)', border: '1px solid rgba(232,211,160,.25)' }}>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span style={{ fontSize: '14px', fontWeight: '700', color: '#f6e7c1' }}>
@@ -1757,6 +1793,28 @@ export class HostView extends React.Component<any, any> {
                     {' '}helps the wolves. Aim for the middle.
                   </p>
                 </section>
+                {(v.hasPairTips) ? (
+                  <section aria-label="Role pairings" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px', borderRadius: '18px', background: 'rgba(167,127,240,.08)', border: '1px solid rgba(199,168,255,.25)' }}>
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: '#e9dcff' }}>Rival roles — tips</span>
+                      <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#b3a6c9' }}>Roles that counter the ones you picked and make the game more interesting. Add them only if the balance still works.</span>
+                    </span>
+                    {((v.pairTips) || []).map((t: any) => (
+                      <div key={t.want} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: 'rgba(20,12,34,.7)' }}>
+                        <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '700' }}>
+                            <span style={{ color: '#c4b8da' }}>{t.have}</span>{' ⚔ '}<span style={{ color: t.color }}>{t.want}</span>
+                          </span>
+                          <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#b3a6c9' }}>{t.why}</span>
+                        </span>
+                        <button className="press" onClick={t.add} aria-label={`Add ${t.want}`} style={{ flex: 'none', height: '34px', padding: '0 12px', borderRadius: '10px', border: '1px solid rgba(199,168,255,.4)', background: 'rgba(199,168,255,.14)', color: '#e9dcff', fontSize: '13px', fontWeight: '700' }}>+ Add</button>
+                      </div>
+                    ))}
+                    {(v.pairsMore) ? (
+                      <button className="press" onClick={v.togglePairs} style={{ alignSelf: 'center', height: '30px', border: 'none', background: 'none', color: '#c7a8ff', fontSize: '13px', fontWeight: '700' }}>{v.pairsMore}</button>
+                    ) : null}
+                  </section>
+                ) : null}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                     <h2 style={{ margin: '0', fontSize: '16px', fontWeight: '700' }}>

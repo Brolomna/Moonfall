@@ -1288,8 +1288,8 @@ export class PlayerView extends React.Component<any, any> {
             </svg>
           </button>
         ) : null}
-        {(v.isWaiting) ? (
-          // the players' Instagram group chat (invite link)
+        {(true) ? (
+          // the players' Instagram group chat (invite link) — on every player screen
           <a className="press" href={IG_INVITE} target="_blank" rel="noopener noreferrer" aria-label={v.T.igJoin + ' (Instagram)'} style={{ height: '36px', padding: '0 13px 0 4px', borderRadius: '999px', background: 'linear-gradient(45deg, #f9ce34, #ee2a7b 45%, #6228d7)', color: '#fff', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '7px', textDecoration: 'none', boxShadow: '0 4px 18px rgba(238,42,123,.35)', whiteSpace: 'nowrap' }}>
             <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
