@@ -6,6 +6,7 @@ import { ROLE_LIBRARY } from './roleLibrary';
 import { LIB_I18N, TIPS_I18N } from './i18n';
 import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 import { Village } from '../Village';
+import { FATE_LOOK, FateArt } from './fateCards';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
 const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
@@ -84,7 +85,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", igJoin: "Join our group", installApp: "Install the app", iosTitle: "Add Moonfall to your Home Screen", iosStep1: "In Safari, tap the Share button (the square with an arrow).", iosStep2: "Scroll down and tap “Add to Home Screen”.", iosDone: "Got it", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", knifeW: "Night · a blade in the dark", knife1: "STABBED BY", knife2: "THE SERIAL KILLER", knifeL: "No howl, no warning — just a quiet step behind you.", burnedW: "Night · fire", burned1: "BURNED BY", burned2: "THE ARSONIST", burnedL: "The oil was poured nights ago. Tonight, the match was struck.", betrayedW: "Night · betrayed", betrayed1: "TORN APART BY", betrayed2: "THE WHITE WEREWOLF", betrayedL: "Your own pack hid a traitor — and it chose you.", stakedW: "Night · the hunt", staked1: "STAKED BY", staked2: "THE VAMPIRE HUNTER", stakedL: "The hunter found the bite marks, and ended the curse.", revealedW: "Night · revealed", revealed1: "EXPOSED BY", revealed2: "THE REVEALER", revealedL: "A finger pointed in the dark — and it was right.", misfireW: "Night · a wrong guess", misfire1: "BETRAYED BY", misfire2: "YOUR OWN GUESS", misfireL: "You pointed at an innocent, and paid the price.", vengeanceW: "Night · a restless spirit", vengeance1: "TAKEN BY", vengeance2: "THE VENGEFUL SPIRIT", vengeanceL: "The dead never forget who wronged them.", deathcurseW: "Death’s mark", deathcurse1: "CLAIMED BY", deathcurse2: "DEATH", deathcurseL: "Your name was marked long ago. Today, the debt came due.", kingshotW: "The king’s last command", kingshot1: "FELLED BY", kingshot2: "THE WOLF KING", kingshotL: "As the king fell, he took you with him.", starvedW: "A hungry village", starved1: "STARVED", starved2: "WITHOUT BREAD", starvedL: "With the Baker gone, the ovens went cold.", ghostW: "Night one · fated", ghost1: "YOUR FATE WAS", ghost2: "SEALED", ghostL: "You were always meant to haunt this village. Now, whisper your clues.", sacrificeW: "Night · a sacrifice", sacrifice1: "FELL PROTECTING", sacrifice2: "ANOTHER", sacrificeL: "You stood between the wolves and someone else — and did not move.", endAlso: "Also winning", igJoin: "Join our group", installApp: "Install the app", iosTitle: "Add Moonfall to your Home Screen", iosStep1: "In Safari, tap the Share button (the square with an arrow).", iosStep2: "Scroll down and tap “Add to Home Screen”.", iosDone: "Got it", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -465,7 +466,7 @@ export class PlayerView extends React.Component<any, any> {
             ? actRole(e.key) + ' → ' + ([e.save ? '💧 ' + e.save : '', e.poison ? '☠ ' + e.poison : ''].filter(Boolean).join(' · ') || '—')
             : actRole(e.key) + ' → ' + ((e.targets || []).join(' & ') || '—'))
           : e.t === 'saved' ? fmt(T.evSaved, { name: e.name })
-          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) }) + ({ poison: ' ☠', hunter: ' 🏹', heartbreak: ' 💔', slain: ' 🗡' }[e.cause] || '')
+          : e.t === 'note' ? e.text : e.t === 'out' ? fmt({ night: T.evKilled, voted: T.evVoted, removed: T.evLeft }[e.how] || T.evKilled, { name: e.how === 'removed' ? e.name : who(e.name) }) + ({ poison: ' ☠', hunter: ' 🏹', heartbreak: ' 💔', slain: ' 🗡', knife: ' 🗡', burned: ' 🔥', betrayed: ' 🐺', staked: ' ✝', revealed: ' 👁', misfire: ' 👁', vengeance: ' 👻', deathcurse: ' ⌛', kingshot: ' 👑', starved: ' 🍞', ghost: ' 👻', sacrifice: ' 🛡' }[e.cause] || '')
           : fmt({ back: T.evBack, tough: T.evTough, cursed: T.evCursed, prince: T.evPrince, dg: T.evDg }[e.t] || '{name}', { name: e.name, role: roleNameOf(e.name) });
         const color = e.t === 'out' ? (LOOK[e.how] || LOOK.night)[0] : ({ act: '#a6c8ff', saved: '#62d4a6', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t] || '#c7a8ff');
         chapters[chapters.length - 1].items.push({ text, color, note: e.t === 'note' });
@@ -529,7 +530,7 @@ export class PlayerView extends React.Component<any, any> {
       pillBorder: night ? 'rgba(199,168,255,.35)' : 'rgba(255,211,168,.45)',
       togglePhase: () => this.setState({ phase: night ? 'day' : 'night' }),
       phaseDemoLabel: night ? T.toDay : T.toNight,
-      isAlive: fate === 'none', isKilled: fate === 'killed' || fate === 'slain', isVoted: fate === 'voted', isPoisoned: fate === 'poisoned', isShot: fate === 'shot', isHeartbreak: fate === 'heartbreak',
+      isAlive: fate === 'none', isKilled: fate === 'killed' || fate === 'slain', fateLook: FATE_LOOK[fate] || null, fateKey: fate, fateW: T[fate + 'W'], fate1: T[fate + '1'], fate2: T[fate + '2'], fateL: T[fate + 'L'], isVoted: fate === 'voted', isPoisoned: fate === 'poisoned', isShot: fate === 'shot', isHeartbreak: fate === 'heartbreak',
       tip: fate === 'none' ? tip : '',
       loverText: this.props.lover ? fmt(T.loverWith, { name: this.props.lover }) : '', // NET: Cupid's partner
       killLabel: fate === 'killed' ? T.revive : T.killed,
@@ -553,7 +554,9 @@ export class PlayerView extends React.Component<any, any> {
         const tone = w.side === 'village' ? { c: '#8fe0b8', rgb: '98,212,166', bg: 'rgba(20,80,60,.6)' } : w.side === 'wolves' ? { c: '#ff8a9b', rgb: '224,71,95', bg: 'rgba(110,20,38,.65)' } : { c: '#f2a65a', rgb: '242,166,90', bg: 'rgba(110,60,20,.65)' };
         return {
           endShow: true,
-          endImg: w.side === 'village' ? '/end-village.webp' : w.side === 'wolves' ? '/end-wolves.webp' : tanner ? '/end-tanner.webp' : '/splash.webp',
+          // every lone winner has its own picture (public/end/<role>.webp); the title art stands in until it's there
+          endImg: w.side === 'village' ? '/end-village.webp' : w.side === 'wolves' ? '/end-wolves.webp' : tanner ? '/end-tanner.webp' : '/end/' + String(w.lib || '').toLowerCase().replace(/[^a-z]+/g, '-') + '.webp',
+          endAlso: (w.also || []).map(x => x.name + ' (' + (all[x.key] ? loc(x.key).name : '') + ')').join(', '),
           endTall: tanner || w.side === 'solo', // the solo pictures are phone-shaped
           endSolo: w.side === 'solo' && !tanner, endSoloName: w.side === 'solo' ? (w.names || []).join(' & ') : '',
           endCaption: w.side === 'village' ? T.endVillage : w.side === 'wolves' ? T.endWolves : fmt(T.endSolo, { role: all[w.key] ? loc(w.key).name : '' }),
@@ -878,17 +881,27 @@ export class PlayerView extends React.Component<any, any> {
                           <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
                             <circle cx="163" cy="128" r="118" fill="rgba(217,163,95,.05)" />
                             <circle cx="163" cy="128" r="88" fill="rgba(217,163,95,.09)" />
-                            <g className="shotmoon">
-                              <circle cx="163" cy="128" r="62" fill="#c9a06a" />
-                              <circle cx="146" cy="110" r="10" fill="rgba(70,40,10,.25)" />
-                              <circle cx="182" cy="150" r="7" fill="rgba(70,40,10,.22)" />
-                              <circle cx="163" cy="128" r="62" fill="none" stroke="rgba(255,225,180,.45)" strokeWidth="1.2" />
-                              <path d="M170 120l14-12 M170 120l20 4 M170 120l6 18 M170 120l-8-16" stroke="rgba(60,30,8,.75)" strokeWidth="1.6" strokeLinecap="round" />
-                            </g>
                             <g className="arrow">
-                              <path d="M60 230L170 120" stroke="#e8d3a0" strokeWidth="3" strokeLinecap="round" />
-                              <path d="M170 120l-15 3 6 6z" fill="#f2e2bd" />
+                              <path d="M60 230L196 94" stroke="#e8d3a0" strokeWidth="3" strokeLinecap="round" />
                               <path d="M66 224l-16-4 6 10z M74 216l-16-4 6 10z M60 230l-4-16 10 6z M68 222l-4-16 10 6z" fill="#b5523a" />
+                            </g>
+                            {/* the victim: head and shoulders, the arrow through the head */}
+                            <g className="shotmoon">
+                              <path d="M86 262c6-44 38-66 77-66s71 22 77 66z" fill="#2c1a0b" />
+                              <path d="M86 262c6-44 38-66 77-66s71 22 77 66" fill="none" stroke="rgba(255,215,160,.35)" strokeWidth="1.5" />
+                              <rect x="148" y="166" width="30" height="36" rx="10" fill="#2c1a0b" />
+                              <ellipse cx="163" cy="124" rx="46" ry="54" fill="#3a2410" />
+                              <path d="M118 112c4-34 22-52 45-52s41 18 45 52c-10-14-26-22-45-22s-35 8-45 22z" fill="#1c1006" />
+                              <ellipse cx="163" cy="124" rx="46" ry="54" fill="none" stroke="rgba(255,215,160,.45)" strokeWidth="1.5" />
+                              <circle cx="141" cy="149" r="5" fill="#5a0d12" />
+                              <ellipse className="drip" cx="141" cy="160" rx="3" ry="5" fill="#a3172c" />
+                              <ellipse className="drip" cx="140" cy="160" rx="2.5" ry="4" fill="#a3172c" style={{ animationDelay: '1.5s' }} />
+                            </g>
+                            {/* the arrowhead comes out the other side */}
+                            <g className="arrow">
+                              <path d="M185 105l11-11" stroke="#e8d3a0" strokeWidth="3" strokeLinecap="round" />
+                              <path d="M198 92l-16 2 9 9z" fill="#f2e2bd" />
+                              <circle cx="186" cy="104" r="3" fill="#5a0d12" />
                             </g>
                           </svg>
                           <span className="leaf" style={{ position: 'absolute', left: '70px', top: '40px', width: '9px', height: '5px', borderRadius: '50%', background: '#b5763a' }} />
@@ -1008,6 +1021,32 @@ export class PlayerView extends React.Component<any, any> {
                               {v.T.poisonLine}
                             </span>
                             <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: '#bcd4a8' }}>
+                              {v.T.killedRule}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+                    {(v.fateLook) ? (
+                      <>
+                        <div className="face fateIn" style={{ position: 'absolute', inset: '0', borderRadius: '26px', overflow: 'hidden', background: v.fateLook.bg, border: `1px solid ${v.fateLook.frame}`, boxShadow: v.fateLook.glow }}>
+                          <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: `1px solid ${v.fateLook.frame}`, opacity: 0.6 }} />
+                          <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
+                            <FateArt fate={v.fateKey} />
+                          </svg>
+                          <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '0 28px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: v.fateLook.kicker }}>
+                              {v.fateW}
+                            </span>
+                            <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '30px', lineHeight: '1.12', letterSpacing: '.04em', color: v.fateLook.title, textShadow: `0 0 24px ${v.fateLook.frame}` }}>
+                              {v.fate1}
+                              <br />
+                              {v.fate2}
+                            </span>
+                            <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '18px', lineHeight: '1.3', color: v.fateLook.line }}>
+                              {v.fateL}
+                            </span>
+                            <span style={{ marginTop: '4px', fontSize: '12.5px', lineHeight: '1.5', color: v.fateLook.rule }}>
                               {v.T.killedRule}
                             </span>
                           </div>
@@ -1576,7 +1615,7 @@ export class PlayerView extends React.Component<any, any> {
           <div role="dialog" aria-label={v.endCaption} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.86)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', fontFamily: v.fB }}>
             <section className="rise" style={{ width: '100%', maxHeight: '100%', boxSizing: 'border-box', padding: '18px 18px 20px', borderRadius: '26px', background: v.endBg, border: `1px solid ${v.endBorder}`, boxShadow: `0 0 70px ${v.endGlow}, 0 30px 80px rgba(0,0,0,.6)`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', textAlign: 'center' }}>
               <div style={{ position: 'relative', width: v.endTall ? '72%' : '100%', aspectRatio: v.endTall ? '941 / 1672' : '746 / 1008', borderRadius: '18px', overflow: 'hidden', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)', flex: 'none' }}>
-                <img src={v.endImg} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <img src={v.endImg} alt="" draggable={false} onError={(e: any) => { if (!/splash/.test(e.currentTarget.src)) e.currentTarget.src = '/splash.webp'; }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 {(v.endSolo) ? (
                   <div style={{ position: 'absolute', left: '0', right: '0', bottom: '0', padding: '50px 14px 18px', background: 'linear-gradient(180deg, rgba(10,6,18,0), rgba(10,6,18,.92))' }}>
                     <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#f6e7c1', textShadow: `0 0 20px ${v.endGlow}` }}>{v.endSoloName}</span>
@@ -1585,6 +1624,7 @@ export class PlayerView extends React.Component<any, any> {
               </div>
               <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: v.endColor }}>{v.endSoloName && !v.endSolo ? v.endSoloName : '✦'}</span>
               <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.2', color: '#f6f1ff' }}>{v.endCaption}</span>
+              {(v.endAlso) ? <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: v.endColor, maxWidth: '300px' }}>{v.T.endAlso}: {v.endAlso}</span> : null}
               <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
             </section>
           </div>

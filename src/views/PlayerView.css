@@ -77,3 +77,6 @@ input::placeholder{color:#7f7397}
 .petal{animation:petal 7s ease-in infinite}
 @keyframes heartbeat{0%,100%{transform:scale(1)}12%{transform:scale(1.06)}24%{transform:scale(1)}36%{transform:scale(1.04)}}
 .heartbeat{animation:heartbeat 1.8s ease-in-out infinite}
+/* claw / slash strokes on the newer death cards (fateCards.tsx) */
+@keyframes slash2{from{stroke-dashoffset:260}to{stroke-dashoffset:0}}
+.slashline{stroke-dasharray:260;stroke-dashoffset:260;animation:slash2 .45s cubic-bezier(.6,0,.3,1) .3s forwards}

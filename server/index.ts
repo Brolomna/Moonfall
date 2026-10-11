@@ -142,13 +142,16 @@ function isDrunk(k: string) {
   return !!(c && c.lib === 'Drunk');
 }
 
+// night deaths with their own death card on the phone (see src/deathCauses.ts)
+const FATES = ['slain', 'knife', 'burned', 'betrayed', 'staked', 'revealed', 'misfire', 'vengeance', 'deathcurse', 'kingshot', 'starved', 'ghost', 'sacrifice'];
+
 /** What one phone is allowed to know. */
 function playerView(p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
   // which death card the phone shows
   const fate = !mark ? 'none' : mark.how === 'voted' ? 'voted' : mark.how !== 'night' ? 'none'
-    : ({ poison: 'poisoned', hunter: 'shot', heartbreak: 'heartbreak', slain: 'slain' } as Record<string, string>)[mark.cause] || 'killed';
+    : (({ poison: 'poisoned', hunter: 'shot', heartbreak: 'heartbreak' } as Record<string, string>)[mark.cause] || (FATES.includes(mark.cause) ? mark.cause : 'killed'));
   // Cupid's lovers know each other: their card shows a heart and the partner's name
   const lovers: string[] | null = sh.lovers || null;
   const lover = lovers && lovers.includes(p.name) && room.dealt ? lovers.find(n => n !== p.name) || null : null;

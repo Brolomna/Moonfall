@@ -5,6 +5,7 @@ import './HostView.css';
 import { ROLE_LIBRARY, LIB_CATS, rgbOf, findLib } from './roleLibrary';
 import { MECH, DAY_REMINDERS } from './roleMechanics';
 import { ROLE_PAIRS } from './rolePairs';
+import { CAUSES } from '../deathCauses';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
@@ -602,6 +603,7 @@ export class HostView extends React.Component<any, any> {
     const MARKS = {
       wolves: { how: 'night' }, night: { how: 'night' }, voted: { how: 'voted' }, removed: { how: 'removed' }, left: { how: 'removed' },
       hunter: { how: 'night', cause: 'hunter' }, poison: { how: 'night', cause: 'poison' }, heartbreak: { how: 'night', cause: 'heartbreak' },
+      kingshot: { how: 'night', cause: 'kingshot' }, starved: { how: 'night', cause: 'starved' },
     };
     const markOf = (m) => (!m ? 'alive' : m.how === 'voted' ? 'voted' : m.how === 'removed' ? 'left' : m.cause || 'wolves');
     const loversNow = st('lovers', null);
@@ -654,8 +656,11 @@ export class HostView extends React.Component<any, any> {
       if (hit) { patch.dg = { dead: hit, choice: roleOf(hit).key }; patch.markOpen = false; }
     };
     const mark = (nm, how) => this.setState(markPatch(nm, how));
+    const libOfA0 = (key) => { const r = byKey[key]; if (!r) return null; if (r.lib) return r.lib; const e = ROLE_LIBRARY.find(x => x.builtin === key); return e ? e.name : null; };
     const statusOpts = [['alive', 'Alive', '#62d4a6', '#0d2a20'], ['wolves', 'Wolves', '#ff8a9b', '#2b0b14'], ['voted', 'Voted', '#f2a65a', '#2a1606'], ['left', 'Left', '#b9acd2', '#1a1424'],
-      ['hunter', 'Hunter', '#d9a35f', '#2a1906'], ['poison', 'Poison', '#9be15a', '#132a06'], ['heartbreak', 'Heartbreak', '#f08fb8', '#2e0b1c']];
+      ['hunter', 'Hunter', '#d9a35f', '#2a1906'], ['poison', 'Poison', '#9be15a', '#132a06'], ['heartbreak', 'Heartbreak', '#f08fb8', '#2e0b1c'],
+      ...(names.some(nm => libOfA0(roleOf(nm).key) === 'Wolf King') ? [['kingshot', 'Wolf King', '#e0475f', '#2b0b14']] : []),
+      ...(names.some(nm => libOfA0(roleOf(nm).key) === 'Baker') ? [['starved', 'Starved', '#e8d3a0', '#2a2410']] : [])];
     // How each way out looks in the Mark players sheet: tinted card + badge, so out players stand apart
     const OUT_LOOK = {
       wolves: { label: 'Killed by wolves', bg: 'rgba(224,71,95,.13)', border: 'rgba(255,138,155,.38)', badgeBg: '#ff8a9b', badgeFg: '#2b0b14' },
@@ -665,6 +670,7 @@ export class HostView extends React.Component<any, any> {
       poison: { label: 'Poisoned', bg: 'rgba(127,210,58,.1)', border: 'rgba(155,225,90,.38)', badgeBg: '#9be15a', badgeFg: '#132a06' },
       heartbreak: { label: 'Broken heart', bg: 'rgba(240,143,184,.12)', border: 'rgba(240,143,184,.4)', badgeBg: '#f08fb8', badgeFg: '#2e0b1c' },
     };
+    Object.keys(CAUSES).forEach(k => { const c = CAUSES[k]; OUT_LOOK[k] = { label: c.label, bg: 'rgba(' + c.rgb + ',.11)', border: 'rgba(' + c.rgb + ',.38)', badgeBg: c.color, badgeFg: c.ink }; });
     const dealt = names.map((nm, i) => {
       const r = roleOf(nm);
       const st0 = status[nm];
@@ -723,11 +729,11 @@ export class HostView extends React.Component<any, any> {
         const marked = st('acts', []).filter(a => a.kind === 'mark').reduce((s0, a) => s0.concat(a.targets || []), []).filter((x, i, arr) => arr.indexOf(x) === i && !isOut(x));
         if (marked.length) push('death-' + nm, 'Death · ' + nm, 'Death takes the marked with them', 'Death was voted out. Everyone Death marked dies now: ' + marked.join(', ') + '.', '154,146,171', '#c6c0d4', r.icon, { label: 'Mark them out', fn: () => {
           const next = { ...status }; const lg = log.slice();
-          marked.forEach(m => { next[m] = { how: 'night', cause: 'slain', round, phase }; lg.push(ev('out', { how: 'night', cause: 'slain', name: m, role: roleOf(m).name })); });
+          marked.forEach(m => { next[m] = { how: 'night', cause: 'deathcurse', round, phase }; lg.push(ev('out', { how: 'night', cause: 'deathcurse', name: m, role: roleOf(m).name })); });
           this.setState({ status: next, log: lg });
         } });
       }
-      if (lb === 'Wolf King' && fresh) push('wolfking-' + nm, 'Wolf King · ' + nm, 'The Wolf King takes one player down — now', 'Ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter” (shot) or “Wolves”.', '224,71,95', '#ff8a9b', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
+      if (lb === 'Wolf King' && fresh) push('wolfking-' + nm, 'Wolf King · ' + nm, 'The Wolf King takes one player down — now', 'Ask ' + nm + ' to point at one player. In Mark players, set that player to “Wolf King”.', '224,71,95', '#ff8a9b', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
       if (lb === 'Baker' && fresh) push('baker-' + nm, 'Baker · ' + nm, 'The village starts starving', 'With the Baker gone, every third day from now the host eliminates one more player (of your choice, or at random).', '232,211,160', '#e8d3a0', r.icon);
       if (lb === 'Angel' && status[nm].round === 1) push('angel-' + nm, 'Angel · ' + nm, 'The Angel wins!', nm + ' was eliminated in the first round and wins alone. Keep playing for everyone else.', '242,208,107', '#f2d06b', r.icon);
       if (how === 'voted' && mechA.target === nm) { const ex = names.find(p => isLibA(p, 'Executioner')); if (ex) push('exe-' + nm, 'Executioner · ' + ex, 'The Executioner wins!', nm + ' was the Executioner’s target and got voted out — ' + ex + ' wins alone.', '201,162,122', '#d9b48a', roleOf(ex).icon); }
@@ -1147,7 +1153,7 @@ export class HostView extends React.Component<any, any> {
     if (bakerGone) {
       const since = round - status[bakerGone].round, r = roleOf(bakerGone);
       lasting.push(since > 0 && since % 3 === 0
-        ? { name: 'Starvation', text: 'the Baker is gone and today the village starves — eliminate one more player (your choice or at random).', color: r.color, icon: r.icon }
+        ? { name: 'Starvation', text: 'the Baker is gone and today the village starves — choose one more player (or at random) and mark them “Starved”.', color: r.color, icon: r.icon }
         : { name: 'Starvation', text: 'the next hungry day is day ' + (status[bakerGone].round + 3 * (Math.floor(Math.max(0, since) / 3) + 1)) + '.', color: r.color, icon: r.icon });
     }
     const libDay = alive.map(nm => ({ nm, lib: libOfA(roleOf(nm).key) })).filter(x => DAY_REMINDERS[x.lib])
@@ -1173,17 +1179,46 @@ export class HostView extends React.Component<any, any> {
 
     // ---------- game end ----------
     const anyOut = names.some(isOut);
-    // lone killers (Serial Killer, Arsonist, vampires) play against everyone: the village only wins once they're gone too
-    const killers = alive.filter(nm => ['Serial Killer', 'Arsonist', 'Vampire'].indexOf(libOfA(roleOf(nm).key)) >= 0);
-    const killerLib = killers.length ? libOfA(roleOf(killers[0]).key) : null;
-    const soloWins = anyOut && wolvesAlive === 0 && killers.length > 0 && killers.every(nm => libOfA(roleOf(nm).key) === killerLib) && alive.length - killers.length <= 1;
+    // lone killers (Serial Killer, Arsonist, Death) and vampires play against everyone: the village only wins once they're gone too
+    const libA = (nm) => libOfA(roleOf(nm).key);
+    const loners = alive.filter(nm => ['Serial Killer', 'Arsonist', 'Death'].indexOf(libA(nm)) >= 0);
+    const vamps = alive.filter(nm => libA(nm) === 'Vampire');
+    const killers = loners.concat(vamps);
+    // who wins alone, if anyone: the last lone killer standing (with at most one other player), vampires once they
+    // outnumber everyone else, or the White Werewolf when it's the only wolf left and the wolves have the numbers
+    const wolvesNow = alive.filter(nm => isWolf(roleOf(nm)));
+    let solo = null;
+    if (anyOut && wolvesAlive === 0 && loners.length === 1 && !vamps.length && alive.length <= 2) solo = { lib: libA(loners[0]), names: loners };
+    else if (anyOut && wolvesAlive === 0 && !loners.length && vamps.length && vamps.length >= alive.length - vamps.length) solo = { lib: 'Vampire', names: vamps };
     const villageWins = anyOut && wolvesAlive === 0 && killers.length === 0;
     const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive + alliesAlive >= othersAlive; // helpers vote with the pack
+    if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'White Werewolf')) solo = { lib: 'White Werewolf', names: wolvesNow };
+    const soloWins = !!solo;
+    const killerLib = solo ? solo.lib : null;
     // the Tanner voted out wins, and everyone else loses — the game ends there
     const tannerWin = names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
     const gameOver = villageWins || wolvesWin || soloWins || !!tannerWin;
-    const soloTitle = tannerWin ? 'The Tanner wins!' : soloWins ? (killers.length > 1 ? 'The ' + killerLib + 's win!' : 'The ' + killerLib + ' wins!') : '';
-    const soloText = tannerWin ? tannerWin + ' got themselves voted out. The Tanner wins — and everyone else loses.' : soloWins ? killers.join(' and ') + ' outlasted the whole village. No one is left to stop them.' : '';
+    const soloTitle = tannerWin ? 'The Tanner wins!' : soloWins ? (solo.names.length > 1 ? 'The ' + killerLib + 's win!' : (killerLib === 'Death' ? '' : 'The ') + killerLib + ' wins!') : '';
+    const soloText = tannerWin ? tannerWin + ' got themselves voted out. The Tanner wins — and everyone else loses.' : soloWins ? solo.names.join(' and ') + ' outlasted the whole village. No one is left to stop them.' : '';
+    // everyone else who wins too (their own goals), listed on the end card
+    const winSide0 = !gameOver ? null : tannerWin ? 'solo' : soloWins ? 'solo' : villageWins ? 'village' : 'wolves';
+    const also = [];
+    if (gameOver && !tannerWin) {
+      const add = (nm, why) => { if (nm && !also.find(x => x.name === nm)) also.push({ name: nm, key: roleOf(nm).key, why }); };
+      alive.filter(nm => libA(nm) === 'Survivor').forEach(nm => add(nm, 'still alive'));
+      names.filter(nm => libA(nm) === 'Lawyer').forEach(nm => { if (mech.client && !isOut(mech.client)) add(nm, 'kept ' + mech.client + ' alive'); });
+      const devil = names.find(nm => libA(nm) === 'Devil');
+      const dealers = uniqT('deal');
+      if (devil && !isOut(devil) && dealers.length) { add(devil, 'their dealers survived'); dealers.forEach(nm => add(nm, 'made a deal with the Devil')); }
+      if (winSide0 !== 'village') names.filter(nm => libA(nm) === 'Fallen Angel').forEach(nm => add(nm, 'the village fell'));
+      const raisedBy = allActs.find(a => a.kind === 'raise' && a.targets && a.targets[0]);
+      if (raisedBy) { const t = roleOf(raisedBy.targets[0]).team; const side = t === 'Village' ? 'village' : t === 'Werewolves' ? 'wolves' : null; if (side && side === winSide0) names.filter(nm => libA(nm) === 'Necromancer').forEach(nm => add(nm, 'their raised player’s side won')); }
+      names.filter(nm => libA(nm) === 'Angel' && status[nm] && status[nm].round === 1 && status[nm].how !== 'removed').forEach(nm => add(nm, 'died in the first round'));
+      if (mech.target && status[mech.target] && status[mech.target].how === 'voted') names.filter(nm => libA(nm) === 'Executioner').forEach(nm => add(nm, 'their target was voted out'));
+      if ((mech.hits || 0) >= 3) names.filter(nm => libA(nm) === 'Gambler').forEach(nm => add(nm, 'guessed right three times'));
+      const lv = st('lovers', null);
+      if (lv && alive.length === 2 && lv.every(nm => alive.indexOf(nm) >= 0)) lv.forEach(nm => add(nm, 'the last two lovers'));
+    }
     const endTips = [];
     if (inGame('hunter') && aliveWith('hunter').length === 0 && names.some(nm => roleOf(nm).key === 'hunter' && status[nm] && status[nm].round === round)) endTips.push('The Hunter just fell — let them take their shot first. It can change the result.');
     if (wolvesWin && (inGame('minion') || inGame('sorceress'))) endTips.push('The Minion and Sorceress win with the werewolves.');
@@ -1191,12 +1226,14 @@ export class HostView extends React.Component<any, any> {
     if (tannerWin) endTips.push('Only the Tanner wins — every other player loses, wolves and villagers alike.');
     if (cupidIn) endTips.push('If the two lovers are the last ones standing, they win together.');
     if (inGame('doppelganger')) endTips.push('The Doppelgänger wins with the team of the role they copied.');
-    alive.filter(nm => libOfA(roleOf(nm).key) === 'Survivor').forEach(nm => endTips.push(nm + ' (Survivor) is still alive — they win too.'));
-    if (lawyerOf && mech.client && !isOut(mech.client)) endTips.push(lawyerOf + ' (Lawyer) kept their client ' + mech.client + ' alive — they win too.');
+    if (also.length) endTips.push('Also winning: ' + also.map(x => x.name + ' (' + roleOf(x.name).name + ' — ' + x.why + ')').join(', ') + '.');
     endTips.push('Ask everyone to show their cards and enjoy the reveal!');
     const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
-    const winSide = !gameOver ? null : tannerWin ? 'solo' : soloWins ? 'solo' : villageWins ? 'village' : 'wolves';
-    this._winner = !winSide ? null : winSide === 'solo' ? { side: 'solo', key: tannerWin ? 'tanner' : roleOf(killers[0]).key, names: tannerWin ? [tannerWin] : killers.slice() } : { side: winSide };
+    const winSide = winSide0;
+    const alsoOut = also.map(x => ({ name: x.name, key: x.key }));
+    this._winner = !winSide ? null : winSide === 'solo'
+      ? { side: 'solo', key: tannerWin ? 'tanner' : roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
+      : { side: winSide, also: alsoOut };
 
     // ---------- history view ----------
     const who = (e) => e.name + (hide || !e.role ? '' : ' (' + e.role + ')');
@@ -1235,7 +1272,7 @@ export class HostView extends React.Component<any, any> {
       return e.by + ' chose ' + (t || 'no one');
     };
     const evLine = (e) => ({
-      out: { night: who(e) + ({ poison: ' was poisoned by the Witch', hunter: ' was shot by the Hunter', heartbreak: ' died of a broken heart', slain: ' was slain in the night' }[e.cause] || ' was killed by the wolves'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
+      out: { night: who(e) + ({ poison: ' was poisoned by the Witch', hunter: ' was shot by the Hunter', heartbreak: ' died of a broken heart' }[e.cause] || (CAUSES[e.cause] && CAUSES[e.cause].phrase) || ' was killed by the wolves'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
       back: e.name + ' is back in the game',
       tough: e.name + ' was attacked but, as the Tough Guy, lives until the next night',
       cursed: e.name + ' was attacked and, being Cursed, turned into a Werewolf',
@@ -1430,8 +1467,8 @@ export class HostView extends React.Component<any, any> {
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
       endGlow: (soloWins || tannerWin) ? 'rgba(242,166,90,.24)' : villageWins ? 'rgba(98,212,166,.22)' : 'rgba(224,71,95,.25)',
       endBg: (soloWins || tannerWin) ? 'linear-gradient(170deg, rgba(110,60,20,.65), rgba(18,10,31,.92))' : villageWins ? 'linear-gradient(170deg, rgba(20,80,60,.6), rgba(18,10,31,.92))' : 'linear-gradient(170deg, rgba(110,20,38,.65), rgba(18,10,31,.92))',
-      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : '',
-      endImgRatio: tannerWin ? '941 / 1672' : '746 / 1008',
+      endImg: winSide === 'village' ? '/end-village.webp' : winSide === 'wolves' ? '/end-wolves.webp' : tannerWin ? '/end-tanner.webp' : soloWins ? '/end/' + solo.lib.toLowerCase().replace(/[^a-z]+/g, '-') + '.webp' : '',
+      endImgRatio: winSide === 'solo' ? '941 / 1672' : '746 / 1008',
       endIcon: tannerWin ? roleOf(tannerWin).icon : soloWins ? roleOf(killers[0]).icon : villageWins ? byKey.villager.icon : byKey.werewolf.icon,
 
       dgOpen, dgChoices,
@@ -1482,7 +1519,7 @@ export class HostView extends React.Component<any, any> {
           if (convertLeft) { convertLeft = false; turned.push({ nm: v, key: 'werewolf', why: 'Alpha Werewolf' }); nm2.used['Alpha Werewolf'] = round; return; }
           if (protect === v) { saves.push({ name: v, by: roleLabel('healer') }); return; }
           if (witch && witch.save === v) { saves.push({ name: v, by: roleLabel('witch') }); return; }
-          if (guard === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); die(guardian); return; }
+          if (guard === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); die(guardian, 'sacrifice'); return; }
           if (blessedSave(v)) return;
           if (isLib(v, 'Elder') && !nm2.elderHit[v]) { nm2.elderHit[v] = true; saves.push({ name: v, by: 'the Elder’s luck (next time it kills)' }); return; }
           if (roleOf(v).key === 'toughguy' && !(v in nm2.wounded) && !deaths.find(d => d.nm === v)) { nm2.wounded[v] = round; toughLog.push(ev('tough', { name: v, phase: 'night' })); return; }
@@ -1495,17 +1532,17 @@ export class HostView extends React.Component<any, any> {
         if (bet && bet.targets && wolvesAct && (wolvesAct.targets || []).indexOf(bet.targets[0]) >= 0) nm2.hits = (nm2.hits || 0) + 1;
         // other killers (a Priest's blessing saves once from any of them)
         const kill2 = (nm, cause) => { if (nm && !isOut(nm) && !blessedSave(nm)) die(nm, cause); };
-        kill2(first1('slay'), 'slain');
-        kill2(first1('whitewolf'), 'slain');
+        kill2(first1('slay'), 'knife');
+        kill2(first1('whitewolf'), 'betrayed');
         const arson = eff('arson')[0];
-        if (arson && arson.ignite) { nm2.doused.filter(nm => !isOut(nm)).forEach(nm => kill2(nm, 'slain')); nm2.doused = []; }
+        if (arson && arson.ignite) { nm2.doused.filter(nm => !isOut(nm)).forEach(nm => kill2(nm, 'burned')); nm2.doused = []; }
         else if (arson && arson.targets && arson.targets[0] && nm2.doused.indexOf(arson.targets[0]) < 0) nm2.doused.push(arson.targets[0]);
         const rev = eff('reveal')[0];
-        if (rev && rev.targets && rev.targets[0]) { const t = rev.targets[0]; if (isWolf(roleOf(t)) || roleOf(t).key === 'lycan') kill2(t, 'slain'); else actorsOf(rev).forEach(nm => kill2(nm, 'slain')); }
-        const vh = first1('vhunt'); if (vh && isVampire(vh)) kill2(vh, 'slain');
-        const ven = eff('vengeance')[0]; if (ven && ven.targets && ven.targets[0]) { kill2(ven.targets[0], 'slain'); nm2.used['Vengeful Spirit'] = round; }
+        if (rev && rev.targets && rev.targets[0]) { const t = rev.targets[0]; if (isWolf(roleOf(t)) || roleOf(t).key === 'lycan') kill2(t, 'revealed'); else actorsOf(rev).forEach(nm => kill2(nm, 'misfire')); }
+        const vh = first1('vhunt'); if (vh && isVampire(vh)) kill2(vh, 'staked');
+        const ven = eff('vengeance')[0]; if (ven && ven.targets && ven.targets[0]) { kill2(ven.targets[0], 'vengeance'); nm2.used['Vengeful Spirit'] = round; }
         if (witch && witch.poison && !blessedSave(witch.poison)) die(witch.poison, 'poison');
-        if (round === 1) names.filter(nm => !isOut(nm) && isLib(nm, 'Ghost')).forEach(nm => die(nm));
+        if (round === 1) names.filter(nm => !isOut(nm) && isLib(nm, 'Ghost')).forEach(nm => die(nm, 'ghost'));
         // bites and raisings
         const bite = first1('bite'), vampKey = keyOfLib('Vampire');
         if (bite && vampKey && !deaths.find(d => d.nm === bite) && !isOut(bite)) turned.push({ nm: bite, key: vampKey, why: 'Vampire' });
@@ -2103,7 +2140,7 @@ export class HostView extends React.Component<any, any> {
                   <>
                     <section className="rise" aria-label="Game over" style={{ padding: '22px 20px', borderRadius: '24px', background: v.endBg, border: `1px solid ${v.endBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', boxShadow: `0 0 60px ${v.endGlow}` }}>
                       {(v.endImg) ? (
-                        <img src={v.endImg} alt={v.endTitle} style={{ width: v.endImgRatio === '941 / 1672' ? '78%' : '100%', aspectRatio: v.endImgRatio, objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
+                        <img src={v.endImg} alt={v.endTitle} onError={(e: any) => { if (!/splash/.test(e.currentTarget.src)) e.currentTarget.src = '/splash.webp'; }} style={{ width: v.endImgRatio === '941 / 1672' ? '78%' : '100%', aspectRatio: v.endImgRatio, objectFit: 'cover', borderRadius: '16px', border: `1px solid ${v.endBorder}`, boxShadow: '0 16px 40px rgba(0,0,0,.5)' }} />
                       ) : (
                         <span style={{ width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.25)', border: `1px solid ${v.endBorder}` }}>
                           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={v.endColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
