@@ -1349,8 +1349,8 @@ export class HostView extends React.Component<any, any> {
     let solo = null;
     if (anyOut && wolvesAlive === 0 && loners.length === 1 && !vamps.length && alive.length <= 2) solo = { lib: libA(loners[0]), names: loners };
     else if (anyOut && wolvesAlive === 0 && !loners.length && vamps.length && vamps.length >= alive.length - vamps.length) solo = { lib: 'Vampire', names: vamps };
-    const villageWins = anyOut && wolvesAlive === 0 && killers.length === 0;
-    const wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive + alliesAlive >= othersAlive; // helpers vote with the pack
+    let villageWins = anyOut && wolvesAlive === 0 && killers.length === 0;
+    let wolvesWin = anyOut && wolvesAlive > 0 && wolvesAlive + alliesAlive >= othersAlive; // helpers vote with the pack
     if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'White Werewolf')) solo = { lib: 'White Werewolf', names: wolvesNow };
     // the two lovers are the last ones alive → they win together (whatever their teams)
     const lovers0 = st('lovers', null);
@@ -1361,10 +1361,20 @@ export class HostView extends React.Component<any, any> {
     if (!solo && anyOut && leader && alive.length > 1 && alive.every(nm => nm === leader || inCult.indexOf(nm) >= 0)) solo = { lib: 'Cult', names: [leader].concat(alive.filter(nm => nm !== leader)) };
     // the Lone Wolf wins only as the last wolf standing
     if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'Lone Wolf')) solo = { lib: 'Lone Wolf', names: wolvesNow };
+    // master controls: the host forced an ending (to test the end cards, or just for fun)
+    const forced = screen === 'play' && n > 0 ? s.forced || null : null;
+    if (forced) {
+      const holders = (lib) => { const h = names.filter(nm => libA(nm) === lib); return h.length ? h : [alive[0] || names[0]]; };
+      villageWins = forced === 'village'; wolvesWin = forced === 'wolves'; solo = null;
+      if (forced === 'Lovers') solo = { lib: 'Lovers', names: lovers0 && lovers0.length === 2 ? lovers0.slice() : names.slice(0, 2) };
+      else if (forced === 'Cult') solo = { lib: 'Cult', names: holders('Cult Leader') };
+      else if (['village', 'wolves', 'Tanner'].indexOf(forced) < 0) solo = { lib: forced, names: holders(forced) };
+    }
     const soloWins = !!solo;
     const killerLib = solo ? solo.lib : null;
     // the Tanner voted out wins, and everyone else loses — the game ends there
-    const tannerWin = names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
+    const tannerWin = forced ? (forced === 'Tanner' ? names.find(nm => roleOf(nm).key === 'tanner') || names[0] : undefined)
+      : names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
     const gameOver = villageWins || wolvesWin || soloWins || !!tannerWin;
     const soloTitle = tannerWin ? 'The Tanner wins!' : soloWins ? (solo.names.length > 1 ? 'The ' + killerLib + 's win!' : (killerLib === 'Death' ? '' : 'The ') + killerLib + ' wins!') : '';
     const soloTitle2 = !soloWins ? '' : killerLib === 'Lovers' ? 'The lovers win!' : killerLib === 'Cult' ? 'The cult wins!' : '';
@@ -1404,7 +1414,7 @@ export class HostView extends React.Component<any, any> {
     const winnersAll = !gameOver ? [] : tannerWin ? [tannerWin] : soloWins ? solo.names.slice()
       : names.filter(nm => (winSide === 'village' ? roleOf(nm).team === 'Village' : roleOf(nm).team === 'Werewolves'));
     also.forEach(x => { if (winnersAll.indexOf(x.name) < 0) winnersAll.push(x.name); });
-    this._record = gameOver && s.story !== undefined ? { id: String(s.story) + '|' + ((log[0] && log[0].text) || ''), players: names.slice(), winners: winnersAll, roles: Object.fromEntries(names.map(nm => [nm, roleOf(nm).name])), firstOut: firstOutEv ? firstOutEv.name : '' } : null;
+    this._record = gameOver && !forced && s.story !== undefined ? { id: String(s.story) + '|' + ((log[0] && log[0].text) || ''), players: names.slice(), winners: winnersAll, roles: Object.fromEntries(names.map(nm => [nm, roleOf(nm).name])), firstOut: firstOutEv ? firstOutEv.name : '' } : null;
     const alsoOut = also.map(x => ({ name: x.name, key: x.key }));
     this._winner = !winSide ? null : winSide === 'solo'
       ? { side: 'solo', key: tannerWin ? 'tanner' : roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
@@ -1423,7 +1433,7 @@ export class HostView extends React.Component<any, any> {
         const from = near.length ? near : pool;
         const drunkAs = hasDrunk ? (from.length ? from[Math.floor(Math.random() * from.length)] : 'villager') : null;
         const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: byKey[drunkAs].name }] : [];
-        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, forced: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       };
 
     // ---------- history view ----------
@@ -1527,8 +1537,69 @@ export class HostView extends React.Component<any, any> {
       return { name: r.name, icon: r.icon, on, border: on ? r.color : 'rgba(236,230,246,.14)', bg: on ? 'rgba(' + r.rgb + ',.2)' : 'rgba(255,255,255,.04)', fg: on ? r.color : '#c4b8da', pick: () => this.setState({ dg: { ...dgState, choice: k } }) };
     });
 
+    // ---------- master controls (secret: tap the "alive" counter 5 times) ----------
+    const FORCE = ['village', 'wolves', 'Tanner', 'Serial Killer', 'Arsonist', 'Death', 'Vampire', 'White Werewolf', 'Lone Wolf', 'Lovers', 'Cult'];
+    const forceLabel = { village: 'Village', wolves: 'Werewolves', Cult: 'Cult Leader' };
+    const forceTone = (k) => (k === 'village' ? '#8fe0b8' : k === 'wolves' ? '#ff8a9b' : '#f2a65a');
+    const keyForLib = (nm, patch) => {
+      const e = ROLE_LIBRARY.find(x => x.name === nm); if (!e) return null;
+      if (e.builtin && byKey[e.builtin]) return e.builtin;
+      const had = custom.find(c => c.lib === e.name); if (had) return had.key;
+      const nr = libRole(e); patch.custom = custom.concat([nr]); return nr.key;
+    };
+    const roleValue = (nm) => { const r = roleOf(nm); if (r.lib) return 'lib:' + r.lib; const e = ROLE_LIBRARY.find(x => x.builtin === r.key); return e ? 'lib:' + e.name : 'key:' + r.key; };
+    const FATE_OPTS = [['alive', 'Alive'], ['wolves', 'Killed by wolves'], ['voted', 'Voted out'], ['poison', 'Poisoned (Witch)'], ['hunter', 'Shot (Hunter)'], ['heartbreak', 'Broken heart']]
+      .concat(Object.keys(CAUSES).map(k => [k, CAUSES[k].label]));
+    const fateValue = (nm) => { const m = status[nm]; return !m || m.how === 'removed' ? 'alive' : m.how === 'voted' ? 'voted' : m.cause || 'wolves'; };
+    const masterView = {
+      open: screen === 'play' && !!s.master,
+      close: () => this.setState({ master: false }),
+      forced: !!forced,
+      ends: FORCE.map(k => ({ label: forceLabel[k] || k, on: forced === k, tone: forceTone(k), pick: () => this.setState({ forced: forced === k ? null : k, master: false }) })),
+      realEnd: () => this.setState({ forced: null }),
+      roleGroups: LIB_CATS.map(c => ({ label: c, opts: ROLE_LIBRARY.filter(e => e.cat === c).map(e => ({ value: 'lib:' + e.name, label: e.name })) }))
+        .concat(custom.filter(c => !c.lib).length ? [{ label: 'Your roles', opts: custom.filter(c => !c.lib).map(c => ({ value: 'key:' + c.key, label: c.name })) }] : []),
+      fateOpts: FATE_OPTS.map(([value, label]) => ({ value, label })),
+      rows: names.map(nm => ({
+        name: nm, color: palette[nm] || '#c7a8ff', role: roleValue(nm), out: isOut(nm), fate: fateValue(nm),
+        setRole: (e) => {
+          const val = e.target.value, patch = {};
+          const key = val.indexOf('lib:') === 0 ? keyForLib(val.slice(4), patch) : val.slice(4);
+          if (!key) return;
+          patch.override = { ...override, [nm]: key };
+          this.setState(patch);
+        },
+        setFate: (e) => {
+          const val = e.target.value, next = { ...status };
+          let lg = log.filter(e => !(e.t === 'out' && e.name === nm));
+          if (val === 'alive') delete next[nm];
+          else {
+            const mk = val === 'voted' ? { how: 'voted' } : val === 'wolves' ? { how: 'night' } : { how: 'night', cause: val };
+            next[nm] = { ...mk, round, phase };
+            lg = lg.concat([ev('out', { ...mk, name: nm, role: roleOf(nm).name })]);
+          }
+          this.setState({ status: next, log: lg });
+        },
+      })),
+      shuffle: () => {
+        const keys = names.map(nm => roleOf(nm).key);
+        for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
+        const ov = { ...override }; names.forEach((nm, i) => { ov[nm] = keys[i]; });
+        this.setState({ override: ov });
+      },
+      allWolves: () => { const ov = { ...override }; alive.forEach(nm => { ov[nm] = 'werewolf'; }); this.setState({ override: ov }); },
+      undoRoles: () => this.setState({ override: {} }),
+      reviveAll: () => this.setState({ status: {}, log: log.filter(e => e.t !== 'out') }),
+      round, roundDown: () => this.setState({ round: Math.max(1, round - 1) }), roundUp: () => this.setState({ round: round + 1 }),
+    };
+    const tapAlive = () => {
+      const now = Date.now(); this._taps = (this._taps || []).filter(t => now - t < 1500).concat([now]);
+      if (this._taps.length >= 5) { this._taps = []; this.setState({ master: true }); }
+    };
+
     const inPlayDay = screen === 'play' && !night;
     return {
+      masterView, tapAlive,
       steps,
       ruleGroups, rulesSummary,
       rulesOpen: screen === 'players' && !!st('rulesOpen', false),
@@ -1633,7 +1704,7 @@ export class HostView extends React.Component<any, any> {
       rematch: () => {
         // same players, same deck, reshuffled — or back to the roles screen when the table changed (spectators joining)
         const spect = (this.props.net && this.props.net.spectators) || 0;
-        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, whispers: {}, awake: null, winner: null }); return; }
+        if (spect > 0 || deck.length !== n) { this.props.onEnd && this.props.onEnd(); this.setState({ screen: 'roles', phase: 'night', round: 1, status: {}, override: {}, acts: [], log: [], vote: null, timer: null, whispers: {}, awake: null, forced: null, winner: null }); return; }
         this.props.onEnd && this.props.onEnd();
         dealNow();
       },
@@ -1654,7 +1725,7 @@ export class HostView extends React.Component<any, any> {
       noteInput: s.noteDraft || '', setNote: e => this.setState({ noteDraft: e.target.value }),
       addNote: e => { e.preventDefault(); const t = (s.noteDraft || '').trim(); if (t) this.setState({ log: log.concat([ev('note', { text: t })]), noteDraft: '' }); },
       endTitle: (soloWins || tannerWin) ? (soloTitle2 || soloTitle) : villageWins ? 'The village wins!' : 'The werewolves win!',
-      endText: (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : (wolfNames.join(' and ') + ' now equal the rest of the village. Nobody can outvote them.'),
+      endText: (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : ((wolfNames.join(' and ') || 'The werewolves') + ' now equal the rest of the village. Nobody can outvote them.'),
       endTips,
       endColor: (soloWins || tannerWin) ? '#f2a65a' : villageWins ? '#8fe0b8' : '#ff8a9b',
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
@@ -1765,7 +1836,7 @@ export class HostView extends React.Component<any, any> {
       confirmYes: () => {
         const to = s.confirmEnd || 'players';
         this.props.onEnd && this.props.onEnd(); // NET
-        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, whispers: {}, awake: null, ivory: null });
+        this.setState({ screen: to, sheet: false, confirmEnd: null, qrOpen: false, histOpen: false, phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: {}, vote: null, nominating: false, timer: null, whispers: {}, awake: null, forced: null, ivory: null });
       },
       confirmNo: () => this.setState({ confirmEnd: null }),
       // spectator QR during the game (same join link — the server makes late joiners spectators)
@@ -2286,7 +2357,7 @@ export class HostView extends React.Component<any, any> {
                   </button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 10px 10px 14px', borderRadius: '18px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(236,230,246,.1)' }}>
-                  <span style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <span onClick={v.tapAlive} style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '3px', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
                     <span style={{ fontSize: '15px', fontWeight: '700' }}>
                       {v.aliveCount} alive{' '}
                       <span style={{ color: '#a99bc2', fontWeight: '600' }}>
@@ -3451,6 +3522,75 @@ export class HostView extends React.Component<any, any> {
                 <button className="press" onClick={v.closeHist} style={{ width: '100%', height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '17px', fontWeight: '700' }}>
                   Done
                 </button>
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.masterView.open) ? (
+          <>
+            <div className="fade" onClick={v.masterView.close} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Master controls" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', height: '790px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2a1414 0%, #120a20 100%)', borderTop: '1px solid rgba(242,166,90,.45)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <span style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px', color: '#f2c38a' }}>🛠 Master controls</h2>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Only you can see this. Changes go to everyone’s phone at once.</span>
+                </span>
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Force an ending</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Shows that win screen on your phone and every player’s phone. Not saved to the Hall of Fame.</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {v.masterView.ends.map((e: any) => (
+                      <button key={e.label} className="press" onClick={e.pick} style={{ height: '38px', padding: '0 12px', borderRadius: '999px', border: `1px solid ${e.tone}`, background: e.on ? e.tone : 'rgba(0,0,0,.2)', color: e.on ? '#160b28' : e.tone, fontSize: '13.5px', fontWeight: '700' }}>{e.label}</button>
+                    ))}
+                  </div>
+                  {(v.masterView.forced) ? (
+                    <button className="press" onClick={v.masterView.realEnd} style={{ ...{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }, alignSelf: 'flex-start', borderColor: 'rgba(242,166,90,.6)', color: '#f2c38a' }}>↩ Back to the real game</button>
+                  ) : null}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Players</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Give anyone any role from the library, or kill them with any death card.</span>
+                  {v.masterView.rows.map((r: any) => (
+                    <div key={r.name} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', borderRadius: '14px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(236,230,246,.08)', opacity: r.out ? 0.75 : 1 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: '700' }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.color, flex: 'none' }} />
+                        <span style={{ textDecoration: r.out ? 'line-through' : 'none' }}>{r.name}</span>
+                      </span>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '6px' }}>
+                        <select aria-label={'Role for ' + r.name} value={r.role} onChange={r.setRole} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '11px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontFamily: 'inherit', minWidth: '0' }}>
+                          {v.masterView.roleGroups.map((g: any) => (
+                            <optgroup key={g.label} label={g.label}>
+                              {g.opts.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </optgroup>
+                          ))}
+                        </select>
+                        <select aria-label={'Fate of ' + r.name} value={r.fate} onChange={r.setFate} style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '11px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontFamily: 'inherit', minWidth: '0' }}>
+                          {v.masterView.fateOpts.map((o: any) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Chaos</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    <button className="press" onClick={v.masterView.shuffle} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>🔀 Shuffle everyone’s roles</button>
+                    <button className="press" onClick={v.masterView.allWolves} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>🐺 Everyone alive is a werewolf</button>
+                    <button className="press" onClick={v.masterView.reviveAll} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>✨ Revive everyone</button>
+                    <button className="press" onClick={v.masterView.undoRoles} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>↩ Back to the dealt cards</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button className="press" onClick={v.masterView.roundDown} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>−</button>
+                    <span style={{ fontSize: '14px', fontWeight: '700' }}>Round {v.masterView.round}</span>
+                    <button className="press" onClick={v.masterView.roundUp} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>+</button>
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
+                <button className="press" onClick={v.masterView.close} style={{ width: '100%', height: '52px', borderRadius: '16px', border: 'none', background: '#f2c38a', color: '#1d1206', fontSize: '17px', fontWeight: '700' }}>Done</button>
               </div>
             </section>
           </>
