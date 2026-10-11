@@ -12,7 +12,7 @@ type View = {
   spectator?: boolean;
   winner?: { side: 'village' | 'wolves' | 'solo'; key?: string; lib?: string; names?: string[]; also?: { name: string; key: string }[] } | null; // the end-result card
   whisper?: Record<string, unknown> | null; timer?: { running: boolean; leftMs: number; endsAt?: number } | null; now?: number;
-  ballot?: { nominee: string; mine: 'kill' | 'spare' | null } | null; ivory?: boolean;
+  ballot?: { nominee: string; mine: 'kill' | 'spare' | null } | null; ivory?: boolean; note?: { id: string; text: string } | null;
   lover?: string | null; // Cupid's partner, shown as a heart on the card // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
@@ -83,6 +83,7 @@ export function PlayerApp() {
             ballot={view?.ballot || null}
             onVote={(choice: 'kill' | 'spare') => socket.emit('player:vote', choice)}
             ivory={!!view?.ivory}
+            note={view?.note || null}
             installMode={inst.mode}
             onInstall={inst.install}
             language={startLang}

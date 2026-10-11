@@ -149,6 +149,7 @@ export default {
     sacrificeL: "คุณยืนขวางระหว่างหมาป่ากับอีกคน และไม่ถอยแม้แต่ก้าวเดียว",
     endLovers: "คู่รักชนะ!",
     endCult: "ลัทธิชนะ!",
+    noteTitle: "ข้อความลับจากโฮสต์",
     ansTitle: "คำตอบคืนนี้ของคุณ",
     ansCheckWolf: "{name} เป็นมนุษย์หมาป่า",
     ansCheckNot: "{name} ไม่ใช่มนุษย์หมาป่า",

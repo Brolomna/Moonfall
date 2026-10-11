@@ -175,6 +175,7 @@ function playerView(p: Player) {
     dawnDeaths: dawnDeaths(),
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
+    note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
     now: Date.now(),

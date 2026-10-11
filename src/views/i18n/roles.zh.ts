@@ -149,6 +149,7 @@ export default {
     sacrificeL: "你挡在狼群与他人之间——一步也没有退。",
     endLovers: "恋人获胜！",
     endCult: "教团获胜！",
+    noteTitle: "主持人的秘密消息",
     ansTitle: "你的夜晚答案",
     ansCheckWolf: "{name}是狼人。",
     ansCheckNot: "{name}不是狼人。",

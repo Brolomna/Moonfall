@@ -149,6 +149,7 @@ export default {
     sacrificeL: "人狼とその人の間に立ち——一歩も退かなかった。",
     endLovers: "恋人たちの勝利！",
     endCult: "教団の勝利！",
+    noteTitle: "ホストからの秘密のメッセージ",
     ansTitle: "今夜の答え",
     ansCheckWolf: "{name}は人狼です。",
     ansCheckNot: "{name}は人狼ではありません。",

@@ -149,6 +149,7 @@ export default {
     sacrificeL: "Te interpusiste entre los lobos y otra persona, sin retroceder.",
     endLovers: "¡Ganan los enamorados!",
     endCult: "¡Gana la secta!",
+    noteTitle: "Un mensaje secreto del anfitrión",
     ansTitle: "Tu respuesta de la noche",
     ansCheckWolf: "{name} es un hombre lobo.",
     ansCheckNot: "{name} no es un hombre lobo.",

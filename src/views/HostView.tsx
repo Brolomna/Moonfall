@@ -14,7 +14,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes'];
 
   constructor(props) {
     super(props);
@@ -55,6 +55,52 @@ export class HostView extends React.Component<any, any> {
   componentWillUnmount() { clearInterval(this._tick); }
 
   // ---------- seating drag (players screen) ----------
+  // ---------- master controls: the test players play the game out by themselves ----------
+  // Each step goes through the normal host screens (open the step, pick at random, confirm), so it tests the real thing.
+  async simNight() {
+    const w = (ms) => new Promise(r => setTimeout(r, ms));
+    const R = (a) => a[Math.floor(Math.random() * a.length)];
+    if (this.state.simBusy) return;
+    this.setState({ simBusy: true });
+    try {
+      if (!this._v.isNightPhase) { this._v.setNight(); await w(200); }
+      const skip = new Set();
+      for (let i = 0; i < 60; i++) {
+        const v = this._v; if (v.gameOver) return;
+        const st = (v.nightSteps || []).find(x => !x.done && !skip.has(x.title));
+        if (!st) break;
+        st.tick(); await w(150);
+        const a = this._v.actOpen ? this._v.actView : null;
+        if (!a) { if (!(this._v.nightSteps || []).find(x => x.title === st.title && x.done)) skip.add(st.title); continue; }
+        if (a.isWitch) {
+          if (!a.saveUsed && a.saveRows.length && Math.random() < 0.5) { R(a.saveRows).toggle(); await w(80); }
+          if (!a.poisonUsed && Math.random() < 0.3) { R(this._v.actView.poisonRows).toggle(); await w(80); }
+        } else if (a.hasIgnite && Math.random() < 0.35) { a.toggleIgnite(); await w(80); }
+        else {
+          const k = +((/Pick (\d+)/.exec(a.need || '') || [])[1] || 1);
+          const rows = a.rows.slice().sort(() => Math.random() - 0.5).slice(0, k);
+          for (const r of rows) { const cur = this._v.actView; const row = cur && cur.rows.find(x => x.name === r.name); if (row && !row.sel) { row.toggle(); await w(80); } }
+        }
+        const a2 = this._v.actView;
+        if (a2 && a2.ready) a2.record(); else { if (a2) a2.close(); skip.add(st.title); }
+        await w(150);
+      }
+      if (!this._v.gameOver) { this._v.setDay(); await w(300); }
+    } finally { this.setState({ simBusy: false }); }
+  }
+  async simDay() {
+    const w = (ms) => new Promise(r => setTimeout(r, ms));
+    if (this._v.isNightPhase || this._v.gameOver) return;
+    this._v.masterView.simVote(); await w(300);
+  }
+  async simAll() {
+    const w = (ms) => new Promise(r => setTimeout(r, ms));
+    for (let i = 0; i < 20 && !this._v.gameOver; i++) {
+      if (this._v.isNightPhase) await this.simNight();
+      else { await this.simDay(); await w(200); if (this._v.gameOver) break; this._v.setNight(); await w(250); }
+    }
+  }
+
   seatRow(name) { return document.querySelector(`[data-seat="${CSS.escape(name)}"]`); }
   seatDown(e, name, order) {
     e.preventDefault();
@@ -1544,13 +1590,32 @@ export class HostView extends React.Component<any, any> {
     const keyForLib = (nm, patch) => {
       const e = ROLE_LIBRARY.find(x => x.name === nm); if (!e) return null;
       if (e.builtin && byKey[e.builtin]) return e.builtin;
-      const had = custom.find(c => c.lib === e.name); if (had) return had.key;
-      const nr = libRole(e); patch.custom = custom.concat([nr]); return nr.key;
+      const cur = patch.custom || custom;
+      const had = cur.find(c => c.lib === e.name); if (had) return had.key;
+      const nr = libRole(e); patch.custom = cur.concat([nr]); return nr.key;
     };
     const roleValue = (nm) => { const r = roleOf(nm); if (r.lib) return 'lib:' + r.lib; const e = ROLE_LIBRARY.find(x => x.builtin === r.key); return e ? 'lib:' + e.name : 'key:' + r.key; };
     const FATE_OPTS = [['alive', 'Alive'], ['wolves', 'Killed by wolves'], ['voted', 'Voted out'], ['poison', 'Poisoned (Witch)'], ['hunter', 'Shot (Hunter)'], ['heartbreak', 'Broken heart']]
       .concat(Object.keys(CAUSES).map(k => [k, CAUSES[k].label]));
     const fateValue = (nm) => { const m = status[nm]; return !m || m.how === 'removed' ? 'alive' : m.how === 'voted' ? 'voted' : m.cause || 'wolves'; };
+    const SCEN = [
+      { label: 'Final three', sub: 'Werewolf, Seer, Villager · day', libs: ['Werewolf', 'Seer', 'Villager'], phase: 'day' },
+      { label: 'Lovers’ last stand', sub: 'Werewolf ♥ Villager + Seer · night', libs: ['Werewolf', 'Villager', 'Seer'], phase: 'night', lovers: true },
+      { label: 'Lone killer', sub: 'Serial Killer vs two villagers · night', libs: ['Serial Killer', 'Villager', 'Healer'], phase: 'night' },
+      { label: 'Vampires rising', sub: 'Two Vampires vs three · night', libs: ['Vampire', 'Vampire', 'Villager', 'Seer', 'Hunter'], phase: 'night' },
+      { label: 'Tanner’s day', sub: 'Tanner, Werewolf, two villagers · day', libs: ['Tanner', 'Werewolf', 'Villager', 'Villager'], phase: 'day' },
+      { label: 'Witch’s big night', sub: 'Witch, Hunter, Seer vs two wolves · night', libs: ['Witch', 'Hunter', 'Seer', 'Werewolf', 'Werewolf', 'Villager'], phase: 'night' },
+    ];
+    const scenario = (sc) => {
+      if (names.length < sc.libs.length) return;
+      const patch = {}, ov = {}, st0 = {};
+      const mix = names.slice().sort(() => Math.random() - 0.5);
+      const live = mix.slice(0, sc.libs.length);
+      live.forEach((nm, i) => { ov[nm] = keyForLib(sc.libs[i], patch); });
+      mix.slice(sc.libs.length).forEach(nm => { st0[nm] = { how: 'night', round: 2, phase: 'night' }; });
+      this.setState({ ...patch, override: ov, status: st0, round: 3, phase: sc.phase, forced: null, checks: [], acts: acts.filter(a => a.round < 3), vote: null, whispers: {}, awake: null, nightAct: null,
+        lovers: sc.lovers ? [live[0], live[1]] : null, log: log.concat([{ t: 'phase', round: 3, phase: sc.phase }]), master: false });
+    };
     const masterView = {
       open: screen === 'play' && !!s.master,
       close: () => this.setState({ master: false }),
@@ -1581,6 +1646,7 @@ export class HostView extends React.Component<any, any> {
           this.setState({ status: next, log: lg });
         },
       })),
+      simVote: () => { const pool = alive.filter(nm => !(status[nm])); if (!pool.length) return; const nm = pool[Math.floor(Math.random() * pool.length)]; voteOut(nm, [[nm, need]]); },
       shuffle: () => {
         const keys = names.map(nm => roleOf(nm).key);
         for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
@@ -1590,6 +1656,25 @@ export class HostView extends React.Component<any, any> {
       allWolves: () => { const ov = { ...override }; alive.forEach(nm => { ov[nm] = 'werewolf'; }); this.setState({ override: ov }); },
       undoRoles: () => this.setState({ override: {} }),
       reviveAll: () => this.setState({ status: {}, log: log.filter(e => e.t !== 'out') }),
+      // secret message to one player (or everyone): shows on their phone until they tap OK
+      msgTo: s.msgTo || '', setMsgTo: (e) => this.setState({ msgTo: e.target.value, msgSent: '' }),
+      msgText: s.msgText || '', setMsgText: (e) => this.setState({ msgText: e.target.value, msgSent: '' }),
+      msgSent: s.msgSent || '',
+      canSend: !!(s.msgText || '').trim() && !!s.msgTo,
+      sendMsg: (e) => {
+        e && e.preventDefault && e.preventDefault();
+        const text = (s.msgText || '').trim(); if (!text || !s.msgTo) return;
+        const to = s.msgTo === '*' ? names : [s.msgTo];
+        const id = Date.now().toString(36);
+        const notes = { ...(s.notes || {}) }; to.forEach(nm => { notes[nm] = { id, text }; });
+        this.setState({ notes, msgText: '', msgSent: 'Sent to ' + (s.msgTo === '*' ? 'everyone' : s.msgTo) + ' ✓' });
+      },
+      // scenario builder: set the table up in one tap, then let the test players play it out
+      scenarios: SCEN.map(sc => ({ label: sc.label, sub: sc.sub, can: names.length >= sc.libs.length, go: () => scenario(sc) })),
+      simNight: () => { this.setState({ master: false }); this.simNight(); },
+      simDay: () => { this.setState({ master: false }); this.simDay(); },
+      simAll: () => { this.setState({ master: false }); this.simAll(); },
+      simBusy: !!s.simBusy,
       round, roundDown: () => this.setState({ round: Math.max(1, round - 1) }), roundUp: () => this.setState({ round: round + 1 }),
     };
     const tapAlive = () => {
@@ -1597,8 +1682,18 @@ export class HostView extends React.Component<any, any> {
       if (this._taps.length >= 5) { this._taps = []; this.setState({ master: true }); }
     };
 
+    // who's ahead: the strength of everyone still alive (village roles vs wolves and lone killers); full once the game is over
+    let vPow = 0, oPow = 0;
+    alive.forEach(nm => { const r = roleOf(nm), st1 = r.strength || 0; if (r.team === 'Village') vPow += Math.max(1, st1); else oPow += Math.max(1, Math.abs(st1)); });
+    const loneAlive = alive.some(nm => roleOf(nm).team !== 'Village' && roleOf(nm).team !== 'Werewolves');
+    let vShare = vPow + oPow ? vPow / (vPow + oPow) : 0.5;
+    if (gameOver) vShare = winSide === 'village' ? 1 : 0;
+    const balView = { show: screen === 'play' && n > 0, village: Math.round(vShare * 100), other: 100 - Math.round(vShare * 100),
+      otherLabel: gameOver && winSide === 'solo' ? 'Alone' : loneAlive && !wolvesAlive ? 'Killers' : 'Wolves', otherColor: (gameOver && winSide === 'solo') || (loneAlive && !wolvesAlive) ? '#f2a65a' : '#ff8a9b' };
+
     const inPlayDay = screen === 'play' && !night;
     return {
+      balView,
       masterView, tapAlive,
       steps,
       ruleGroups, rulesSummary,
@@ -1847,6 +1942,7 @@ export class HostView extends React.Component<any, any> {
 
   render() {
     const v: any = this.renderVals();
+    this._v = v; // the simulator reads the live screen
     return (
       <div className="sky" style={{ position: 'relative', width: '390px', overflow: 'clip', height: (this.props.frameH ? this.props.frameH + 'px' : '844px') /* NET: fills the phone screen */, fontFamily: "'Manrope', sans-serif", color: '#ece6f6', background: v.skyBg }}>
         <div aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none' }}>
@@ -2329,6 +2425,18 @@ export class HostView extends React.Component<any, any> {
                     <span style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: '17px', color: '#e4d9f0' }}>
                       {v.phaseLine}
                     </span>
+                    {(v.balView.show) ? (
+                      <span aria-label={'Village ' + v.balView.village + '%, ' + v.balView.otherLabel + ' ' + v.balView.other + '%'} style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px', width: '150px' }}>
+                        <span style={{ display: 'flex', height: '5px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(0,0,0,.3)' }}>
+                          <span style={{ width: v.balView.village + '%', background: '#62d4a6', transition: 'width .8s ease' }} />
+                          <span style={{ flex: '1', background: v.balView.otherColor, transition: 'background .8s ease' }} />
+                        </span>
+                        <span style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '700', letterSpacing: '.04em' }}>
+                          <span style={{ color: '#8fe0b8' }}>Village {v.balView.village}%</span>
+                          <span style={{ color: v.balView.otherColor }}>{v.balView.otherLabel} {v.balView.other}%</span>
+                        </span>
+                      </span>
+                    ) : null}
                   </span>
                   <span style={{ flex: '1' }} />
                   <button className="press" onClick={v.toggleVeil} aria-label="Hide the host screen" style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(0,0,0,.18)', color: '#e9dcff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3551,6 +3659,24 @@ export class HostView extends React.Component<any, any> {
                   ) : null}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Scenario builder</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Set the table up in one tap (random players get the roles, everyone else is out), then let the test players play it out.</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '6px' }}>
+                    {v.masterView.scenarios.map((c: any) => (
+                      <button key={c.label} className="press" onClick={c.go} disabled={!c.can} style={{ padding: '9px 10px', borderRadius: '12px', border: '1px solid rgba(242,195,138,.3)', background: 'rgba(242,166,90,.08)', color: '#ece6f6', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px', opacity: c.can ? 1 : 0.4 }}>
+                        <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#f2c38a' }}>{c.label}</span>
+                        <span style={{ fontSize: '11.5px', color: '#a99bc2', lineHeight: '1.3' }}>{c.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Simulate: the test players make every night choice at random through your normal screens, and the village votes someone out.</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    <button className="press" onClick={v.masterView.simNight} disabled={v.masterView.simBusy} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>🌙 Play this night</button>
+                    <button className="press" onClick={v.masterView.simDay} disabled={v.masterView.simBusy} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>☀️ Random vote-out</button>
+                    <button className="press" onClick={v.masterView.simAll} disabled={v.masterView.simBusy} style={{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>⏩ Play to the end</button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Players</span>
                   <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Give anyone any role from the library, or kill them with any death card.</span>
                   {v.masterView.rows.map((r: any) => (
@@ -3574,6 +3700,20 @@ export class HostView extends React.Component<any, any> {
                     </div>
                   ))}
                 </div>
+                <form onSubmit={v.masterView.sendMsg} style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '0' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Secret message</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Pops up on that player’s phone until they tap OK. No one else sees it.</span>
+                  <select aria-label="Send the message to" value={v.masterView.msgTo} onChange={v.masterView.setMsgTo} style={{ height: '42px', padding: '0 10px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '14px', fontFamily: 'inherit' }}>
+                    <option value="">Choose a player…</option>
+                    {v.masterView.rows.map((r: any) => <option key={r.name} value={r.name}>{r.name}</option>)}
+                    <option value="*">Everyone</option>
+                  </select>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input type="text" aria-label="Message" placeholder="e.g. You are now the Seer. Act natural." value={v.masterView.msgText} onChange={v.masterView.setMsgText} maxLength={200} style={{ flex: '1', minWidth: '0', height: '44px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '14px', fontFamily: 'inherit', outline: 'none' }} />
+                    <button type="submit" className="press" disabled={!v.masterView.canSend} style={{ height: '44px', padding: '0 16px', flex: 'none', borderRadius: '12px', border: 'none', background: '#f2c38a', color: '#1d1206', fontSize: '14px', fontWeight: '700', opacity: v.masterView.canSend ? 1 : 0.45 }}>Send</button>
+                  </div>
+                  {(v.masterView.msgSent) ? <span style={{ fontSize: '12.5px', color: '#8fe0b8', fontWeight: '700' }}>{v.masterView.msgSent}</span> : null}
+                </form>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Chaos</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>

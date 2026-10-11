@@ -8,6 +8,7 @@ export const END_ART: Record<string, number> = {
   'lone-wolf': 941 / 1672,
   lovers: 941 / 1672,
   cult: 941 / 1672,
+  death: 941 / 1672,
 };
 export const endSlug = (lib: string) => String(lib || '').toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
 /** { src, ratio } for a lone winner's end card (Tanner keeps its own file). */

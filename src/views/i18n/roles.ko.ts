@@ -149,6 +149,7 @@ export default {
     sacrificeL: "늑대와 그 사람 사이에 서서 — 끝까지 물러서지 않았다.",
     endLovers: "연인의 승리!",
     endCult: "교단의 승리!",
+    noteTitle: "호스트의 비밀 메시지",
     ansTitle: "오늘 밤의 답",
     ansCheckWolf: "{name}님은 늑대인간이에요.",
     ansCheckNot: "{name}님은 늑대인간이 아니에요.",
