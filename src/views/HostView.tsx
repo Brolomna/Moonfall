@@ -710,23 +710,35 @@ export class HostView extends React.Component<any, any> {
     const isLibA = (nm, lib) => libOfA(roleOf(nm).key) === lib;
     const mechA = st('mech', {});
     if ((mechA.hits || 0) >= 3) { const g = names.find(nm => isLibA(nm, 'Gambler')); if (g) push('gambler-win', 'Gambler · ' + g, 'The Gambler wins!', g + ' guessed the wolves’ victim three times and wins alone. You can keep playing for everyone else.', '242,166,90', '#f2a65a', roleOf(g).icon); }
+    const alien = names.find(nm => isLibA(nm, 'Alien') && !isOut(nm));
+    if (alien && alive.length === 3) push('alien-' + round, 'Alien · ' + alien, 'The Alien wins!', 'Exactly three players are left and ' + alien + ' is one of them — the Alien wins alone.', '143,211,232', '#8fd3e8', roleOf(alien).icon);
     names.filter(isOut).forEach(nm => {
       const r = roleOf(nm); const how = status[nm].how; const k = r.key;
       if (how === 'removed') return;
-      if (k === 'wolfcub') push('cub-' + nm, 'Wolf Cub · ' + nm, 'Next night, the wolves take TWO victims', nm + ' was the Wolf Cub. When the werewolves wake next night, tell them to choose two players instead of one.', '255,111,97', '#ff8f84', r.icon);
+      // "act now" alerts only while they matter: the round the player went out (wins stay until the game ends)
+      const fresh = status[nm].round === round;
+      if (k === 'wolfcub' && (fresh || (status[nm].round === round - 1 && night))) push('cub-' + nm, 'Wolf Cub · ' + nm, 'Next night, the wolves take TWO victims', nm + ' was the Wolf Cub. When the werewolves wake next night, tell them to choose two players instead of one.', '255,111,97', '#ff8f84', r.icon);
       const lb = libOfA(k);
-      if (lb === 'Wolf King') push('wolfking-' + nm, 'Wolf King · ' + nm, 'The Wolf King takes one player down — now', 'Ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter” (shot) or “Wolves”.', '224,71,95', '#ff8a9b', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
-      if (lb === 'Baker') push('baker-' + nm, 'Baker · ' + nm, 'The village starts starving', 'With the Baker gone, every third day from now the host eliminates one more player (of your choice, or at random).', '232,211,160', '#e8d3a0', r.icon);
+      if (lb === 'Death' && how === 'voted' && fresh) {
+        const marked = st('acts', []).filter(a => a.kind === 'mark').reduce((s0, a) => s0.concat(a.targets || []), []).filter((x, i, arr) => arr.indexOf(x) === i && !isOut(x));
+        if (marked.length) push('death-' + nm, 'Death · ' + nm, 'Death takes the marked with them', 'Death was voted out. Everyone Death marked dies now: ' + marked.join(', ') + '.', '154,146,171', '#c6c0d4', r.icon, { label: 'Mark them out', fn: () => {
+          const next = { ...status }; const lg = log.slice();
+          marked.forEach(m => { next[m] = { how: 'night', cause: 'slain', round, phase }; lg.push(ev('out', { how: 'night', cause: 'slain', name: m, role: roleOf(m).name })); });
+          this.setState({ status: next, log: lg });
+        } });
+      }
+      if (lb === 'Wolf King' && fresh) push('wolfking-' + nm, 'Wolf King · ' + nm, 'The Wolf King takes one player down — now', 'Ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter” (shot) or “Wolves”.', '224,71,95', '#ff8a9b', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
+      if (lb === 'Baker' && fresh) push('baker-' + nm, 'Baker · ' + nm, 'The village starts starving', 'With the Baker gone, every third day from now the host eliminates one more player (of your choice, or at random).', '232,211,160', '#e8d3a0', r.icon);
       if (lb === 'Angel' && status[nm].round === 1) push('angel-' + nm, 'Angel · ' + nm, 'The Angel wins!', nm + ' was eliminated in the first round and wins alone. Keep playing for everyone else.', '242,208,107', '#f2d06b', r.icon);
       if (how === 'voted' && mechA.target === nm) { const ex = names.find(p => isLibA(p, 'Executioner')); if (ex) push('exe-' + nm, 'Executioner · ' + ex, 'The Executioner wins!', nm + ' was the Executioner’s target and got voted out — ' + ex + ' wins alone.', '201,162,122', '#d9b48a', roleOf(ex).icon); }
-      if (k === 'hunter') push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter”.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
-      if (k === 'seer') {
+      if (k === 'hunter' && fresh) push('hunter-' + nm, 'Hunter · ' + nm, 'The Hunter takes a last shot — now', 'Before anything else, ask ' + nm + ' to point at one player. In Mark players, set that player to “Hunter”.', '242,166,90', '#f2a65a', r.icon, { label: 'Mark their target', fn: () => this.setState({ markOpen: true }) });
+      if (k === 'seer' && fresh) {
         const app = aliveWith('apprentice')[0];
         if (app) push('app-' + nm, 'Seer · ' + nm, 'The Apprentice Seer takes over', 'From tonight, wake ' + app + ' (Apprentice Seer) in the Seer’s place. They now check one player each night.', '166,200,255', '#a6c8ff', byKey.apprentice.icon);
       }
-      if (k === 'prince' && how === 'voted') push('prince-' + nm, 'Prince · ' + nm, 'The Prince can’t be voted out', nm + ' shows their card and survives. No one else is eliminated by this vote.', '242,208,107', '#f2d06b', r.icon, { label: 'Undo — keep ' + nm + ' alive', fn: () => { const pt = markPatch(nm, 'alive'); this.setState({ ...pt, log: pt.log.concat([ev('prince', { name: nm })]) }); } });
-      if (k === 'toughguy' && how === 'night' && !log.some(e => e.t === 'tough' && e.name === nm)) push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy isn’t told. Keep ' + nm + ' in the game — they die the following night.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until next night', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, mech: { ...mechA, wounded: { ...(mechA.wounded || {}), [nm]: status[nm].round } }, log: unlog(log, nm).concat([ev('tough', { name: nm })]) }); } });
-      if (k === 'cursed' && how === 'night') push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' }, log: unlog(log, nm).concat([ev('cursed', { name: nm })]) }); } });
+      if (k === 'prince' && how === 'voted' && fresh) push('prince-' + nm, 'Prince · ' + nm, 'The Prince can’t be voted out', nm + ' shows their card and survives. No one else is eliminated by this vote.', '242,208,107', '#f2d06b', r.icon, { label: 'Undo — keep ' + nm + ' alive', fn: () => { const pt = markPatch(nm, 'alive'); this.setState({ ...pt, log: pt.log.concat([ev('prince', { name: nm })]) }); } });
+      if (k === 'toughguy' && how === 'night' && fresh && !log.some(e => e.t === 'tough' && e.name === nm)) push('tough-' + nm, 'Tough Guy · ' + nm, 'Don’t announce this death yet', 'The Tough Guy isn’t told. Keep ' + nm + ' in the game — they die the following night.', '242,154,122', '#f29a7a', r.icon, { label: 'Keep alive until next night', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, mech: { ...mechA, wounded: { ...(mechA.wounded || {}), [nm]: status[nm].round } }, log: unlog(log, nm).concat([ev('tough', { name: nm })]) }); } });
+      if (k === 'cursed' && how === 'night' && fresh) push('cursed-' + nm, 'Cursed · ' + nm, 'The Cursed turns instead of dying', nm + ' survives the attack. Tap their shoulder and secretly show a thumbs-up: they are now a Werewolf and wake with the pack.', '165,138,214', '#c2a8f0', r.icon, { label: 'Turn ' + nm + ' into a Werewolf', fn: () => { const nx = { ...status }; delete nx[nm]; this.setState({ status: nx, override: { ...override, [nm]: 'werewolf' }, log: unlog(log, nm).concat([ev('cursed', { name: nm })]) }); } });
       if (k === 'tanner' && how === 'voted') push('tanner-' + nm, 'Tanner · ' + nm, 'The Tanner wins!', nm + ' wanted to be voted out — and got their wish. The Tanner wins and everyone else loses. The game is over.', '201,162,122', '#d9b48a', r.icon);
       const lv = st('lovers', null);
       if (cupidIn && lv) {
@@ -922,7 +934,10 @@ export class HostView extends React.Component<any, any> {
       if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + roleOf(t).name + '.';
       if (kind === 'investigate' && t) {
         const pool = otherRoleNames(t).filter((v, i, arr) => arr.indexOf(v) === i);
-        const k0 = seedOf(t + round), extra = [pool[k0 % Math.max(1, pool.length)], pool[(k0 >> 3) % Math.max(1, pool.length)]].filter((v, i, arr) => v && arr.indexOf(v) === i);
+        // two other roles in play, always different from each other (and from the real one)
+        const real = trueRole(t).name, others2 = pool.filter(nm => nm !== real);
+        const k0 = seedOf(t + round), i1 = k0 % Math.max(1, others2.length), i2 = others2.length > 1 ? (i1 + 1 + ((k0 >> 3) % (others2.length - 1))) % others2.length : -1;
+        const extra = [others2[i1], i2 >= 0 ? others2[i2] : null].filter(Boolean);
         const three = [trueRole(t).name].concat(extra).sort((a, b) => seedOf(a + round) - seedOf(b + round));
         return 'Tell the Investigator: ' + t + ' is one of — ' + three.join(', ') + '.';
       }
@@ -1117,22 +1132,43 @@ export class HostView extends React.Component<any, any> {
     const dr2 = (key, text) => { const r = byKey[key]; return aliveWith(key).length ? [{ name: r.name + ' (' + aliveWith(key).join(', ') + ')', text, color: r.color, icon: r.icon }] : []; };
     const dayEffects = st('acts', []).filter(a => a.round === round && ['banish', 'silence', 'hypnotize', 'curse'].indexOf(a.kind) >= 0 && a.targets && a.targets[0] && !isOut(a.targets[0])).map(a => {
       const r = byKey[a.key] || byKey.villager;
-      const what = { banish: 'is banished today — can’t talk or vote.', silence: 'is silenced today — can’t speak.', hypnotize: 'must vote however the Hypnotist points.', curse: 'is cursed — can’t vote today.' }[a.kind];
-      return { name: a.targets[0] + ' (' + r.name + ')', text: what, color: r.color, icon: r.icon };
+      const what = { banish: 'banished by the ' + r.name + ' — can’t talk or vote today.', silence: 'silenced by the ' + r.name + ' — can’t speak today.', hypnotize: 'hypnotized — must vote however the ' + r.name + ' points.', curse: 'cursed by the ' + r.name + ' — can’t vote today.' }[a.kind];
+      return { name: a.targets[0], text: what, color: r.color, icon: r.icon };
     });
+    // 5a. lasting effects: the Devil's deals and Death's marks
+    const allActs = st('acts', []);
+    const devilOf = names.find(nm => libOfA(roleOf(nm).key) === 'Devil'), deathOf = names.find(nm => libOfA(roleOf(nm).key) === 'Death');
+    const uniqT = (kind) => allActs.filter(a => a.kind === kind).reduce((s0, a) => s0.concat(a.targets || []), []).filter((x, i, arr) => arr.indexOf(x) === i && !isOut(x));
+    const lasting = [];
+    if (devilOf && !isOut(devilOf)) uniqT('deal').forEach(nm => lasting.push({ name: nm, text: 'made a deal with the Devil (' + devilOf + ') — now wins only if the Devil wins.', color: roleOf(devilOf).color, icon: roleOf(devilOf).icon }));
+    if (deathOf && !isOut(deathOf) && uniqT('mark').length) lasting.push({ name: 'Death (' + deathOf + ')', text: 'has marked ' + uniqT('mark').join(', ') + ' — if Death is voted out, they all die.', color: roleOf(deathOf).color, icon: roleOf(deathOf).icon });
+    // 6. the Baker's starvation: every third day after the Baker is gone
+    const bakerGone = names.find(nm => isOut(nm) && libOfA(roleOf(nm).key) === 'Baker' && status[nm].how !== 'removed');
+    if (bakerGone) {
+      const since = round - status[bakerGone].round, r = roleOf(bakerGone);
+      lasting.push(since > 0 && since % 3 === 0
+        ? { name: 'Starvation', text: 'the Baker is gone and today the village starves — eliminate one more player (your choice or at random).', color: r.color, icon: r.icon }
+        : { name: 'Starvation', text: 'the next hungry day is day ' + (status[bakerGone].round + 3 * (Math.floor(Math.max(0, since) / 3) + 1)) + '.', color: r.color, icon: r.icon });
+    }
     const libDay = alive.map(nm => ({ nm, lib: libOfA(roleOf(nm).key) })).filter(x => DAY_REMINDERS[x.lib])
-      .map(x => { const r = roleOf(x.nm); return { name: r.name + ' (' + x.nm + ')', text: DAY_REMINDERS[x.lib], color: r.color, icon: r.icon }; });
+      .map(x => {
+        const r = roleOf(x.nm); let text = DAY_REMINDERS[x.lib];
+        if (x.lib === 'Executioner' && mech.target) text = isOut(mech.target) ? (status[mech.target].how === 'voted' ? 'their target ' + mech.target + ' was voted out — the Executioner has already won.' : 'their target ' + mech.target + ' died another way — they can no longer win and play on with the village.') : 'wins if ' + mech.target + ' is voted out.';
+        return { name: r.name + ' (' + x.nm + ')', text, color: r.color, icon: r.icon };
+      });
+    const lawyerOf = alive.find(nm => libOfA(roleOf(nm).key) === 'Lawyer');
+    if (lawyerOf && mech.client) libDay.push({ name: 'Lawyer (' + lawyerOf + ')', text: isOut(mech.client) ? 'their client ' + mech.client + ' is gone — the Lawyer can no longer win.' : 'wins if their client ' + mech.client + ' is still alive at the end.', color: roleOf(lawyerOf).color, icon: roleOf(lawyerOf).icon });
     const ghosts = names.filter(nm => isOut(nm) && ['Ghost', 'Poltergeist'].indexOf(libOfA(roleOf(nm).key)) >= 0).map(nm => {
       const r = roleOf(nm);
       return { name: r.name + ' (' + nm + ', out)', text: libOfA(r.key) === 'Ghost' ? 'may give the village one letter as a clue today.' : 'once per game may cancel a vote by knocking on the table.', color: r.color, icon: r.icon };
     });
-    const dayRules = [].concat(dayEffects, libDay, ghosts,
+    const dayRules = [].concat(dayEffects, lasting, libDay, ghosts,
       dr2('prince', 'if voted out, they reveal and survive.'),
       dr2('mayor', 'once revealed, their vote counts twice.'),
       dr2('idiot', 'must always vote to eliminate someone.'),
       dr2('hunter', 'if voted out, they shoot one player right away.'),
       dr2('tanner', 'if voted out, the Tanner wins and everyone else loses — watch for suspicious acting.'),
-      dayEffects.some(d => /Old Hag/.test(d.name)) ? [] : dr2('oldhag', 'the player they banish at night can’t talk or vote the next day.')
+      st('acts', []).some(a => a.round === round && a.kind === 'banish' && a.targets && a.targets[0]) ? [] : dr2('oldhag', 'the player they banish at night can’t talk or vote the next day.')
     );
 
     // ---------- game end ----------
@@ -1155,6 +1191,8 @@ export class HostView extends React.Component<any, any> {
     if (tannerWin) endTips.push('Only the Tanner wins — every other player loses, wolves and villagers alike.');
     if (cupidIn) endTips.push('If the two lovers are the last ones standing, they win together.');
     if (inGame('doppelganger')) endTips.push('The Doppelgänger wins with the team of the role they copied.');
+    alive.filter(nm => libOfA(roleOf(nm).key) === 'Survivor').forEach(nm => endTips.push(nm + ' (Survivor) is still alive — they win too.'));
+    if (lawyerOf && mech.client && !isOut(mech.client)) endTips.push(lawyerOf + ' (Lawyer) kept their client ' + mech.client + ' alive — they win too.');
     endTips.push('Ask everyone to show their cards and enjoy the reveal!');
     const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
     const winSide = !gameOver ? null : tannerWin ? 'solo' : soloWins ? 'solo' : villageWins ? 'village' : 'wolves';
