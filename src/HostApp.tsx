@@ -5,6 +5,7 @@ import { HostView } from './views/HostView';
 import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
 import { Village, preloadVillage } from './Village';
 import { useWakeLock } from './wakeLock';
+import { useInstall } from './install';
 
 const SOUND_KEY = 'moonfall.hostSound';
 
@@ -23,7 +24,7 @@ export function HostApp() {
   const [pin, setPin] = useState(() => store.get(PIN_KEY));
   const [wrong, setWrong] = useState(false);
   if (!pin) return <HostPin wrong={wrong} onEnter={p => { setWrong(false); store.set(PIN_KEY, p); setPin(p); }} />;
-  return <HostGame key={pin} pin={pin} onDenied={() => { store.del(PIN_KEY); setWrong(true); setPin(null); }} />;
+  return <HostGame key={pin} pin={pin} onDenied={() => { store.del(PIN_KEY); setWrong(true); setPin(null); }} onLock={() => { store.del(PIN_KEY); setWrong(false); setPin(null); }} />;
 }
 
 function HostPin({ wrong, onEnter }: { wrong: boolean; onEnter: (pin: string) => void }) {
@@ -53,7 +54,8 @@ function HostPin({ wrong, onEnter }: { wrong: boolean; onEnter: (pin: string) =>
   );
 }
 
-function HostGame({ pin, onDenied }: { pin: string; onDenied: () => void }) {
+function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void; onLock: () => void }) {
+  const inst = useInstall();
   const socket = useMemo(() => connect('host', pin), [pin]);
   const [init, setInit] = useState<Record<string, unknown> | null>(null);
   const [initKey, setInitKey] = useState(0);
@@ -134,7 +136,20 @@ function HostGame({ pin, onDenied }: { pin: string; onDenied: () => void }) {
 
   useWakeLock(stage.screen === 'play'); // keep the host's screen on during a game
 
-  if (!init) return null;
+  // waiting for the room (a sleeping free server takes up to a minute to wake): say so instead of a blank screen
+  if (!init) return (
+    <PhoneFrame>
+      {frameH => (
+        <div className="sky pin-screen" style={{ height: frameH }}>
+          <img src="/moon.svg" alt="" className="pin-moon pin-wait" />
+          <div className="pin-title">Moonfall</div>
+          <p className="pin-sub">Connecting to the room…</p>
+          <p className="pin-sub" style={{ maxWidth: 280, textAlign: 'center', fontSize: 13, opacity: .75 }}>If the server was asleep, waking it can take up to a minute.</p>
+          <button className="press pin-change" onClick={onLock}>Use a different PIN</button>
+        </div>
+      )}
+    </PhoneFrame>
+  );
   return (
     <>
       <PhoneFrame>
@@ -154,6 +169,9 @@ function HostGame({ pin, onDenied }: { pin: string; onDenied: () => void }) {
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}
             onRemoveFakes={() => socket.emit('host:unfake')}
+            installMode={inst.mode}
+            onInstall={inst.install}
+            onLock={onLock}
           />
           {scene && <Village key={scene.phase + scene.round} players={scene.players} phase={scene.phase} justOut={scene.justOut} label={(scene.phase === 'night' ? 'Night ' : 'Day ') + scene.round} height={frameH} onDone={() => setScene(null)} />}
           </>

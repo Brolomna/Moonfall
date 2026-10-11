@@ -36,3 +36,6 @@ body {
 .pin-pad button { width: 76px; height: 64px; border-radius: 20px; border: 1px solid rgba(199,168,255,.25); background: rgba(20,12,34,.7); color: #f1e9ff; font: 600 24px 'Manrope', sans-serif; }
 .pin-go { margin-top: 8px; width: 270px; height: 54px; border-radius: 16px; border: none; background: #e9dcff; color: #160b28; font: 700 17px 'Manrope', sans-serif; }
 .pin-go:disabled { opacity: .45; }
+.pin-wait { animation: pinPulse 1.8s ease-in-out infinite; }
+@keyframes pinPulse { 50% { opacity: .45; transform: scale(.94) } }
+.pin-change { margin-top: 18px; border: none; background: none; color: #a99bc2; font: 600 13px 'Manrope', sans-serif; text-decoration: underline; }

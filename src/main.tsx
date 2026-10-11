@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import './global.css';
+import './install'; // starts listening for the browser's install offer right away
 
 // Host and player screens are loaded separately, so players' phones don't download the host's screen (and vice versa).
 const HostApp = lazy(() => import('./HostApp').then(m => ({ default: m.HostApp })));

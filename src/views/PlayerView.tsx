@@ -84,7 +84,7 @@ export class PlayerView extends React.Component<any, any> {
         night: 'Night', day: 'Day', tapToSee: 'Tap to see your role', yourRole: 'Your role', teamVillage: 'Team Village', teamWolves: 'Team Werewolves', onYourOwn: 'On your own',
         hintHide: 'Tap the card again to hide it', hintPeek: 'Only look when no one is peeking', hintHad: 'Tap the card to see the role you had', hintFell: 'Tap to see how you fell',
         protoLabel: 'Prototype · what the host does', toDay: 'To Day', toNight: 'To Night', killed: 'Killed', voted: 'Voted out', revive: 'Revive',
-        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", igJoin: "Join our group", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
+        goalVillage: 'Find and vote out every werewolf', goalWolves: 'Outnumber the villagers', goalTanner: 'Get yourself voted out', goalDopp: 'Win with the team you copy', goalLoner: 'Win alone — follow your card', reconnecting: 'Reconnecting…', whenShot: "The Hunter’s last arrow", shotT1: "SHOT BY", shotT2: "THE HUNTER", shotLine: "One last arrow in the dark — and it found you.", igJoin: "Join our group", installApp: "Install the app", iosTitle: "Add Moonfall to your Home Screen", iosStep1: "In Safari, tap the Share button (the square with an arrow).", iosStep2: "Scroll down and tap “Add to Home Screen”.", iosDone: "Got it", endVillage: "The village wins!", endWolves: "The werewolves win!", endSolo: "{role} wins alone!", endSub: "The game is over. Show your cards and tell the story!", whenSlain: "Night · a hidden blade", slainT1: "SLAIN", slainT2: "IN THE NIGHT", slainLine: "It wasn’t the wolves. Someone else came for you in the dark.", whenHeart: "Two hearts, one fate", heartT1: "DIED OF", heartT2: "A BROKEN HEART", heartLine: "Your love fell, and you could not stay behind.", loverWith: "In love with {name}", grpVillage: "Village", grpWolves: "Werewolves", grpNeutral: "Neutral", grpSpecial: "Special", whenPoisoned: "Night · poisoned", poisonT1: "POISONED BY", poisonT2: "THE WITCH", poisonLine: "One sip in the dark — and the poison did the rest.",
         specTitle: "You’re watching", specSub: "This game started before you joined. Follow along — you’ll play in the next one.", specSecret: "Keep it secret: never tell the players what you see here.", specNightN: "Night {n}", specDayN: "Day {n}", specAlive: "{n} alive", specOut: "{n} out", specWolves: "Wolves left: {n}", specPlayers: "Players & roles", specStory: "The story so far", specDealt: "Cards dealt to {n} players", specNothing: "Nothing has happened yet.", specLeft: "Left", evKilled: "{name} was killed", evVoted: "{name} was voted out", evLeft: "{name} left the game", evBack: "{name} is back in the game", evTough: "{name} was attacked but holds on until sunset", evCursed: "{name} was bitten and became a Werewolf", evPrince: "{name} revealed the Prince and survived the vote", evDg: "{name} became the {role}", evSaved: "{name} was attacked but saved",
         whenKilled: 'Night 2 · eliminated', killedT1: 'TAKEN BY', killedT2: 'THE WOLVES', killedLine: 'The pack found you while the village slept.', youWereA: 'You were the ', youWereB: '', killedRule: 'The dead tell no tales — stay silent, no hints, no faces.',
         whenVoted: 'Day 2 · the vote is cast', votedT1: 'CAST OUT BY', votedT2: 'THE VILLAGE', votedLine: 'Fingers pointed, torches rose — and they chose you.', votedRule: 'No more votes, no more words. Watch the story unfold.', exiled: 'EXILED', byVillage: 'by the village',
@@ -646,6 +646,14 @@ export class PlayerView extends React.Component<any, any> {
                   <span className="pulse" style={{ width: '8px', height: '8px', flex: 'none', borderRadius: '50%', background: '#c7a8ff' }} />
                   {' '}{v.waitingHost}
                 </div>
+                {(this.props.installMode) ? (
+                  <button className="press" onClick={() => (this.props.installMode === 'prompt' ? this.props.onInstall() : this.setState({ iosHelp: true }))} style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(167,127,240,.18)', color: '#f1e9ff', fontSize: '14px', fontWeight: '700' }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 7v7 M9 11l3 3 3-3 M10 18h4" />
+                    </svg>
+                    {v.T.installApp}
+                  </button>
+                ) : null}
                 {/* NET: the roles the host is picking — updates live as the host taps */}
                 {(v.guideRoles && v.guideRoles.length) ? (
                   <div className="fade" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', borderRadius: '18px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(190,165,235,.18)' }}>
@@ -1546,6 +1554,23 @@ export class PlayerView extends React.Component<any, any> {
           <Village key={this.props.scene.phase + this.props.scene.round} players={this.props.scene.players} phase={this.props.scene.phase} justOut={this.props.scene.justOut}
             label={v.fmt(this.props.scene.phase === 'day' ? v.T.specDayN : v.T.specNightN, { n: this.props.scene.round })}
             height={this.props.frameH || 844} onDone={this.props.onSceneDone} />
+        ) : null}
+        {(s0 => s0.iosHelp)(this.state || {}) ? (
+          <>
+            <div className="fade" onClick={() => this.setState({ iosHelp: false })} style={{ position: 'absolute', inset: '0', zIndex: 70, background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label={v.T.iosTitle} style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 71, padding: '22px 22px 34px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1f1236 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.32)', display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: v.fB }}>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '21px', textAlign: 'center' }}>{v.T.iosTitle}</span>
+              {[[v.T.iosStep1, 'M12 3v12 M8 7l4-4 4 4 M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6'], [v.T.iosStep2, 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M12 8v8 M8 12h8']].map(([t, d], i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 14px', borderRadius: '16px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(199,168,255,.18)' }}>
+                  <span style={{ width: '40px', height: '40px', flex: 'none', borderRadius: '12px', background: 'rgba(167,127,240,.2)', color: '#e9dcff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
+                  </span>
+                  <span style={{ fontSize: '15px', lineHeight: '1.4', color: '#ece6f6' }}>{t}</span>
+                </div>
+              ))}
+              <button className="press" onClick={() => this.setState({ iosHelp: false })} style={{ height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>{v.T.iosDone}</button>
+            </section>
+          </>
         ) : null}
         {(v.endShow) ? (
           <div role="dialog" aria-label={v.endCaption} style={{ position: 'absolute', inset: '0', zIndex: 80, background: 'rgba(5,3,10,.86)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', fontFamily: v.fB }}>

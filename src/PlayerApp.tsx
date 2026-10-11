@@ -1,5 +1,6 @@
 import { preloadVillage } from './Village';
 import { useWakeLock } from './wakeLock';
+import { useInstall } from './install';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
@@ -63,6 +64,7 @@ export function PlayerApp() {
   };
 
   useWakeLock(!!view && (view.dealt || !!view.spectator)); // keep the screen on during a game
+  const inst = useInstall();
   const screen = !view ? 'join' : view.spectator ? 'spectate' : view.dealt ? 'card' : 'waiting';
   return (
     <>
@@ -77,6 +79,8 @@ export function PlayerApp() {
             fate={view?.fate || 'none'}
             lover={view?.lover || null}
             winner={view?.winner || null}
+            installMode={inst.mode}
+            onInstall={inst.install}
             language={view?.roomLang || 'en'}
             roleDefs={view?.roleDefs}
             deck={view?.deck}

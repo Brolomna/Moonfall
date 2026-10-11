@@ -10,7 +10,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked'];
 
   constructor(props) {
     super(props);
@@ -268,16 +268,21 @@ export class HostView extends React.Component<any, any> {
         ...(r.key === 'werewolf' ? { countHint: wolfMin === 0 ? 'Can be 0 — your ' + wolfPicks + ' wolf role' + (wolfPicks > 1 ? 's hunt' : ' hunts') + ' instead' : r.countHint + '. Pick ' + needWolves + ' wolf role' + (needWolves > 1 ? 's' : '') + ' to go down to 0.' } : {})
       };
     });
+    const locked = (s.locked || []).filter(k => picked.indexOf(k) >= 0); // roles the presets must keep
     const uniques = visible.filter(r => r.kind === 'unique').map(r => {
       const on = picked.indexOf(r.key) >= 0;
+      const isLocked = on && locked.indexOf(r.key) >= 0;
       return {
         ...r, on, off: !on, strText: this.str(r.strength), ...this.strStyle(r.strength),
         soft: 'rgba(' + r.rgb + ',.16)', edge: 'rgba(' + r.rgb + ',.4)',
-        border: on ? r.color : 'rgba(236,230,246,.08)',
+        border: isLocked ? '#f2d06b' : on ? r.color : 'rgba(236,230,246,.08)',
         bg: on ? 'rgba(' + r.rgb + ',.14)' : 'rgba(20,12,34,.66)',
         glow: on ? '0 0 22px rgba(' + r.rgb + ',.22)' : 'none',
         edit: () => openEdit(r),
-        toggle: () => this.setState({ picked: on ? picked.filter(k => k !== r.key) : picked.concat([r.key]) })
+        toggle: () => this.setState({ picked: on ? picked.filter(k => k !== r.key) : picked.concat([r.key]), ...(on ? { locked: locked.filter(k => k !== r.key) } : {}) }),
+        isLocked, canLock: on,
+        lockLabel: isLocked ? `Unlock ${r.name} (presets may change it)` : `Lock ${r.name} (presets keep it)`,
+        toggleLock: () => this.setState({ locked: isLocked ? locked.filter(k => k !== r.key) : locked.concat([r.key]) }),
       };
     });
     const mkGroup = (label, dot, fg, items) => ({ label, dot, fg, items, picked: items.filter(i => i.on).length + ' added' });
@@ -424,6 +429,17 @@ export class HostView extends React.Component<any, any> {
     // Intermediate / Advanced: a fresh deck from the whole library on every tap. The Seer always stays
     // (Intermediate also keeps one protector). Many random decks are tried; only fair ones (−2…+2) are kept,
     // and the one with the most roles you haven't played recently wins — so the presets rotate through the library.
+    // roles the host locked: presets keep them and only change the rest
+    const lockedNow = (s.locked || []).filter(k => picked.indexOf(k) >= 0);
+    const lockNameOf = (k) => { const r = byKey[k]; if (!r) return null; if (r.lib) return r.lib; const e = ROLE_LIBRARY.find(x => x.builtin === k); return e ? e.name : null; };
+    const LOCK = {
+      wolves: lockedNow.filter(k => lockNameOf(k) && isWolfRole(byKey[k])).map(lockNameOf),
+      others: lockedNow.filter(k => lockNameOf(k) && !isWolfRole(byKey[k])).map(lockNameOf),
+      hand: lockedNow.filter(k => !lockNameOf(k)), // hand-made roles (not in the library)
+    };
+    const handWolves = LOCK.hand.filter(k => isWolfRole(byKey[k])).length;
+    const handStrength = LOCK.hand.reduce((a, k) => a + (byKey[k].strength || 0), 0);
+    const uniq = (a) => a.filter((x, i) => a.indexOf(x) === i);
     const randomDeck = (level, N, W) => {
       const recent = s.presetRecent || [];
       const rnd = (a) => a.map(x => [Math.random(), x]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
@@ -432,12 +448,14 @@ export class HostView extends React.Component<any, any> {
       const specialWolves = usable.filter(isWolfE);
       const allies = usable.filter(e => e.team === 'Werewolves' && !isWolfE(e));
       const NEEDS = { 'Hunter Apprentice': 'Hunter', 'Vampire Hunter': 'Vampire' };
-      const slots = N - W;
+      const slots = N - W - (LOCK.hand.length - handWolves);
       let best = null;
       for (let tries = 0; tries < 400; tries++) {
-        const core = level === 'advanced' ? ['Seer'] : ['Seer', rnd(['Healer', 'Bodyguard'])[0]];
-        const nSW = level === 'advanced' ? (W >= 2 ? 1 + Math.floor(Math.random() * (W - 1)) : 0) : (W >= 2 && Math.random() < 0.6 ? 1 : 0);
-        const wolfRoles = rnd(specialWolves).slice(0, nSW).map(e => e.name);
+        const prot = LOCK.others.some(nm => nm === 'Healer' || nm === 'Bodyguard') ? [] : [rnd(['Healer', 'Bodyguard'])[0]];
+        const core = uniq(LOCK.others.concat(level === 'advanced' ? ['Seer'] : ['Seer'].concat(prot)));
+        const lockedWolfN = LOCK.wolves.length + handWolves;
+        const nSW = Math.min(W, Math.max(lockedWolfN, level === 'advanced' ? (W >= 2 ? 1 + Math.floor(Math.random() * (W - 1)) : 0) : (W >= 2 && Math.random() < 0.6 ? 1 : 0)));
+        const wolfRoles = LOCK.wolves.concat(rnd(specialWolves.filter(e => LOCK.wolves.indexOf(e.name) < 0)).slice(0, Math.max(0, nSW - lockedWolfN)).map(e => e.name));
         const picks = core.slice();
         if (level === 'advanced' && N >= 8 && Math.random() < 0.6) picks.push(rnd(allies)[0].name);
         const want = Math.max(picks.length, level === 'advanced' ? slots - Math.floor(Math.random() * 2) : Math.round(slots * 0.6));
@@ -453,9 +471,9 @@ export class HostView extends React.Component<any, any> {
           if (e.team === 'Loner') loners++;
           picks.push(e.name);
         }
-        const villagers = slots - picks.length;
-        if (villagers < 0) continue;
-        const score = (W - wolfRoles.length) * byKey.werewolf.strength + villagers * byKey.villager.strength + wolfRoles.concat(picks).reduce((a, nm) => a + strengthOf(nm), 0);
+        const villagers = Math.max(0, slots - picks.length);
+        if (slots - picks.length < 0 && picks.length > core.length) continue;
+        const score = (W - wolfRoles.length - handWolves) * byKey.werewolf.strength + villagers * byKey.villager.strength + wolfRoles.concat(picks).reduce((a, nm) => a + strengthOf(nm), 0) + handStrength;
         const fresh = wolfRoles.concat(picks).filter(nm => recent.indexOf(nm) < 0).length;
         const rank = Math.abs(score) <= 2 ? 100 + fresh : -Math.abs(score);
         if (!best || rank > best.rank) best = { rank, wolfRoles, specials: picks, villagers };
@@ -465,12 +483,13 @@ export class HostView extends React.Component<any, any> {
     const applyPreset = (p) => {
       const N = Math.max(5, n), W = Math.max(1, Math.round(N / 4));
       const gen = p.random ? randomDeck(p.id, N, W) : null;
-      const wolfRoles = gen ? gen.wolfRoles : p.wolfRoles ? p.wolfRoles(W) : [];
-      const slots = N - W;
-      const specials = gen ? gen.specials : p.roles.slice(0, Math.min(p.special(slots), slots));
-      let villagers = gen ? gen.villagers : slots - specials.length;
-      const score = () => (W - wolfRoles.length) * byKey.werewolf.strength + villagers * byKey.villager.strength
-        + wolfRoles.concat(specials).reduce((a, nm) => a + strengthOf(nm), 0);
+      // locked roles first, then the preset's own picks
+      const wolfRoles = gen ? gen.wolfRoles : uniq(LOCK.wolves.concat(p.wolfRoles ? p.wolfRoles(W) : [])).slice(0, Math.max(LOCK.wolves.length, W - handWolves));
+      const slots = N - W - (LOCK.hand.length - handWolves);
+      const specials = gen ? gen.specials : uniq(LOCK.others.concat(p.roles)).slice(0, Math.max(LOCK.others.length, Math.min(p.special(slots), slots)));
+      let villagers = gen ? gen.villagers : Math.max(0, slots - specials.length);
+      const score = () => (W - wolfRoles.length - handWolves) * byKey.werewolf.strength + villagers * byKey.villager.strength
+        + wolfRoles.concat(specials).reduce((a, nm) => a + strengthOf(nm), 0) + handStrength;
       // nudge toward a fair game (−3…+3) by trading Villagers for light balancing roles
       const tipWolf = ['Lycan', 'Tanner', 'Cursed', 'Pacifist'], tipVillage = ['Hunter', 'Mayor', 'Prince', 'Elder', 'Diseased'];
       for (let i = 0; i < (gen ? 0 : 8); i++) {
@@ -480,7 +499,7 @@ export class HostView extends React.Component<any, any> {
         const add = pool.find(nm => specials.indexOf(nm) < 0);
         if (villagers > 0 && add) { specials.push(add); villagers--; continue; }
         // no Villager left to trade: swap the role pushing hardest the wrong way for a Villager
-        const worst = specials.filter(nm => nm !== 'Seer').sort((a, b) => (sc > 3 ? strengthOf(b) - strengthOf(a) : strengthOf(a) - strengthOf(b)))[0];
+        const worst = specials.filter(nm => nm !== 'Seer' && LOCK.others.indexOf(nm) < 0).sort((a, b) => (sc > 3 ? strengthOf(b) - strengthOf(a) : strengthOf(a) - strengthOf(b)))[0];
         if (!worst) break;
         specials.splice(specials.indexOf(worst), 1); villagers++;
       }
@@ -496,7 +515,7 @@ export class HostView extends React.Component<any, any> {
         return role.key;
       });
       const used = wolfRoles.concat(specials);
-      this.setState({ counts: { werewolf: W - wolfRoles.length, villager: villagers, mason: 0 }, picked: keys, custom: nextCustom, hidden: nextHidden, preset: p.id,
+      this.setState({ counts: { werewolf: Math.max(0, W - wolfRoles.length - handWolves), villager: villagers, mason: 0 }, picked: keys.concat(LOCK.hand), custom: nextCustom, hidden: nextHidden, preset: p.id,
         ...(gen ? { presetRecent: used.concat((s.presetRecent || []).filter(nm => used.indexOf(nm) < 0)).slice(0, 30) } : {}) });
     };
     const presets = PRESETS.map(p => ({ label: p.label, sub: p.sub, on: s.preset === p.id, apply: () => applyPreset(p) }));
@@ -1482,7 +1501,28 @@ export class HostView extends React.Component<any, any> {
               <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '16px', letterSpacing: '.22em' }}>
                 MOONFALL
               </span>
+              {(this.props.installMode) ? (
+                <button className="press" onClick={() => (this.props.installMode === 'prompt' ? this.props.onInstall() : this.setState({ iosHelp: true }))} aria-label="Install the host app" style={{ height: '28px', padding: '0 9px 0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14" /></svg>
+                  {' '}App
+                </button>
+              ) : null}
+              {(this.props.onLock) ? (
+                <button className="press" onClick={this.props.onLock} aria-label="Lock the host screen (asks for the PIN again)" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" /></svg>
+                </button>
+              ) : null}
             </div>
+            {((this.state || {}).iosHelp) ? (
+              <div className="fade" onClick={() => this.setState({ iosHelp: false })} style={{ position: 'absolute', inset: '0', zIndex: 120, background: 'rgba(5,3,10,.78)', display: 'flex', alignItems: 'flex-end' }}>
+                <section className="sheet" style={{ width: '100%', padding: '22px 22px 34px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1f1236 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.32)', display: 'flex', flexDirection: 'column', gap: '12px', color: '#ece6f6' }}>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '20px', textAlign: 'center' }}>Add Moonfall Host to your Home Screen</span>
+                  <span style={{ fontSize: '15px', lineHeight: '1.5' }}>1. In Safari, tap the Share button (the square with an arrow).</span>
+                  <span style={{ fontSize: '15px', lineHeight: '1.5' }}>2. Scroll down and tap “Add to Home Screen”.</span>
+                  <button className="press" style={{ marginTop: '6px', height: '52px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '16px', fontWeight: '700' }}>Got it</button>
+                </section>
+              </div>
+            ) : null}
             <nav aria-label="Setup steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
               {((v.steps) || []).map((st: any, $index: number) => (
                 <React.Fragment key={$index}>
@@ -1832,6 +1872,13 @@ export class HostView extends React.Component<any, any> {
                                   {r.blurb}
                                 </span>
                               </button>
+                              {(r.canLock) ? (
+                                <button className="press" onClick={r.toggleLock} aria-label={r.lockLabel} aria-pressed={r.isLocked} style={{ position: 'absolute', right: '44px', bottom: '4px', width: '36px', height: '36px', borderRadius: '12px', border: r.isLocked ? '1px solid rgba(242,208,107,.7)' : 'none', background: r.isLocked ? 'rgba(242,208,107,.22)' : 'rgba(255,255,255,.07)', color: r.isLocked ? '#f2d06b' : '#8f84a8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d={r.isLocked ? 'M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11' : 'M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 6.8-1.2'} />
+                                  </svg>
+                                </button>
+                              ) : null}
                               <button className="press" onClick={r.edit} aria-label={`Edit ${r.name}`} style={{ position: 'absolute', right: '4px', bottom: '4px', width: '36px', height: '36px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,.07)', color: '#c4b8da', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M4 20h4L19 9l-4-4L4 16z M14 6l4 4" />
