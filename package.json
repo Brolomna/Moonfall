@@ -8,7 +8,7 @@
     "dev": "concurrently -k -n server,web -c magenta,cyan \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && tsx scripts/build-pages.ts",
     "build:web": "vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
     "fake": "tsx scripts/fake-players.ts",

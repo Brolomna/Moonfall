@@ -667,7 +667,10 @@ export class PlayerView extends React.Component<any, any> {
                   <button type="button" className="press" onClick={v.join} disabled={v.noName} style={{ height: '60px', borderRadius: '16px', border: 'none', background: '#e9dcff', color: '#160b28', fontSize: '18px', fontWeight: '700', opacity: v.joinOpacity, boxShadow: '0 0 40px rgba(199,168,255,.35)' }}>
                     {v.T.join}
                   </button>
-                  <a href="/privacy" target="_blank" rel="noopener" style={{ alignSelf: 'center', fontSize: '12.5px', color: '#8f82a8', textDecoration: 'underline' }}>{v.T.privacy}</a>
+                  <span style={{ alignSelf: 'center', display: 'flex', gap: '14px', fontSize: '12.5px' }}>
+                    <a href={v.lang === 'en' ? '/how-to-play' : '/' + v.lang + '/how-to-play'} target="_blank" rel="noopener" style={{ color: '#8f82a8', textDecoration: 'underline' }}>{v.T.guideTitle}</a>
+                    <a href="/privacy" target="_blank" rel="noopener" style={{ color: '#8f82a8', textDecoration: 'underline' }}>{v.T.privacy}</a>
+                  </span>
                 </form>
               </div>
             </>

@@ -257,7 +257,7 @@ app.get('/ads.txt', (_req, res) => {
 if (PROD) {
   const dist = path.join(ROOT, 'dist');
   if (!fs.existsSync(dist)) console.warn('⚠  dist/ not found — run `npm run build` first.');
-  app.use(express.static(dist));
+  app.use(express.static(dist, { extensions: ['html'] })); // /how-to-play, /ko/roles … → the built guide pages (scripts/build-pages.ts)
   app.get('/privacy', (_req, res) => res.sendFile(path.join(dist, 'privacy.html'))); // the privacy policy (static page in public/)
   app.use((req, res, next) => (req.method === 'GET' && !req.path.startsWith('/socket.io') ? res.sendFile(path.join(dist, 'index.html')) : next()));
 }
