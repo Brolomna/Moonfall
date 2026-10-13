@@ -228,7 +228,7 @@ export class HostView extends React.Component<any, any> {
       r('mason', 'Mason', V, 'pair', 2, '#d9b48a', '217,180,138', 'brick', 'Masons know each other.', { plural: 'Masons', countHint: 'Pairs only — 0, 2, 3 or 4' }),
       r('seer', 'Seer', V, 'unique', 7, '#7fb2ff', '127,178,255', 'eye', 'Each night, learns if one player is a werewolf.'),
       r('healer', 'Healer', V, 'unique', 5, '#62d4a6', '98,212,166', 'shieldCross', 'Each night, protects one player from the wolves.'),
-      r('witch', 'Witch', V, 'unique', 4, '#c98bf2', '201,139,242', 'flask', 'One potion to save, one poison. Each used once; after using one she no longer learns the victim.'),
+      r('witch', 'Witch', V, 'unique', 4, '#c98bf2', '201,139,242', 'flask', 'One potion to save, one poison. Each used once; after using one she no longer learns the victim. The healing potion can also bring back anyone already dead.'),
       r('hunter', 'Hunter', V, 'unique', 3, '#f2a65a', '242,166,90', 'bow', 'When eliminated, takes one player down too.'),
       r('bodyguard', 'Bodyguard', V, 'unique', 3, '#8fd3e8', '143,211,232', 'shieldStar', 'Guards one player a night and dies in their place if the wolves attack.'),
       r('apprentice', 'Apprentice Seer', V, 'unique', 4, '#a6c8ff', '166,200,255', 'eyeSmall', 'Becomes the Seer if the Seer dies.'),
@@ -1225,9 +1225,11 @@ export class HostView extends React.Component<any, any> {
         // witch: healing potion on tonight's victim, poison on anyone — each once per game
         victimsText: witchBlind ? 'She has used a potion, so she no longer learns the victim — don’t show her. (For you: ' + (tonightVictims.length ? 'the wolves chose ' + tonightVictims.join(' and ') : 'no victim yet') + '.)' : tonightVictims.length ? 'Tonight the wolves chose ' + tonightVictims.join(' and ') + '.' : (actOf('werewolf') ? 'The wolves’ victim is already out.' : 'Record the wolves first to see their victim here.'),
         saveUsed: !witchCanSave, poisonUsed: !witchCanPoison,
-        saveRows: (witchBlind ? alive : tonightVictims).map(nm => rowOf(nm, s.wSave === nm, () => this.setState({ wSave: s.wSave === nm ? null : nm }))),
+        // the healing potion saves tonight's victim — or brings back anyone already dead (dead players sleep too, so no one knows)
+        saveRows: (witchBlind ? alive : tonightVictims).concat(names.filter(nm => isOut(nm) && status[nm].how !== 'removed'))
+          .map(nm => ({ ...rowOf(nm, s.wSave === nm, () => this.setState({ wSave: s.wSave === nm ? null : nm })), ...(isOut(nm) ? { name: nm + ' · dead (' + (status[nm].phase === 'day' ? 'Day ' : 'Night ') + status[nm].round + ')' } : {}) })),
         poisonRows: alive.filter(nm => roleOf(nm).key !== 'witch').map(nm => rowOf(nm, s.wPoison === nm, () => this.setState({ wPoison: s.wPoison === nm ? null : nm }))),
-        noSaveTarget: !witchBlind && !tonightVictims.length,
+        noSaveTarget: !witchBlind && !tonightVictims.length && !names.some(nm => isOut(nm) && status[nm].how !== 'removed'),
         result: s.ignite ? 'Everyone doused burns at dawn.' : result, hasResult: !!(s.ignite || result), ready, record, clear, canClear: !!actOf(actX.key),
         recordLabel: spec.kind === 'witch' ? (s.wSave || s.wPoison ? 'Use potion' + (s.wSave && s.wPoison ? 's' : '') : 'The Witch does nothing') : spec.count === 0 || !spec.pool.length ? 'Done' : (spec.optional && !pick.length && !s.ignite ? 'They chose no one' : 'Confirm'),
         close: () => this.setState({ nightAct: null })
@@ -1553,11 +1555,12 @@ export class HostView extends React.Component<any, any> {
       saved: e.name + ' survived — saved by ' + (/^(their|the )/.test(e.by) ? e.by : 'the ' + e.by),
       turned: e.name + ' became the ' + e.role + (e.by === 'apprentice' ? ' (the apprentice steps up)' : e.by ? ' (' + e.by + ')' : ''),
       raised: e.name + ' was raised from the dead',
+      revived: e.name + ' was brought back to life by the Witch’s potion',
       drunk: 'The Drunk is secretly the ' + e.role + ' (revealed on night 3)',
       vote: 'The vote: ' + ((e.tally || []).map(x => x[0] + ' ' + x[1]).join(' · ') || 'no votes') + (e.out ? '' : e.why === 'skipped' ? ' — the village skipped the vote' : e.why === 'tie' ? ' — tied, no one is out' : e.why === 'no majority' ? ' — no majority, no one is out' : ' — no one is out'),
       act: actLine(e),
     }[e.t]);
-    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { vote: '#f2c58a', act: '#a6c8ff', saved: '#62d4a6', turned: '#c2a8f0', raised: '#8fe0b8', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
+    const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { vote: '#f2c58a', act: '#a6c8ff', saved: '#62d4a6', turned: '#c2a8f0', raised: '#8fe0b8', revived: '#c98bf2', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
     const chapters = [];
     log.forEach((e, i) => {
       if (e.t === 'start' || e.t === 'phase') {
@@ -1936,11 +1939,14 @@ export class HostView extends React.Component<any, any> {
         const nextStatus = { ...status };
         deaths.forEach(d => { nextStatus[d.nm] = { how: 'night', round, phase: 'night', ...(d.cause ? { cause: d.cause } : {}) }; });
         if (raise && nextStatus[raise] && nextStatus[raise].how !== 'removed') { delete nextStatus[raise]; raised.push(raise); }
+        const revived = []; // the Witch's healing potion on someone who died before tonight
+        if (witch && witch.save && isOut(witch.save) && nextStatus[witch.save] && nextStatus[witch.save].how !== 'removed') { delete nextStatus[witch.save]; revived.push(witch.save); }
         turned.forEach(t => { ov[t.nm] = t.key; });
         const nightLog = toughLog.concat(saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
           .concat(turned.map(t => ({ t: 'turned', round, phase: 'night', name: t.nm, role: roleLabel(t.key), by: t.why })))
           .concat(deaths.map(d => ({ t: 'out', round, phase: 'night', how: 'night', name: d.nm, role: roleOf(d.nm).name, ...(d.cause ? { cause: d.cause } : {}) })))
-          .concat(raised.map(nm => ({ t: 'raised', round, phase: 'night', name: nm }))));
+          .concat(raised.map(nm => ({ t: 'raised', round, phase: 'night', name: nm })))
+          .concat(revived.map(nm => ({ t: 'revived', round, phase: 'night', name: nm }))));
         const patch = { phase: 'day', round, status: nextStatus, override: ov, mech: nm2, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
         dgTakeOver(patch, dead); // the Doppelgänger takes over the copied player's role
         promote(patch, dead); // apprentices step up
