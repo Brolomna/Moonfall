@@ -3,6 +3,7 @@ import { useInstall } from './install';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
+import { brandText, type Sponsor } from './brand';
 import { PlayerView } from './views/PlayerView';
 import { installAudioUnlock, playDawn, playHowl } from './sound';
 
@@ -12,7 +13,7 @@ type View = {
   spectator?: boolean;
   winner?: { side: 'village' | 'wolves' | 'solo'; key?: string; lib?: string; names?: string[]; also?: { name: string; key: string }[] } | null; // the end-result card
   whisper?: Record<string, unknown> | null; timer?: { running: boolean; leftMs: number; endsAt?: number } | null; now?: number;
-  ballot?: { nominee: string; mine: 'kill' | 'spare' | null; accused?: boolean } | null; ivory?: boolean; note?: { id: string; text: string } | null;
+  ballot?: { nominee: string; mine: 'kill' | 'spare' | null; accused?: boolean } | null; ivory?: boolean; sponsor?: Sponsor; note?: { id: string; text: string } | null;
   lover?: string | null; // Cupid's partner, shown as a heart on the card // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
@@ -32,6 +33,9 @@ export function PlayerApp() {
   const lastPhase = useRef<string | null>(null);
   // splash art first, then the name page
   const [splash, setSplash] = useState(true);
+  // the host's sponsor, shown on the splash and the join screen before this phone has joined
+  const [preSponsor, setPreSponsor] = useState<Sponsor>(null);
+  useEffect(() => { fetch('/api/sponsor').then(r => r.json()).then(setPreSponsor).catch(() => { /* none */ }); }, []);
   useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
   const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
   const soundRef = useRef(soundOn); soundRef.current = soundOn;
@@ -84,6 +88,7 @@ export function PlayerApp() {
             onVote={(choice: 'kill' | 'spare') => socket.emit('player:vote', choice)}
             ivory={!!view?.ivory}
             note={view?.note || null}
+            sponsor={view ? view.sponsor || null : preSponsor}
             installMode={inst.mode}
             onInstall={inst.install}
             language={startLang}
@@ -102,6 +107,12 @@ export function PlayerApp() {
       {splash && (
         <div className="splash" onClick={() => setSplash(false)}>
           <img src="/splash.webp" alt="Moonfall" />
+          {preSponsor && (
+            <div className="splash-sponsor">
+              {preSponsor.logo && <img src={preSponsor.logo} alt="" />}
+              <span>{brandText(startLang).by.replace('{name}', preSponsor.name)}</span>
+            </div>
+          )}
         </div>
       )}
     </>

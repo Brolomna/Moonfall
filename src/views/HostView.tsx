@@ -8,13 +8,14 @@ import { ROLE_PAIRS } from './rolePairs';
 import { CAUSES } from '../deathCauses';
 import { endArt } from '../endArt';
 import { playTick, playTimeUp } from '../sound';
+import { DONATE_URL } from '../brand';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo'];
 
   constructor(props) {
     super(props);
@@ -22,6 +23,10 @@ export class HostView extends React.Component<any, any> {
   }
 
   componentDidMount() {
+    // the sponsor is kept on this phone between games (and sent to the room once)
+    if (this.state.sponsor === undefined) {
+      try { const sp = JSON.parse(HostView.store('moonfall.sponsor') || 'null'); if (sp) this.setState({ sponsor: sp.sponsor || null, sponsorLogo: sp.logo || null }); } catch { /* none */ }
+    }
     // the discussion timer redraws every second while it runs
     this._tick = setInterval(() => { if (this.state.timer && this.state.timer.running) this.forceUpdate(); }, 500);
     // NET: the deck defaults only live in render(); send them once so waiting phones can show the roles before the host taps anything
@@ -1742,6 +1747,40 @@ export class HostView extends React.Component<any, any> {
       qrSrc: (this.props.info && this.props.info.qr) || '', joinHost: (this.props.info && this.props.info.host) || '…', // NET
       players, playerCount: n, tooFew: n < 5,
       // Test players (added by the server, no phone) — handy for trying the game alone
+      sponsorView: (() => {
+        // the host's sponsor: shown on players' splash, join and waiting screens and on the end-of-game card
+        const sp = s.sponsor || {}, logo = s.sponsorLogo || null;
+        const save = (next, nextLogo) => {
+          const patch = { sponsor: next, ...(nextLogo !== undefined ? { sponsorLogo: nextLogo } : {}) };
+          this.setState(patch);
+          HostView.store('moonfall.sponsor', JSON.stringify({ sponsor: next, logo: nextLogo !== undefined ? nextLogo : logo }));
+        };
+        const set = (k) => (e) => save({ ...sp, [k]: e.target.value });
+        return {
+          open: !!s.sponsorOpen, openIt: () => this.setState({ sponsorOpen: true }), close: () => this.setState({ sponsorOpen: false }),
+          on: !!sp.on, toggle: () => save({ ...sp, on: !sp.on }),
+          name: sp.name || '', offer: sp.offer || '', link: sp.link || '', logo,
+          setName: set('name'), setOffer: set('offer'), setLink: set('link'),
+          fixLink: () => { const l = (sp.link || '').trim(); if (l && !/^https?:\/\//i.test(l)) save({ ...sp, link: 'https://' + l }); },
+          pickLogo: (e) => {
+            const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+            const img = new Image(), url = URL.createObjectURL(f);
+            img.onload = () => {
+              const k = Math.min(1, 256 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+              c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+              c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+              let d = c.toDataURL('image/webp', 0.85); if (!/^data:image\/webp/.test(d)) d = c.toDataURL('image/png');
+              save({ ...sp, logoV: Date.now() }, d);
+            };
+            img.src = url;
+          },
+          clearLogo: () => save({ ...sp, logoV: Date.now() }, null),
+          clear: () => save({ on: false, name: '', offer: '', link: '' }, null),
+          summary: sp.on && sp.name ? 'Showing ' + sp.name + ' to players' : sp.name ? sp.name + ' · hidden from players' : 'Add a café, bar or shop — players see it in the game',
+          showing: !!(sp.on && sp.name),
+        };
+      })(),
+      donate: DONATE_URL,
       fakeInput: this.state.fakeN || '', fakeValid: +this.state.fakeN >= 1 && +this.state.fakeN <= 20,
       fakeHave: netPlayers.filter(p => p.fake).length,
       setFake: e => this.setState({ fakeN: e.target.value.replace(/\D/g, '').slice(0, 2) }),
@@ -2088,6 +2127,16 @@ export class HostView extends React.Component<any, any> {
                     </button>
                   )}
                 </section>
+                <button className="press" onClick={v.sponsorView.openIt} aria-label="Sponsor" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', borderRadius: '20px', border: `1px solid ${v.sponsorView.showing ? 'rgba(242,195,138,.55)' : 'rgba(242,195,138,.22)'}`, background: v.sponsorView.showing ? 'linear-gradient(160deg, rgba(110,60,20,.45), rgba(22,13,38,.8))' : 'rgba(22,13,38,.72)', color: '#ece6f6', textAlign: 'left' }}>
+                  <span style={{ width: '44px', height: '44px', flex: 'none', borderRadius: '14px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(242,166,90,.14)', border: '1px solid rgba(242,195,138,.3)', fontSize: '22px' }}>
+                    {v.sponsorView.logo ? <img src={v.sponsorView.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🤝'}
+                  </span>
+                  <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: '700' }}>Sponsor</span>
+                    <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#cbbfa0' }}>{v.sponsorView.summary}</span>
+                  </span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbbfa0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: 'none' }}><path d="M9 6l6 6-6 6" /></svg>
+                </button>
                 <button className="press" onClick={v.openRules} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', borderRadius: '20px', border: '1px solid rgba(232,211,160,.28)', background: 'linear-gradient(150deg, rgba(232,211,160,.1), rgba(22,13,38,.85))', color: '#ece6f6', textAlign: 'left' }}>
                   <span style={{ width: '44px', height: '44px', flex: 'none', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(232,211,160,.14)', border: '1px solid rgba(232,211,160,.35)' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f0dfb4" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -2558,6 +2607,18 @@ export class HostView extends React.Component<any, any> {
                         <span style={{ fontSize: '16px', fontWeight: '800' }}>↻ Rematch</span>
                         <span style={{ fontSize: '12px', fontWeight: '600', opacity: 0.75 }}>{v.rematchHint}</span>
                       </button>
+                      {(v.sponsorView.showing) ? (
+                        <span style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: 'rgba(0,0,0,.25)', border: '1px solid rgba(242,195,138,.35)', textAlign: 'left' }}>
+                          {v.sponsorView.logo ? <img src={v.sponsorView.logo} alt="" style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover', flex: 'none' }} /> : null}
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: '1px', fontSize: '13px', color: '#e8d6bc' }}>
+                            <b style={{ color: '#fff4e2', fontSize: '14px' }}>{v.sponsorView.offer ? '🎁 ' + v.sponsorView.offer : 'Tonight’s sponsor'}</b>
+                            {v.sponsorView.name}
+                          </span>
+                        </span>
+                      ) : null}
+                      {(v.donate) ? (
+                        <a className="press" href={v.donate} target="_blank" rel="noopener noreferrer" style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '44px', borderRadius: '14px', border: '1px solid rgba(242,195,138,.55)', background: 'rgba(242,166,90,.12)', color: '#f6dcb4', fontSize: '14px', fontWeight: '800', textDecoration: 'none' }}>Support Moonfall ☕</a>
+                      ) : null}
                       <button className="press" onClick={v.endGame} style={{ width: '100%', height: '52px', borderRadius: '14px', border: `1px solid ${v.endColor}`, background: 'transparent', color: v.endColor, fontSize: '16px', fontWeight: '700' }}>
                         Start a new game
                       </button>
@@ -3574,6 +3635,57 @@ export class HostView extends React.Component<any, any> {
               <button className="press" onClick={v.confirmYes} style={{ height: '48px', borderRadius: '14px', border: '1px solid rgba(224,71,95,.45)', background: 'rgba(224,71,95,.12)', color: '#ffb3bf', fontSize: '15px', fontWeight: '700' }}>
                 Yes, end the game
               </button>
+            </section>
+          </>
+        ) : null}
+        {(v.sponsorView.open) ? (
+          <>
+            <div className="fade" onClick={v.sponsorView.close} style={{ position: 'absolute', inset: '0', background: 'rgba(5,3,10,.66)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Sponsor" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', maxHeight: '792px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2a1a10 0%, #120a20 100%)', borderTop: '1px solid rgba(242,195,138,.4)', boxShadow: '0 -20px 60px rgba(0,0,0,.6)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '10px 20px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '40px', height: '5px', borderRadius: '999px', background: 'rgba(236,230,246,.25)' }} />
+                <span style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <h2 style={{ margin: '0', fontFamily: "'Cinzel', serif", fontWeight: '600', fontSize: '22px', color: '#f2c38a' }}>Sponsor</h2>
+                  <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>Players see the sponsor when they open Moonfall, on the join and waiting screens, and on the end-of-game card. Saved on this phone for your next games.</span>
+                </span>
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <button className="press" onClick={v.sponsorView.toggle} aria-pressed={v.sponsorView.on} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '16px', border: `1.5px solid ${v.sponsorView.on ? '#f2c38a' : 'rgba(236,230,246,.14)'}`, background: v.sponsorView.on ? 'rgba(242,166,90,.14)' : 'rgba(20,12,34,.75)', color: '#ece6f6', textAlign: 'left', fontSize: '15px', fontWeight: '700' }}>
+                  <span style={{ width: '44px', height: '26px', flex: 'none', borderRadius: '999px', background: v.sponsorView.on ? '#f2c38a' : 'rgba(236,230,246,.18)', position: 'relative', transition: 'background .2s' }}>
+                    <span style={{ position: 'absolute', top: '3px', left: v.sponsorView.on ? '21px' : '3px', width: '20px', height: '20px', borderRadius: '50%', background: '#160b28', transition: 'left .2s' }} />
+                  </span>
+                  <span style={{ flex: '1' }}>{v.sponsorView.on ? 'Showing to players' : 'Hidden from players'}</span>
+                </button>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#f2c38a' }}>Name</span>
+                  <input type="text" value={v.sponsorView.name} onChange={v.sponsorView.setName} maxLength={60} placeholder="e.g. Café Luna" style={{ width: '100%', boxSizing: 'border-box', height: '46px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#f2c38a' }}>Offer for players (optional)</span>
+                  <input type="text" value={v.sponsorView.offer} onChange={v.sponsorView.setOffer} maxLength={140} placeholder="e.g. Winners get 10% off tonight" style={{ width: '100%', boxSizing: 'border-box', height: '46px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#f2c38a' }}>Link (optional)</span>
+                  <input type="url" value={v.sponsorView.link} onChange={v.sponsorView.setLink} onBlur={v.sponsorView.fixLink} maxLength={300} placeholder="instagram.com/cafeluna" style={{ width: '100%', boxSizing: 'border-box', height: '46px', padding: '0 14px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.12em', textTransform: 'uppercase', color: '#f2c38a' }}>Logo (optional)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ width: '64px', height: '64px', flex: 'none', borderRadius: '16px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.05)', border: '1px dashed rgba(242,195,138,.4)', color: '#a99bc2', fontSize: '12px' }}>
+                      {v.sponsorView.logo ? <img src={v.sponsorView.logo} alt="Sponsor logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'No logo'}
+                    </span>
+                    <label className="press" style={{ height: '42px', padding: '0 16px', borderRadius: '12px', border: '1px solid rgba(242,195,138,.45)', background: 'rgba(242,166,90,.12)', color: '#f6dcb4', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      {v.sponsorView.logo ? 'Change' : 'Upload'}
+                      <input type="file" accept="image/*" onChange={v.sponsorView.pickLogo} style={{ display: 'none' }} />
+                    </label>
+                    {v.sponsorView.logo ? <button className="press" onClick={v.sponsorView.clearLogo} style={{ height: '42px', padding: '0 12px', border: 'none', background: 'none', color: '#ff9fb0', fontSize: '13px', fontWeight: '700' }}>Remove</button> : null}
+                  </div>
+                </div>
+                <button className="press" onClick={v.sponsorView.clear} style={{ alignSelf: 'flex-start', padding: '0', border: 'none', background: 'none', color: '#ff9fb0', fontSize: '13px', fontWeight: '700' }}>Clear sponsor</button>
+              </div>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
+                <button className="press" onClick={v.sponsorView.close} style={{ width: '100%', height: '52px', borderRadius: '16px', border: 'none', background: '#f2c38a', color: '#1d1206', fontSize: '17px', fontWeight: '700' }}>Done</button>
+              </div>
             </section>
           </>
         ) : null}

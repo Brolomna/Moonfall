@@ -137,6 +137,14 @@ function isDrunk(k: string) {
 const FATES = ['slain', 'knife', 'burned', 'betrayed', 'staked', 'revealed', 'misfire', 'vengeance', 'deathcurse', 'kingshot', 'starved', 'ghost', 'sacrifice'];
 
 /** What one phone is allowed to know. */
+/** The host's sponsor for players' phones (name, offer, link; the logo is served by /api/sponsor/logo). */
+function sponsorView() {
+  const sp = room.shared.sponsor;
+  if (!sp || !sp.on || !String(sp.name || '').trim()) return null;
+  const link = /^https?:\/\//i.test(String(sp.link || '')) ? String(sp.link) : ''; // only real web links
+  return { name: String(sp.name).slice(0, 60), offer: String(sp.offer || '').slice(0, 140), link, logo: room.shared.sponsorLogo ? '/api/sponsor/logo?v=' + (sp.logoV || 0) : '' };
+}
+
 function playerView(p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
@@ -177,6 +185,7 @@ function playerView(p: Player) {
     dawnDeaths: dawnDeaths(),
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
+    sponsor: sponsorView(),
     note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
@@ -198,6 +207,7 @@ function spectatorView(sp: Player) {
   const keys = players.map(p => p.role).filter(Boolean) as string[];
   return {
     spectator: true,
+    sponsor: sponsorView(),
     dawnDeaths: dawnDeaths(),
     name: sp.name,
     dealt: room.dealt,
@@ -236,6 +246,14 @@ function hostView() {
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+
+// the sponsor before a phone has joined (splash + join screen), and its logo as a plain image
+app.get('/api/sponsor', (_req, res) => res.json(sponsorView()));
+app.get('/api/sponsor/logo', (_req, res) => {
+  const m = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/.exec(String(room.shared.sponsorLogo || ''));
+  if (!m) return res.status(404).end();
+  res.type(m[1]).set('Cache-Control', 'public, max-age=86400').send(Buffer.from(m[2], 'base64'));
+});
 
 app.get('/api/info', async (_req, res) => {
   const base = await joinBase();

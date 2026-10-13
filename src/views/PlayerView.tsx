@@ -7,6 +7,7 @@ import { LIB_I18N, TIPS_I18N } from './i18n';
 import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 import { FATE_LOOK, FateArt } from './fateCards';
 import { endArt } from '../endArt';
+import { brandText, DONATE_URL } from '../brand';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
 const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
@@ -489,6 +490,8 @@ export class PlayerView extends React.Component<any, any> {
     const langObj = langs.find(l => l.code === lang);
     return {
       T, lang, fD, fI, fB, rc, fmt,
+      // NET: the host's sponsor (name, offer, link, logo) and the "Support Moonfall" link
+      sp: this.props.sponsor || null, B: brandText(lang), donate: DONATE_URL,
       nameValue: name, displayName, initial: displayName[0].toUpperCase(),
       youreIn: fmt(T.youreIn, { name: displayName }),
       waitingHost: fmt(T.waitingHost, { n: this.props.playerCount || 1 }), // NET
@@ -646,6 +649,12 @@ export class PlayerView extends React.Component<any, any> {
                   <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '20px', color: '#c9bce0' }}>
                     {v.T.tagline}
                   </span>
+                  {(v.sp) ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', padding: '6px 12px 6px 6px', borderRadius: '999px', background: 'rgba(10,6,18,.55)', border: '1px solid rgba(242,195,138,.35)', fontSize: '12.5px', fontWeight: '600', color: '#f6e7c1', maxWidth: '330px' }}>
+                      {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '26px', height: '26px', borderRadius: '8px', objectFit: 'cover', flex: 'none' }} /> : <span style={{ width: '6px' }} />}
+                      <span>{v.B.by.replace('{name}', v.sp.name)}</span>
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ flex: '1' }} />
                 <form style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '22px 20px 20px', borderRadius: '26px', background: 'rgba(20,12,34,.78)', border: '1px solid rgba(190,165,235,.2)', backdropFilter: 'blur(14px)' }}>
@@ -679,10 +688,10 @@ export class PlayerView extends React.Component<any, any> {
             <>
               <div className="rise" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '18px' }}>
                 <div style={{ flex: '1' }} />
-                <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+                <div style={{ position: 'relative', width: v.sp ? '84px' : '120px', height: v.sp ? '84px' : '120px' /* smaller when the sponsor card needs the room */ }}>
                   <span className="ring" style={{ position: 'absolute', inset: '0', borderRadius: '50%', border: '1px solid rgba(199,168,255,.55)' }} />
                   <span className="ring" style={{ position: 'absolute', inset: '0', borderRadius: '50%', border: '1px solid rgba(199,168,255,.55)', animationDelay: '1.2s' }} />
-                  <span style={{ position: 'absolute', inset: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: v.fD, fontWeight: '700', fontSize: '38px', color: '#12091c', background: '#c9a7ff', boxShadow: '0 0 50px rgba(201,167,255,.45)' }}>
+                  <span style={{ position: 'absolute', inset: v.sp ? '12px' : '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: v.fD, fontWeight: '700', fontSize: v.sp ? '30px' : '38px', color: '#12091c', background: '#c9a7ff', boxShadow: '0 0 50px rgba(201,167,255,.45)' }}>
                     {v.initial}
                   </span>
                 </div>
@@ -698,6 +707,17 @@ export class PlayerView extends React.Component<any, any> {
                   <span className="pulse" style={{ width: '8px', height: '8px', flex: 'none', borderRadius: '50%', background: '#c7a8ff' }} />
                   {' '}{v.waitingHost}
                 </div>
+                {(v.sp) ? (
+                  <div style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '18px', background: 'linear-gradient(160deg, rgba(110,60,20,.4), rgba(20,12,34,.85))', border: '1px solid rgba(242,195,138,.4)', textAlign: 'left' }}>
+                    {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '52px', height: '52px', borderRadius: '14px', objectFit: 'cover', flex: 'none' }} /> : null}
+                    <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase', color: '#f2c38a' }}>{v.B.head}</span>
+                      <span style={{ fontSize: '16px', fontWeight: '800', color: '#fff4e2' }}>{v.sp.name}</span>
+                      {v.sp.offer ? <span style={{ fontSize: '13px', lineHeight: '1.4', color: '#e8d6bc' }}>{v.sp.offer}</span> : null}
+                    </span>
+                    {v.sp.link ? <a className="press" href={v.sp.link} target="_blank" rel="noopener noreferrer" style={{ ...{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '40px', padding: '0 16px', borderRadius: '999px', background: '#f2c38a', color: '#1d1206', fontSize: '14px', fontWeight: '800', textDecoration: 'none' }, flex: 'none', height: '36px', padding: '0 12px', fontSize: '13px' }}>{v.B.visit}</a> : null}
+                  </div>
+                ) : null}
                 {(this.props.installMode) ? (
                   <button className="press" onClick={() => (this.props.installMode === 'prompt' ? this.props.onInstall() : this.setState({ iosHelp: true }))} style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(167,127,240,.18)', color: '#f1e9ff', fontSize: '14px', fontWeight: '700' }}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -706,6 +726,7 @@ export class PlayerView extends React.Component<any, any> {
                     {v.T.installApp}
                   </button>
                 ) : null}
+                {(v.donate) ? <a className="press" href={v.donate} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '40px', padding: '0 16px', borderRadius: '999px', border: '1px solid rgba(242,195,138,.55)', background: 'rgba(242,166,90,.12)', color: '#f6dcb4', fontSize: '14px', fontWeight: '800', textDecoration: 'none' }}>{v.B.support}</a> : null}
                 {/* NET: the roles the host is picking — updates live as the host taps */}
                 {(v.guideRoles && v.guideRoles.length) ? (
                   <div className="fade" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', boxSizing: 'border-box', borderRadius: '18px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(190,165,235,.18)' }}>
@@ -1725,6 +1746,22 @@ export class PlayerView extends React.Component<any, any> {
               <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.2', color: '#f6f1ff' }}>{v.endCaption}</span>
               {(v.endAlso) ? <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: v.endColor, maxWidth: '300px' }}>{v.T.endAlso}: {v.endAlso}</span> : null}
               <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
+              {(v.sp) ? (
+                <div style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: 'rgba(10,6,18,.45)', border: '1px solid rgba(242,195,138,.35)', textAlign: 'left' }}>
+                  {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '40px', height: '40px', borderRadius: '11px', objectFit: 'cover', flex: 'none' }} /> : null}
+                  <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: '#fff4e2' }}>{v.sp.offer ? '🎁 ' + v.sp.offer : v.sp.name}</span>
+                    {v.sp.offer ? <span style={{ fontSize: '12px', color: '#e8d6bc' }}>{v.sp.name}</span> : null}
+                  </span>
+                  {v.sp.link ? <a className="press" href={v.sp.link} target="_blank" rel="noopener noreferrer" style={{ ...{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: '40px', padding: '0 16px', borderRadius: '999px', background: '#f2c38a', color: '#1d1206', fontSize: '14px', fontWeight: '800', textDecoration: 'none' }, flex: 'none', height: '34px', padding: '0 12px', fontSize: '13px' }}>{v.B.visit}</a> : null}
+                </div>
+              ) : null}
+              {(v.donate) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12.5px', color: '#cfc3e3' }}>{v.B.supportLine}</span>
+                  <a className="press" href={v.donate} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '40px', padding: '0 16px', borderRadius: '999px', border: '1px solid rgba(242,195,138,.55)', background: 'rgba(242,166,90,.12)', color: '#f6dcb4', fontSize: '14px', fontWeight: '800', textDecoration: 'none' }}>{v.B.support}</a>
+                </div>
+              ) : null}
             </section>
           </div>
         ) : null}
