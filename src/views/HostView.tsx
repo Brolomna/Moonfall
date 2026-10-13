@@ -81,6 +81,8 @@ export class HostView extends React.Component<any, any> {
           const rows = a.rows.slice().sort(() => Math.random() - 0.5).slice(0, k);
           for (const r of rows) { const cur = this._v.actView; const row = cur && cur.rows.find(x => x.name === r.name); if (row && !row.sel) { row.toggle(); await w(80); } }
         }
+        // Investigator: the host picks two more roles to name
+        for (let j = 0; j < 2 && this._v.actView && this._v.actView.hasDecoys; j++) { const off = this._v.actView.decoyRows.filter(d => !d.on); if (off.length && this._v.actView.decoyRows.filter(d => d.on).length < 2) { R(off).toggle(); await w(80); } }
         const a2 = this._v.actView;
         if (a2 && a2.ready) a2.record(); else { if (a2) a2.close(); skip.add(st.title); }
         await w(150);
@@ -945,7 +947,7 @@ export class HostView extends React.Component<any, any> {
       bless: 'Blesses a player — they survive the next time they would die.',
       check: rules.seerSees === 'role' ? 'Picks a player — show their exact role.' : 'Picks a player — nod for werewolf, shake for not.',
       seek: 'Picks a player — nod if it’s the Seer.', aura: 'Picks a player — nod if they have a special role (not a plain Villager or Werewolf).', fortune: 'Sees one player’s exact role.',
-      investigate: 'Hears three roles — one of them is the player’s.', medium: 'Learns a dead player’s role.', spy: 'Is shown one of the wolves.',
+      investigate: 'Hears three roles — the player’s real one plus two you pick.', medium: 'Learns a dead player’s role.', spy: 'Is shown one of the wolves.',
       reveal: 'Points at a player — a wolf or Lycan dies, otherwise the Revealer does.', vhunt: 'Points at a player — a vampire dies.', raise: 'Raises a dead player.',
       banish: 'Banishes a player from tomorrow.', silence: 'Silences a player for tomorrow.', hypnotize: 'Controls a player’s vote tomorrow.', curse: 'Curses a player — no vote tomorrow.',
       deal: 'Makes a deal with a player.', cult: 'Brings a player into the cult.', mark: 'Marks a player.', gamble: 'Bets on whom the wolves attacked.',
@@ -1041,7 +1043,7 @@ export class HostView extends React.Component<any, any> {
       const around = (nm) => { const ring = names.filter(m => !isOut(m) || m === nm); const i = ring.indexOf(nm); return ring.length > 2 && i >= 0 ? [ring[(i - 1 + ring.length) % ring.length], ring[(i + 1) % ring.length]] : []; };
       const saved = x.kind === 'insomniac' ? ((mech.seat || {})[x.who[0]] || []).filter(nm => !isOut(nm)) : [];
       const seat = x.kind === 'insomniac' ? (saved.length === 2 ? saved : around(x.who[0])) : [];
-      this.setState({ awake: x.key, nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null });
+      this.setState({ awake: x.key, nightAct: x.key, pick: a ? (a.targets || []) : seat, wSave: a ? a.save || null : null, wPoison: a ? a.poison || null : null, alphaTurn: a ? !!a.convert : false, ignite: a ? !!a.ignite : false, drunkRole: a ? a.role || null : null, invDecoys: a && a.decoys ? a.decoys.slice() : [] });
     };
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
@@ -1104,22 +1106,13 @@ export class HostView extends React.Component<any, any> {
       if (kind === 'fortune' && t) return 'Show the Fortune Teller: ' + t + ' is the ' + trueRole(t).name + '.';
       if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + roleOf(t).name + '.';
       if (kind === 'investigate' && t) {
-        // The real role plus two decoys from roles in this game. Balanced: every answer holds exactly one role that
-        // isn't on the village's side (when the game has one), so it narrows things down without giving the wolves away.
-        // Never the Investigator's own card (they'd know it's fake), nor a card whose only holders are already out.
-        const real = trueRole(t);
-        const side = (r) => (r && r.team === 'Village' ? 'v' : 'x');
-        const mine = actors.map(nm => roleOf(nm).key);
-        const liveKey = (k) => names.some(nm => !isOut(nm) && nm !== t && (roleOf(nm).key === k || trueRole(nm).key === k));
-        const cand = inPlay.filter((k, i, arr) => arr.indexOf(k) === i && byKey[k] && k !== real.key && mine.indexOf(k) < 0 && liveKey(k));
-        const mix = (arr, salt) => arr.slice().sort((x, y) => seedOf(x + salt + t + round) - seedOf(y + salt + t + round));
-        const opp = mix(cand.filter(k => side(byKey[k]) !== side(real)), 'o'), same = mix(cand.filter(k => side(byKey[k]) === side(real)), 's');
-        let pick2 = side(real) === 'x' ? opp.slice(0, 2) : opp.slice(0, 1).concat(same.slice(0, 1));
-        if (pick2.length < 2) pick2 = pick2.concat(mix(cand.filter(k => pick2.indexOf(k) < 0), 'f').slice(0, 2 - pick2.length));
-        const threeK = [real.key].concat(pick2).sort((x, y) => seedOf(x + round + t) - seedOf(y + round + t));
-        const three = threeK.map(k => byKey[k].name);
+        // The host picks the two decoys (any role in this game, alive or dead, except the Investigator's own);
+        // the real role is always added, and the three are said in a mixed order.
+        const real = trueRole(t), dec = (s.invDecoys || []).filter(k => k !== real.key && byKey[k]);
+        if (dec.length < 2) return 'Pick ' + (2 - dec.length) + ' more role' + (dec.length ? '' : 's') + ' below — the Investigator hears them along with ' + t + '’s real role (the ' + real.name + ').';
+        const threeK = [real.key].concat(dec.slice(0, 2)).sort((x, y) => seedOf(x + round + t) - seedOf(y + round + t));
         lastInvestigate = threeK.slice();
-        return 'Tell the Investigator: ' + t + ' is one of — ' + three.join(', ') + '.';
+        return 'Tell the Investigator: ' + t + ' is one of — ' + threeK.map(k => byKey[k].name).join(', ') + '.';
       }
       if (kind === 'track' && t) { const v = visitsBy(t); return 'Tell the Tracker: ' + t + (v.length ? ' visited ' + v.join(' and ') : ' visited no one') + ' tonight.'; }
       if (kind === 'watch' && t) { const v = visitorsOf(t); return 'Tell the Watcher: ' + (v.length ? v.join(' and ') + ' visited ' + t : 'no one visited ' + t) + ' tonight.'; }
@@ -1153,9 +1146,14 @@ export class HostView extends React.Component<any, any> {
       const choose = (nm) => this.setState({ pick: single ? (pick[0] === nm ? [] : [nm]) : (pick.indexOf(nm) >= 0 ? pick.filter(p => p !== nm) : pick.length < spec.count ? pick.concat([nm]) : pick.slice(1).concat([nm])), ignite: false });
       const result = resultFor(spec.kind, pick[0], actors) + (spec.kind === 'swap' && pick.length === 2 ? pick[0] + ' and ' + pick[1] + ' swap roles.' : '');
       const doused = (mech.doused || []).filter(nm => !isOut(nm));
-      const ready = spec.kind === 'witch' || spec.count === 0 ? true : spec.kind === 'drunk' ? !!(mech.drunkAs || s.drunkRole) : s.ignite ? true : (pick.length === spec.count || (spec.optional && pick.length === 0) || (!spec.pool.length && !pick.length)); // nobody to pick (e.g. no one has died yet): just mark it done
+      // Investigator: every role in this game (alive or dead), minus the Investigator's own and the target's real one
+      const invMine = actors.map(nm => roleOf(nm).key), invReal = spec.kind === 'investigate' && pick[0] ? trueRole(pick[0]).key : null;
+      const invPool = spec.kind !== 'investigate' ? [] : names.map(nm => roleOf(nm).key).concat(names.map(nm => trueRole(nm).key)).concat(inPlay)
+        .filter((k, i, arr) => arr.indexOf(k) === i && byKey[k] && invMine.indexOf(k) < 0 && k !== invReal);
+      const invDec = (s.invDecoys || []).filter(k => invPool.indexOf(k) >= 0);
+      const ready = spec.kind === 'investigate' && pick.length ? invDec.length === 2 : spec.kind === 'witch' || spec.count === 0 ? true : spec.kind === 'drunk' ? !!(mech.drunkAs || s.drunkRole) : s.ignite ? true : (pick.length === spec.count || (spec.optional && pick.length === 0) || (!spec.pool.length && !pick.length)); // nobody to pick (e.g. no one has died yet): just mark it done
       const record = () => {
-        const a = { round, key: actX.key, kind: spec.kind };
+        const a = { round, key: actX.key, kind: spec.kind, ...(spec.kind === 'investigate' ? { decoys: invDec.slice() } : {}) };
         const patch = { checks: checks.indexOf(ck(actX.key)) >= 0 ? checks : checks.concat([ck(actX.key)]), nightAct: null };
         // undo the previous recording of this step first (role swaps)
         const prev = actOf(actX.key);
@@ -1220,6 +1218,10 @@ export class HostView extends React.Component<any, any> {
           : spec.pool.map(nm => rowOf(nm, pick.indexOf(nm) >= 0, () => choose(nm))),
         emptyText: spec.pool.length || spec.kind === 'drunk' || spec.count === 0 ? '' : (spec.emptyText || 'No one to choose.'),
         // extra switches: the Alpha turning the victim, the Arsonist lighting the fire
+        hasDecoys: spec.kind === 'investigate' && !!pick[0],
+        decoyHead: invReal ? 'Two more roles to name (' + invDec.length + ' / 2) — ' + pick[0] + '’s real role, the ' + byKey[invReal].name + ', is always included' : '',
+        decoyRows: invPool.map(k => { const rr = byKey[k], on = invDec.indexOf(k) >= 0, dead = names.some(nm => roleOf(nm).key === k) && !names.some(nm => !isOut(nm) && roleOf(nm).key === k);
+          return { name: rr.name + (dead ? ' · dead' : ''), color: rr.color, on, toggle: () => this.setState({ invDecoys: on ? invDec.filter(x => x !== k) : invDec.length < 2 ? invDec.concat([k]) : invDec.slice(1).concat([k]) }) }; }),
         hasAlpha: !!spec.alpha, alphaOn: !!s.alphaTurn, toggleAlpha: () => this.setState({ alphaTurn: !s.alphaTurn }),
         hasIgnite: !!spec.arson && doused.length > 0, igniteOn: !!s.ignite, igniteText: 'Set everyone doused alight: ' + doused.join(', '), toggleIgnite: () => this.setState({ ignite: !s.ignite, pick: [] }),
         // witch: healing potion on tonight's victim, poison on anyone — each once per game
@@ -3433,6 +3435,16 @@ export class HostView extends React.Component<any, any> {
                     </button>
                   ))}
                   </>
+                ) : null}
+                {(v.actView.hasDecoys) ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#c7a8ff', lineHeight: '1.4' }}>{v.actView.decoyHead}</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {v.actView.decoyRows.map((d: any) => (
+                        <button key={d.name} className="press" onClick={d.toggle} aria-pressed={d.on} style={{ height: '36px', padding: '0 12px', borderRadius: '999px', border: `1.5px solid ${d.on ? d.color : 'rgba(236,230,246,.16)'}`, background: d.on ? d.color : 'rgba(20,12,34,.75)', color: d.on ? '#160b28' : '#ece6f6', fontSize: '13.5px', fontWeight: '700' }}>{d.name}</button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
                 {(v.actView.isWitch) ? (
                   <>
