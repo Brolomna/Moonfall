@@ -21,6 +21,8 @@ the host a guide (wake-up order, special-case reminders, win check).
     (restart / redeploy / sleep) it sends it back with `host:restore` and players' phones reconnect (`room:restored`)
 - `src/main.tsx` — lazy-loads HostApp or PlayerApp (separate chunks), adds the app manifest (`public/manifest*.webmanifest`, icons in `public/icons`) and `public/sw.js` (installable; caches nothing)
 - `src/wakeLock.ts` — keeps phones' screens on during a game
+- `src/AdBanner.tsx` — players' 320×50 AdSense banner in its own strip under the game screen (waiting / card / spectate, not the join page).
+  Off unless the server has `ADSENSE_CLIENT` (ca-pub-…) and `ADSENSE_SLOT`; served via `/api/ads`, plus `/ads.txt`. Never put the ad inside `PhoneFrame` (it's CSS-scaled).
 - `src/PhoneFrame.tsx` — designs are 390×844; scaled to fit any phone, height stretched to fill
 - `src/views/HostView.tsx`, `src/views/PlayerView.tsx` (+ `.css`) — the UI, generated from the design canvas
 - `design/*.dc.html` — the design sources exported from the Claude design canvas

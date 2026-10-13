@@ -3,6 +3,7 @@ import { useInstall } from './install';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
+import { AdBanner, AD_STRIP, useAds } from './AdBanner';
 import { PlayerView } from './views/PlayerView';
 import { installAudioUnlock, playDawn, playHowl } from './sound';
 
@@ -64,9 +65,12 @@ export function PlayerApp() {
   useWakeLock(!!view && (view.dealt || !!view.spectator)); // keep the screen on during a game
   const inst = useInstall();
   const screen = !view ? 'join' : view.spectator ? 'spectate' : view.dealt ? 'card' : 'waiting';
+  // a banner ad under the game screen once the player is in (waiting room, role card, spectating) — when AdSense is set up
+  const ads = useAds();
+  const showAd = !!ads && screen !== 'join';
   return (
     <>
-      <PhoneFrame>
+      <PhoneFrame reserve={showAd ? AD_STRIP : 0}>
         {frameH => (
           <PlayerView
             frameH={frameH}
@@ -99,6 +103,7 @@ export function PlayerApp() {
           />
         )}
       </PhoneFrame>
+      {showAd && ads && <AdBanner client={ads.client} slot={ads.slot} />}
       {splash && (
         <div className="splash" onClick={() => setSplash(false)}>
           <img src="/splash.webp" alt="Moonfall" />

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 /** The designs are drawn on a 390×844 phone. Scale that to fit any phone, and stretch the
  *  height so taller phones are filled edge to edge (children get the logical height). */
-export function PhoneFrame({ children }: { children: (frameH: number) => React.ReactNode }) {
+export function PhoneFrame({ children, reserve = 0 }: { children: (frameH: number) => React.ReactNode; reserve?: number }) {
+  // reserve: px kept free at the bottom (the players' ad strip)
   const read = () => ({
     w: window.visualViewport?.width ?? window.innerWidth,
-    h: window.visualViewport?.height ?? window.innerHeight,
+    h: (window.visualViewport?.height ?? window.innerHeight) - reserve,
   });
   const [vp, setVp] = useState(read);
   useEffect(() => {
@@ -16,11 +17,12 @@ export function PhoneFrame({ children }: { children: (frameH: number) => React.R
       window.removeEventListener('resize', on);
       window.visualViewport?.removeEventListener('resize', on);
     };
-  }, []);
+  }, [reserve]);
+  useEffect(() => setVp(read()), [reserve]);
   const scale = Math.min(vp.w / 390, vp.h / 844, 1.4);
   const frameH = Math.max(844, Math.floor(vp.h / scale));
   return (
-    <div className="frame-outer">
+    <div className="frame-outer" style={reserve ? { bottom: reserve } : undefined}>
       <div className="frame-inner" style={{ width: 390, height: frameH, transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center' }}>
         {children(frameH)}
       </div>
