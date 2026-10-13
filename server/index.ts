@@ -284,6 +284,9 @@ app.get('/api/sponsor/logo', (_req, res) => {
   res.type(m[1]).set('Cache-Control', 'public, max-age=86400').send(Buffer.from(m[2], 'base64'));
 });
 
+// which commit is running (Render sets RENDER_GIT_COMMIT) — handy to check a deploy went out
+app.get('/api/version', (_req, res) => res.json({ commit: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7) }));
+
 app.get('/api/info', async (_req, res) => {
   const base = await joinBase();
   const host = base.replace(/^https?:\/\//, '');
