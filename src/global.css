@@ -39,5 +39,3 @@ body {
 .pin-wait { animation: pinPulse 1.8s ease-in-out infinite; }
 @keyframes pinPulse { 50% { opacity: .45; transform: scale(.94) } }
 .pin-change { margin-top: 18px; border: none; background: none; color: #a99bc2; font: 600 13px 'Manrope', sans-serif; text-decoration: underline; }
-/* the players' ad banner: its own strip under the game screen */
-.ad-strip { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: #0b0614; border-top: 1px solid rgba(199,168,255,.12); z-index: 5; overflow: hidden; }

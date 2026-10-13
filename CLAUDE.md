@@ -24,8 +24,6 @@ the host a guide (wake-up order, special-case reminders, win check).
 - `scripts/build-pages.ts` — runs in `npm run build` after Vite: writes crawlable pages into dist/ (`/how-to-play`, `/roles`, `/<lang>/…` for 7 languages,
   `sitemap.xml`, `robots.txt`) from the app's own guide text, role cards and tips. `SITE_URL` env sets the absolute URLs (default moonfall.onrender.com).
   `public/privacy.html` is the privacy policy (`/privacy`).
-- `src/AdBanner.tsx` — players' 320×50 AdSense banner in its own strip under the game screen (waiting / card / spectate, not the join page).
-  Off unless the server has `ADSENSE_CLIENT` (ca-pub-…) and `ADSENSE_SLOT`; served via `/api/ads`, plus `/ads.txt`. Never put the ad inside `PhoneFrame` (it's CSS-scaled).
 - `src/PhoneFrame.tsx` — designs are 390×844; scaled to fit any phone, height stretched to fill
 - `src/views/HostView.tsx`, `src/views/PlayerView.tsx` (+ `.css`) — the UI, generated from the design canvas
 - `design/*.dc.html` — the design sources exported from the Claude design canvas

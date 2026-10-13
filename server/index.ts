@@ -245,15 +245,6 @@ app.get('/api/info', async (_req, res) => {
   res.json({ host, url, qr });
 });
 
-// Ads (Google AdSense): set ADSENSE_CLIENT (ca-pub-…) and ADSENSE_SLOT (the banner's ad-unit id) on the host.
-// Without them the players' phones show no ad strip at all.
-const ADS = { client: (process.env.ADSENSE_CLIENT || '').trim(), slot: (process.env.ADSENSE_SLOT || '').trim() };
-app.get('/api/ads', (_req, res) => res.json(ADS.client && ADS.slot ? ADS : {}));
-app.get('/ads.txt', (_req, res) => {
-  if (!ADS.client) return res.status(404).end();
-  res.type('text/plain').send(`google.com, ${ADS.client.replace(/^ca-/, '')}, DIRECT, f08c47fec0942fa0\n`);
-});
-
 if (PROD) {
   const dist = path.join(ROOT, 'dist');
   if (!fs.existsSync(dist)) console.warn('⚠  dist/ not found — run `npm run build` first.');
