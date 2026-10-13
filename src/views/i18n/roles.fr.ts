@@ -149,6 +149,7 @@ export default {
     sacrificeL: "Tu t’es dressé entre les loups et un autre — sans reculer.",
     endLovers: "Les amoureux gagnent !",
     endCult: "La secte gagne !",
+    privacy: "Politique de confidentialité",
     noteTitle: "Un message secret de l’hôte",
     ansTitle: "Ta réponse de la nuit",
     ansCheckWolf: "{name} est un loup-garou.",
