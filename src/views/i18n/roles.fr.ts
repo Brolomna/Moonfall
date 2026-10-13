@@ -21,7 +21,7 @@ export default {
     'Troublemaker': ['Noiseuse', 'Sème la zizanie', 'La première nuit, désigne deux autres joueurs. Le meneur échange leurs rôles en secret — ils découvrent leur nouveau rôle au matin.'],
     'Drunk': ['Soûlard', 'Je suis qui, déjà ?', 'Tu joues comme simple Villageois jusqu’à la troisième nuit, où le meneur te remet en secret ton vrai rôle.'],
     'Insomniac': ['Insomniaque', 'Tu ne dors jamais vraiment', 'Chaque nuit, le meneur te dit si au moins un de tes deux voisins s’est réveillé.'],
-    'Mimic': ['Imitateur', 'Un pouvoir d’emprunt', 'La première nuit, désigne un joueur. Tu copies son pouvoir (pas son camp) jusqu’à la fin de la partie.'],
+    'Mimic': ['Imitateur', 'Un pouvoir d’emprunt', 'La première nuit, désigne un joueur. Tu copies son pouvoir (pas son camp) jusqu’à la fin de la partie. Si c’est un loup ou un rôle qui joue seul, tu ne copies rien.'],
     'Diseased': ['Contagieux', 'Mords-moi, tu le regretteras', 'Si les loups t’éliminent, ils attrapent ta maladie et ne peuvent attaquer personne la nuit suivante.'],
 
     // ---------- Werewolf ----------
@@ -37,16 +37,16 @@ export default {
     'Traitor': ['Traître', 'Sourire, puis trahir', 'Tu passes pour un villageois à chaque vérification, mais tu gagnes avec les loups. Tu ne sais pas qui ils sont.'],
 
     // ---------- Neutral ----------
-    'Serial Killer': ['Tueur en série', 'Personne n’en sortira vivant', 'Chaque nuit, élimine un joueur. Les loups ne peuvent pas te tuer. Tu gagnes si tu es le dernier en vie.'],
-    'Arsonist': ['Pyromane', 'Une étincelle suffit', 'Chaque nuit, asperge un joueur d’huile, ou mets le feu à tous les joueurs aspergés d’un coup. Tu gagnes si tu es le dernier en vie.'],
-    'Vampire': ['Vampire', 'Une faim éternelle', 'Chaque nuit, mords un joueur — il devient vampire à son tour. Les vampires gagnent quand ils sont plus nombreux que tous les autres.'],
+    'Serial Killer': ['Tueur en série', 'Personne n’en sortira vivant', 'Chaque nuit, élimine un joueur. Les loups ne peuvent pas te tuer. Tu gagnes quand tous les loups ont disparu et qu’il ne reste que toi et au plus un autre joueur.'],
+    'Arsonist': ['Pyromane', 'Une étincelle suffit', 'Chaque nuit, asperge un joueur d’huile, ou mets le feu à tous les joueurs aspergés d’un coup. Tu gagnes quand tous les loups ont disparu et qu’il ne reste que toi et au plus un autre joueur.'],
+    'Vampire': ['Vampire', 'Une faim éternelle', 'Chaque nuit, mords un joueur — il devient vampire à son tour. Les vampires gagnent quand ils sont plus nombreux que tous les autres. Les loups-garous ne peuvent pas être transformés.'],
     'Vampire Hunter': ['Chasseur de vampires', 'Le pieu à la main', 'Chaque nuit, désigne un joueur. Si c’est un vampire, il est éliminé. Tu gagnes avec le village.'],
     'Necromancer': ['Nécromancien', 'La mort n’est qu’une porte', 'Une fois par partie, la nuit, ranime un joueur mort. Il revient dans la partie, de ton côté.'],
     'Executioner': ['Bourreau', 'Un seul nom sur ta liste', 'La première nuit, le meneur te montre une cible. Tu gagnes si le village vote contre elle.'],
     'Survivor': ['Survivant', 'Rester en vie, coûte que coûte', 'Peu t’importe qui gagne. Tu gagnes si tu es encore en vie à la fin.'],
     'Alien': ['Extraterrestre', 'Pas d’ici', 'Tu viens de très loin. Tu gagnes s’il reste exactement trois joueurs et que tu en fais partie.'],
     'Devil': ['Diable', 'Tout pacte a son prix', 'Chaque nuit, passe un pacte avec un joueur : il garde la vie, mais ne gagne désormais que si tu gagnes. Tu gagnes si tes pactisants survivent.'],
-    'Death': ['La Mort', 'Nul ne m’échappe', 'Chaque nuit, marque un joueur. Les joueurs marqués meurent quand on vote contre toi. Tu gagnes si tu es le dernier en vie.'],
+    'Death': ['La Mort', 'Nul ne m’échappe', 'Chaque nuit, marque un joueur. Les joueurs marqués meurent quand on vote contre toi. Tu gagnes quand tous les loups ont disparu et qu’il ne reste que toi et au plus un autre joueur.'],
     'Angel': ['Ange', 'Le ciel t’appelle tôt', 'Tu gagnes seul si tu es éliminé le premier jour ou la première nuit. Ensuite, tu joues comme un villageois.'],
     'Fallen Angel': ['Ange déchu', 'Des ailes de cendre', 'Chaque nuit, maudis un joueur — il ne peut pas voter le lendemain. Tu gagnes si le village tombe, loups ou pas.'],
 
@@ -174,6 +174,7 @@ export default {
     voteSpare: "Épargner",
     voteChoseKill: "Tu as choisi d’éliminer {name}.",
     voteChoseSpare: "Tu as choisi d’épargner {name}.",
+    voteOnYou: "Tout le monde vote sur toi en ce moment. Tu ne peux pas voter sur toi-même — attends le résultat.",
     voteTitle: "Vote secret",
     voteSub: "{name} doit-il être éliminé ? Personne ne voit ton choix.",
     voteAbstain: "S’abstenir",

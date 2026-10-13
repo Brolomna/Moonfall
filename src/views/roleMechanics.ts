@@ -77,4 +77,8 @@ export const DAY_REMINDERS: Record<string, string> = {
   'Angel': 'wins alone if eliminated today (first day only).',
   'Executioner': 'wins if their target is voted out.',
   'Wolf King': 'if eliminated, takes one player down with them.',
+  'Serial Killer': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
+  'Arsonist': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
+  'Death': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
+  'Vampire': 'vampires win once they outnumber everyone else. The village can’t win while a vampire lives.',
 };

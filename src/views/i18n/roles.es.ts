@@ -21,7 +21,7 @@ export default {
     'Troublemaker': ['Alborotador', 'A río revuelto…', 'La primera noche, señala a otros dos jugadores. El anfitrión intercambia sus roles en privado: descubren su nuevo rol por la mañana.'],
     'Drunk': ['Borracho', '¿Quién era yo?', 'Juegas como un Aldeano normal hasta la tercera noche, cuando el anfitrión te entrega en secreto tu verdadero rol.'],
     'Insomniac': ['Insomne', 'En realidad nunca duermes', 'Cada noche, el anfitrión te dice si al menos uno de los dos jugadores sentados a tu lado se despertó.'],
-    'Mimic': ['Imitador', 'Poder prestado', 'La primera noche, señala a un jugador. Copias su poder (no su equipo) el resto de la partida.'],
+    'Mimic': ['Imitador', 'Poder prestado', 'La primera noche, señala a un jugador. Copias su poder (no su equipo) el resto de la partida. Si es un lobo o un rol que juega solo, no copias nada.'],
     'Diseased': ['Enfermo', 'Muérdeme y te arrepentirás', 'Si los hombres lobo te eliminan, se contagian de tu enfermedad y no pueden atacar a nadie la noche siguiente.'],
 
     // ---------- Werewolf ----------
@@ -37,16 +37,16 @@ export default {
     'Traitor': ['Traidor', 'Sonríe y luego traiciona', 'Pareces aldeano ante cualquier revisión, pero ganas con los lobos. No sabes quiénes son.'],
 
     // ---------- Neutral ----------
-    'Serial Killer': ['Asesino en serie', 'Nadie sale vivo', 'Cada noche, elimina a un jugador. Los lobos no pueden matarte. Ganas si eres el último en pie.'],
-    'Arsonist': ['Pirómano', 'Basta una chispa', 'Cada noche, rocía a un jugador con aceite o prende fuego a la vez a todos los rociados. Ganas si eres el último en pie.'],
-    'Vampire': ['Vampiro', 'Hambre eterna', 'Cada noche, muerde a un jugador: también se convierte en vampiro. Los vampiros ganan cuando superan en número a todos los demás.'],
+    'Serial Killer': ['Asesino en serie', 'Nadie sale vivo', 'Cada noche, elimina a un jugador. Los lobos no pueden matarte. Ganas cuando ya no quedan lobos y solo quedáis tú y como mucho otro jugador.'],
+    'Arsonist': ['Pirómano', 'Basta una chispa', 'Cada noche, rocía a un jugador con aceite o prende fuego a la vez a todos los rociados. Ganas cuando ya no quedan lobos y solo quedáis tú y como mucho otro jugador.'],
+    'Vampire': ['Vampiro', 'Hambre eterna', 'Cada noche, muerde a un jugador: también se convierte en vampiro. Los vampiros ganan cuando superan en número a todos los demás. Los lobos no pueden ser convertidos.'],
     'Vampire Hunter': ['Cazavampiros', 'La estaca a punto', 'Cada noche, señala a un jugador. Si es un vampiro, queda eliminado. Ganas con la aldea.'],
     'Necromancer': ['Nigromante', 'La muerte es solo una puerta', 'Una vez por partida, de noche, resucita a un jugador muerto. Vuelve a la partida de tu lado.'],
     'Executioner': ['Verdugo', 'Un nombre en tu lista', 'La primera noche, el anfitrión te muestra un objetivo. Ganas si la aldea lo expulsa.'],
     'Survivor': ['Superviviente', 'Sigue vivo, cueste lo que cueste', 'Te da igual quién gane. Ganas si sigues vivo al final.'],
     'Alien': ['Alienígena', 'No eres de por aquí', 'Vienes de muy lejos. Ganas si quedan exactamente tres jugadores y tú eres uno de ellos.'],
     'Devil': ['Diablo', 'Todo trato tiene un precio', 'Cada noche, haz un trato con un jugador: conserva la vida, pero ahora solo gana si tú ganas. Ganas si sobreviven quienes pactaron contigo.'],
-    'Death': ['La Muerte', 'Nadie escapa de mí', 'Cada noche, marca a un jugador. Los marcados mueren cuando alguien vota contra ti. Ganas si eres el último en pie.'],
+    'Death': ['La Muerte', 'Nadie escapa de mí', 'Cada noche, marca a un jugador. Los marcados mueren cuando alguien vota contra ti. Ganas cuando ya no quedan lobos y solo quedáis tú y como mucho otro jugador.'],
     'Angel': ['Ángel', 'El cielo llama pronto', 'Ganas solo si te eliminan el primer día o la primera noche. Después, juegas como aldeano.'],
     'Fallen Angel': ['Ángel caído', 'Alas de ceniza', 'Cada noche, maldice a un jugador: no puede votar mañana. Ganas si la aldea cae, sea por los lobos o no.'],
 
@@ -174,6 +174,7 @@ export default {
     voteSpare: "Perdonar",
     voteChoseKill: "Elegiste eliminar a {name}.",
     voteChoseSpare: "Elegiste perdonar a {name}.",
+    voteOnYou: "Ahora todos están votando sobre ti. No puedes votar sobre ti mismo: espera el resultado.",
     voteTitle: "Voto secreto",
     voteSub: "¿Debe ser eliminado {name}? Nadie ve tu elección.",
     voteAbstain: "Abstenerse",

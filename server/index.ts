@@ -161,7 +161,9 @@ function playerView(p: Player) {
     : [];
   const deck = room.dealt ? Object.entries(counts) : draft;
 
-  const roleDefs = roleDefsFor([...deck.map(([k]) => k), ...(role ? [role] : [])]);
+  // roles named in this player's night answer too (e.g. the Drunk's real role, which was never dealt)
+  const wh = (sh.whispers || {})[p.name] || {};
+  const roleDefs = roleDefsFor([...deck.map(([k]) => k), ...(role ? [role] : []), ...(wh.role ? [wh.role] : []), ...(Array.isArray(wh.roles) ? wh.roles : [])]);
 
   return {
     joined: true,
@@ -179,7 +181,7 @@ function playerView(p: Player) {
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
     now: Date.now(),
-    ballot: room.dealt && room.ballot && !(sh.status || {})[p.name] ? { nominee: room.ballot.nominee, mine: room.ballot.votes[p.name] || null } : null,
+    ballot: room.dealt && room.ballot && !(sh.status || {})[p.name] ? { nominee: room.ballot.nominee, mine: room.ballot.votes[p.name] || null, ...(room.ballot.nominee === p.name ? { accused: true } : {}) } : null,
     ivory: !!(room.dealt && sh.ivory === p.name),
     lover,
     deck,
@@ -225,7 +227,7 @@ function hostView() {
       kill: Object.values(room.ballot.votes).filter(v => v === 'kill').length,
       spare: Object.values(room.ballot.votes).filter(v => v === 'spare').length,
       voted: Object.keys(room.ballot.votes).length,
-      voters: room.players.filter(p => !(room.shared.status || {})[p.name]).length,
+      voters: room.players.filter(p => !(room.shared.status || {})[p.name] && p.name !== room.ballot!.nominee).length, // the nominee doesn't vote on themselves
     } : null,
   };
 }
@@ -364,6 +366,7 @@ io.on('connection', (socket: Socket) => {
   socket.on('player:vote', (choice: 'kill' | 'spare') => {
     if (!me || !room.ballot || !room.players.includes(me) || (room.shared.status || {})[me.name]) return;
     if (choice !== 'kill' && choice !== 'spare') return;
+    if (me.name === room.ballot.nominee) return; // no voting on yourself
     room.ballot.votes[me.name] = choice;
     pushAll();
   });
