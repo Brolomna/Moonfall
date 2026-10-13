@@ -108,9 +108,9 @@ export function PlayerApp() {
         <div className="splash" onClick={() => setSplash(false)}>
           <img src="/splash.webp" alt="Moonfall" />
           {preSponsor && (
-            <div className="splash-sponsor">
-              {preSponsor.logo && <img src={preSponsor.logo} alt="" />}
-              <span>{brandText(startLang).by.replace('{name}', preSponsor.name)}</span>
+            <div className={'splash-sponsor' + (preSponsor.banner ? ' has-banner' : '')}>
+              {preSponsor.banner ? <img className="banner" src={preSponsor.banner} alt={preSponsor.name || ''} /> : preSponsor.logo && <img src={preSponsor.logo} alt="" />}
+              {preSponsor.name && <span>{brandText(startLang).by.replace('{name}', preSponsor.name)}</span>}
             </div>
           )}
         </div>

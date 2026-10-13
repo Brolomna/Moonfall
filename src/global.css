@@ -23,6 +23,8 @@ body {
 /* the host's sponsor credit on the splash */
 .splash-sponsor { position: absolute; left: 16px; right: 16px; bottom: max(28px, env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px; border-radius: 16px; background: rgba(10,6,18,.72); border: 1px solid rgba(242,195,138,.35); color: #f6e7c1; font: 600 14px/1.35 'Manrope', sans-serif; text-align: center; backdrop-filter: blur(6px); animation: none; }
 .splash-sponsor img { width: 36px !important; height: 36px !important; flex: none; border-radius: 10px; object-fit: cover; animation: none !important; }
+.splash-sponsor.has-banner { flex-direction: column; gap: 8px; padding: 8px 8px 10px; }
+.splash-sponsor img.banner { width: 100% !important; height: auto !important; aspect-ratio: 3 / 1; border-radius: 10px; }
 
 /* host PIN screen (src/HostApp.tsx) */
 .pin-screen { position: relative; width: 390px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #ece6f6; font-family: 'Manrope', sans-serif;

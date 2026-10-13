@@ -137,12 +137,40 @@ function isDrunk(k: string) {
 const FATES = ['slain', 'knife', 'burned', 'betrayed', 'staked', 'revealed', 'misfire', 'vengeance', 'deathcurse', 'kingshot', 'starved', 'ghost', 'sacrifice'];
 
 /** What one phone is allowed to know. */
-/** The host's sponsor for players' phones (name, offer, link; the logo is served by /api/sponsor/logo). */
+// ---------- sponsor ----------
+// Two ways to set one: the host's Sponsor screen (wins when switched on), or files in the repo's sponsor/ folder:
+//   sponsor/info.txt   lines "name: …", "offer: …", "link: …"
+//   sponsor/logo.png   (or .jpg / .jpeg / .webp) — square
+//   sponsor/banner.png (or .jpg / .jpeg / .webp / .gif) — wide, 3:1
+// No files (and nothing set by the host) → no sponsor anywhere; the folder is re-read every 30 s.
+const SPONSOR_DIR = path.join(ROOT, 'sponsor');
+const IMG = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+let fileSponsorCache: { at: number; v: ReturnType<typeof readFileSponsor> } = { at: 0, v: null };
+function readFileSponsor() {
+  try {
+    if (!fs.existsSync(SPONSOR_DIR)) return null;
+    const find = (base: string) => IMG.map(e => base + '.' + e).find(f => fs.existsSync(path.join(SPONSOR_DIR, f)));
+    const url = (f?: string) => (f ? '/sponsor/' + f + '?v=' + Math.round(fs.statSync(path.join(SPONSOR_DIR, f)).mtimeMs) : '');
+    const info: Record<string, string> = {};
+    const txt = path.join(SPONSOR_DIR, 'info.txt');
+    if (fs.existsSync(txt)) for (const line of fs.readFileSync(txt, 'utf8').split(/\r?\n/)) {
+      const m = /^\s*(name|offer|link)\s*[:=]\s*(.*?)\s*$/i.exec(line); if (m) info[m[1].toLowerCase()] = m[2];
+    }
+    const logo = url(find('logo')), banner = url(find('banner'));
+    if (!info.name && !logo && !banner) return null;
+    return { name: info.name || '', offer: info.offer || '', link: info.link || '', logo, banner };
+  } catch { return null; }
+}
+const fileSponsor = () => { if (Date.now() - fileSponsorCache.at > 30000) fileSponsorCache = { at: Date.now(), v: readFileSponsor() }; return fileSponsorCache.v; };
+const webLink = (l: string) => { const x = String(l || '').trim(); if (!x) return ''; const u = /^https?:\/\//i.test(x) ? x : 'https://' + x; return /^https?:\/\/[^\s]+\.[^\s]+/i.test(u) ? u : ''; };
+
+/** The sponsor for players' phones: name, offer, link, logo, banner (images are plain URLs). */
 function sponsorView() {
   const sp = room.shared.sponsor;
-  if (!sp || !sp.on || !String(sp.name || '').trim()) return null;
-  const link = /^https?:\/\//i.test(String(sp.link || '')) ? String(sp.link) : ''; // only real web links
-  return { name: String(sp.name).slice(0, 60), offer: String(sp.offer || '').slice(0, 140), link, logo: room.shared.sponsorLogo ? '/api/sponsor/logo?v=' + (sp.logoV || 0) : '' };
+  if (sp && sp.on && String(sp.name || '').trim())
+    return { name: String(sp.name).slice(0, 60), offer: String(sp.offer || '').slice(0, 140), link: webLink(sp.link), logo: room.shared.sponsorLogo ? '/api/sponsor/logo?v=' + (sp.logoV || 0) : '', banner: '' };
+  const f = fileSponsor();
+  return f ? { ...f, name: f.name.slice(0, 60), offer: f.offer.slice(0, 140), link: webLink(f.link) } : null;
 }
 
 function playerView(p: Player) {
@@ -247,6 +275,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
+app.use('/sponsor', express.static(SPONSOR_DIR, { maxAge: '1h' })); // the sponsor folder's pictures
 // the sponsor before a phone has joined (splash + join screen), and its logo as a plain image
 app.get('/api/sponsor', (_req, res) => res.json(sponsorView()));
 app.get('/api/sponsor/logo', (_req, res) => {

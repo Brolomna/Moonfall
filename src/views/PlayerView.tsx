@@ -649,7 +649,10 @@ export class PlayerView extends React.Component<any, any> {
                   <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '20px', color: '#c9bce0' }}>
                     {v.T.tagline}
                   </span>
-                  {(v.sp) ? (
+                  {(v.sp && !v.sp.name && v.sp.banner) ? (
+                    <img src={v.sp.banner} alt="" style={{ marginTop: '6px', width: '240px', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '12px', border: '1px solid rgba(242,195,138,.35)' }} />
+                  ) : null}
+                  {(v.sp && v.sp.name) ? (
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', padding: '6px 12px 6px 6px', borderRadius: '999px', background: 'rgba(10,6,18,.55)', border: '1px solid rgba(242,195,138,.35)', fontSize: '12.5px', fontWeight: '600', color: '#f6e7c1', maxWidth: '330px' }}>
                       {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '26px', height: '26px', borderRadius: '8px', objectFit: 'cover', flex: 'none' }} /> : <span style={{ width: '6px' }} />}
                       <span>{v.B.by.replace('{name}', v.sp.name)}</span>
@@ -707,7 +710,11 @@ export class PlayerView extends React.Component<any, any> {
                   <span className="pulse" style={{ width: '8px', height: '8px', flex: 'none', borderRadius: '50%', background: '#c7a8ff' }} />
                   {' '}{v.waitingHost}
                 </div>
-                {(v.sp) ? (
+                {(v.sp && v.sp.banner) ? (
+                  v.sp.link ? <a href={v.sp.link} target="_blank" rel="noopener noreferrer" style={{ width: '100%', display: 'block' }}><img src={v.sp.banner} alt={v.sp.name || ''} style={{ width: '100%', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '16px', border: '1px solid rgba(242,195,138,.4)', display: 'block' }} /></a>
+                    : <img src={v.sp.banner} alt={v.sp.name || ''} style={{ width: '100%', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '16px', border: '1px solid rgba(242,195,138,.4)', display: 'block' }} />
+                ) : null}
+                {(v.sp && (v.sp.name || v.sp.offer)) ? (
                   <div style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '18px', background: 'linear-gradient(160deg, rgba(110,60,20,.4), rgba(20,12,34,.85))', border: '1px solid rgba(242,195,138,.4)', textAlign: 'left' }}>
                     {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '52px', height: '52px', borderRadius: '14px', objectFit: 'cover', flex: 'none' }} /> : null}
                     <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -1746,7 +1753,10 @@ export class PlayerView extends React.Component<any, any> {
               <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.2', color: '#f6f1ff' }}>{v.endCaption}</span>
               {(v.endAlso) ? <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: v.endColor, maxWidth: '300px' }}>{v.T.endAlso}: {v.endAlso}</span> : null}
               <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
-              {(v.sp) ? (
+              {(v.sp && !v.sp.name && !v.sp.offer && v.sp.banner) ? (
+                <img src={v.sp.banner} alt="" style={{ width: '80%', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '12px', border: '1px solid rgba(242,195,138,.35)' }} />
+              ) : null}
+              {(v.sp && (v.sp.name || v.sp.offer)) ? (
                 <div style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '16px', background: 'rgba(10,6,18,.45)', border: '1px solid rgba(242,195,138,.35)', textAlign: 'left' }}>
                   {v.sp.logo ? <img src={v.sp.logo} alt="" style={{ width: '40px', height: '40px', borderRadius: '11px', objectFit: 'cover', flex: 'none' }} /> : null}
                   <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '1px' }}>

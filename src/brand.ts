@@ -4,7 +4,7 @@
 /** Ko-fi / PayPal.me link for the "Support Moonfall" button. Empty → the button is hidden everywhere. */
 export const DONATE_URL = '';
 
-export type Sponsor = { name: string; offer?: string; link?: string; logo?: string } | null;
+export type Sponsor = { name: string; offer?: string; link?: string; logo?: string; banner?: string } | null;
 
 const T = {
   en: { by: 'Tonight’s game is brought to you by {name}', head: 'Tonight’s sponsor', visit: 'Visit', supportLine: 'Enjoyed Moonfall? Help keep it alive.', support: 'Support Moonfall ☕' },
