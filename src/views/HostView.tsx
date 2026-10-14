@@ -49,7 +49,8 @@ export class HostView extends React.Component<any, any> {
       rec.players.forEach(nm => {
         const f = fame[nm] || { games: 0, wins: 0, roles: {} };
         f.games++;
-        if (rec.winners.indexOf(nm) >= 0) { f.wins++; f.roles[rec.roles[nm]] = (f.roles[rec.roles[nm]] || 0) + 1; }
+        // every win is 1 point, whatever the role — and the role they won as is recorded (count + a dated log)
+        if (rec.winners.indexOf(nm) >= 0) { f.wins++; f.roles[rec.roles[nm]] = (f.roles[rec.roles[nm]] || 0) + 1; f.log = (f.log || []).concat([{ at: Date.now(), role: rec.roles[nm] }]).slice(-300); }
         fame[nm] = f;
       });
       HostView.store('moonfall.fame', JSON.stringify(fame));
@@ -1872,10 +1873,35 @@ export class HostView extends React.Component<any, any> {
         dealNow();
       },
       rematchHint: ((this.props.net && this.props.net.spectators) || 0) > 0 ? 'New players are waiting — you’ll pick the roles again.' : 'Same players, same roles, reshuffled.',
-      fameOpen: !!s.fameOpen, openFame: () => this.setState({ fameOpen: true }), closeFame: () => this.setState({ fameOpen: false }),
-      fameRows: (() => { const f = HostView.fame(); return Object.keys(f).map(nm => { const r = f[nm]; const best = Object.keys(r.roles || {}).sort((a, b) => r.roles[b] - r.roles[a])[0]; return { name: nm, wins: r.wins, games: r.games, rate: r.games ? Math.round((r.wins / r.games) * 100) : 0, best: best ? best + ' ×' + r.roles[best] : '—' }; }).sort((a, b) => b.wins - a.wins || b.rate - a.rate || b.games - a.games).map((r, i) => ({ ...r, rank: i + 1, medal: ['🥇', '🥈', '🥉'][i] || String(i + 1) })); })(),
+      fameOpen: !!s.fameOpen, openFame: () => this.setState({ fameOpen: true, fameRow: null }), closeFame: () => this.setState({ fameOpen: false, fameResetArmed: false }),
+      fameRows: (() => {
+        const f = HostView.fame();
+        return Object.keys(f).map(nm => {
+          const r = f[nm], roles = Object.keys(r.roles || {}).sort((a, b) => r.roles[b] - r.roles[a] || a.localeCompare(b));
+          const open = s.fameRow === nm;
+          return {
+            name: nm, wins: r.wins || 0, games: r.games || 0, rate: r.games ? Math.round(((r.wins || 0) / r.games) * 100) : 0,
+            roleChips: roles.map(k => ({ role: k, n: r.roles[k] })),
+            open, toggle: () => this.setState({ fameRow: open ? null : nm }),
+            log: (r.log || []).slice().reverse().map(e => ({ when: new Date(e.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }), role: e.role })),
+          };
+        }).sort((a, b) => b.wins - a.wins || a.games - b.games || a.name.localeCompare(b.name))
+          // shared ranks on equal points (two players with 5 wins are both 1st)
+          .map((r, i, arr) => { const rank = 1 + arr.findIndex(x => x.wins === r.wins); return { ...r, rank, medal: ['🥇', '🥈', '🥉'][rank - 1] || String(rank) }; });
+      })(),
+      fameCopy: () => {
+        const f = HostView.fame();
+        const rows = Object.keys(f).map(nm => ({ nm, w: f[nm].wins || 0, g: f[nm].games || 0, roles: Object.keys(f[nm].roles || {}).sort((a, b) => f[nm].roles[b] - f[nm].roles[a]).map(k => k + ' ×' + f[nm].roles[k]).join(', ') }))
+          .sort((a, b) => b.w - a.w || a.g - b.g);
+        const text = '🏆 Moonfall Hall of Fame\n' + rows.map((r, i) => (1 + rows.findIndex(x => x.w === r.w)) + '. ' + r.nm + ' — ' + r.w + ' pt' + (r.w === 1 ? '' : 's') + ' (' + r.g + ' games)' + (r.roles ? ' · ' + r.roles : '')).join('\n');
+        try { navigator.clipboard.writeText(text); } catch { /* no clipboard */ }
+        this.setState({ fameCopied: true }); clearTimeout(this._fc); this._fc = setTimeout(() => this.setState({ fameCopied: false }), 1800);
+      },
+      fameCopied: !!s.fameCopied,
       fameEmpty: !Object.keys(HostView.fame()).length,
-      fameReset: () => { HostView.store('moonfall.fame', '{}'); this.setState({ fameOpen: false }); },
+      // rewards depend on this board, so reset needs a second tap
+      fameResetArmed: !!s.fameResetArmed,
+      fameReset: () => { if (!s.fameResetArmed) { this.setState({ fameResetArmed: true }); clearTimeout(this._fr); this._fr = setTimeout(() => this.setState({ fameResetArmed: false }), 4000); return; } HostView.store('moonfall.fame', '{}'); this.setState({ fameOpen: false, fameResetArmed: false }); },
       ivoryNext: HostView.store('moonfall.ivoryNext') || '',
       starveOpen: !!s.starveOpen && alive.length > 0,
       starveRows: alive.map(nm => ({ name: nm, initial: nm[0], color: palette[nm], pick: () => { const pt = markPatch(nm, 'starved'); this.setState({ ...pt, starveOpen: false }); } })),
@@ -4055,28 +4081,44 @@ export class HostView extends React.Component<any, any> {
             <section className="sheet" aria-label="Hall of Fame" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2a2208 0%, #120a20 70%)', borderTop: '1px solid rgba(242,208,107,.45)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px', color: '#f6e7c1' }}>🏆 Hall of Fame</span>
-                <span style={{ fontSize: '13px', color: '#cbbfa0' }}>Every finished game on this phone counts. Wins and best role per player.</span>
+                <span style={{ fontSize: '13px', color: '#cbbfa0' }}>Leaderboard: 1 point for every win, whatever the role. Tap a player to see each win and the role they won as. Every finished game hosted on this phone counts.</span>
                 {(v.ivoryNext) ? <span style={{ fontSize: '13px', color: '#e6eefc' }}>🏰 Ivory Tower next game: <b>{v.ivoryNext}</b> (first out last game)</span> : null}
               </div>
               <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(v.fameEmpty) ? <span style={{ padding: '18px 0', textAlign: 'center', color: '#a99bc2', fontSize: '14px' }}>No finished games yet — play one!</span> : null}
                 {((v.fameRows) || []).map((r: any) => (
-                  <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '14px', background: r.rank <= 3 ? 'rgba(242,208,107,.1)' : 'rgba(20,12,34,.7)', border: `1px solid ${r.rank <= 3 ? 'rgba(242,208,107,.35)' : 'rgba(236,230,246,.08)'}` }}>
-                    <span style={{ width: '30px', textAlign: 'center', fontSize: r.rank <= 3 ? '22px' : '14px', fontWeight: '800', color: '#a99bc2' }}>{r.medal}</span>
-                    <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: '700', fontSize: '15px', color: '#f6f1ff' }}>{r.name}</span>
-                      <span style={{ fontSize: '12px', color: '#b3a6c9' }}>Best: {r.best}</span>
-                    </span>
-                    <span style={{ textAlign: 'right' }}>
-                      <span style={{ display: 'block', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '20px', color: '#f2d06b' }}>{r.wins}</span>
-                      <span style={{ fontSize: '11px', color: '#a99bc2' }}>{r.wins} / {r.games} · {r.rate}%</span>
-                    </span>
+                  <div key={r.name} style={{ borderRadius: '14px', background: r.rank <= 3 ? 'rgba(242,208,107,.1)' : 'rgba(20,12,34,.7)', border: `1px solid ${r.rank <= 3 ? 'rgba(242,208,107,.35)' : 'rgba(236,230,246,.08)'}` }}>
+                    <button className="press" onClick={r.toggle} aria-expanded={r.open} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', border: 'none', background: 'none', color: 'inherit', textAlign: 'left' }}>
+                      <span style={{ width: '30px', flex: 'none', textAlign: 'center', fontSize: r.rank <= 3 ? '22px' : '14px', fontWeight: '800', color: '#a99bc2' }}>{r.medal}</span>
+                      <span style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontWeight: '700', fontSize: '15px', color: '#f6f1ff' }}>{r.name}</span>
+                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {r.roleChips.length ? r.roleChips.map((c: any) => (
+                            <span key={c.role} style={{ padding: '1px 7px', borderRadius: '999px', fontSize: '11px', fontWeight: '700', color: '#f0dfb4', background: 'rgba(242,208,107,.12)', border: '1px solid rgba(242,208,107,.25)' }}>{c.role} ×{c.n}</span>
+                          )) : <span style={{ fontSize: '12px', color: '#8f82a8' }}>No wins yet</span>}
+                        </span>
+                      </span>
+                      <span style={{ flex: 'none', textAlign: 'right' }}>
+                        <span style={{ display: 'block', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '22px', lineHeight: '1.1', color: '#f2d06b' }}>{r.wins}<span style={{ fontSize: '11px', fontFamily: 'inherit', marginLeft: '3px' }}>pts</span></span>
+                        <span style={{ fontSize: '11px', color: '#a99bc2' }}>{r.wins} / {r.games} games · {r.rate}%</span>
+                      </span>
+                    </button>
+                    {(r.open) ? (
+                      <div style={{ padding: '0 12px 12px 54px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {r.log.length ? r.log.map((e: any, i: number) => (
+                          <span key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12.5px', color: '#d8cfe8' }}>
+                            <span>+1 · won as <b style={{ color: '#f0dfb4' }}>{e.role}</b></span><span style={{ color: '#8f82a8' }}>{e.when}</span>
+                          </span>
+                        )) : <span style={{ fontSize: '12px', color: '#8f82a8' }}>{r.wins ? 'Wins from before the win log started are counted in the role list above.' : 'No wins yet.'}</span>}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
               <div style={{ padding: '8px 20px 30px', display: 'flex', gap: '8px' }}>
                 <button className="press" onClick={v.closeFame} style={{ flex: '1', height: '50px', borderRadius: '16px', border: 'none', background: '#f2d06b', color: '#1c140a', fontSize: '16px', fontWeight: '700' }}>Close</button>
-                {(!v.fameEmpty) ? <button className="press" onClick={v.fameReset} style={{ height: '50px', padding: '0 14px', borderRadius: '16px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#a99bc2', fontSize: '13px', fontWeight: '700' }}>Reset</button> : null}
+                {(!v.fameEmpty) ? <button className="press" onClick={v.fameCopy} style={{ height: '50px', padding: '0 14px', borderRadius: '16px', border: '1px solid rgba(242,208,107,.45)', background: 'rgba(242,208,107,.1)', color: '#f2d06b', fontSize: '13px', fontWeight: '700' }}>{v.fameCopied ? 'Copied ✓' : 'Copy'}</button> : null}
+                {(!v.fameEmpty) ? <button className="press" onClick={v.fameReset} style={{ height: '50px', padding: '0 12px', borderRadius: '16px', border: `1px solid ${v.fameResetArmed ? 'rgba(255,111,97,.6)' : 'rgba(236,230,246,.2)'}`, background: v.fameResetArmed ? 'rgba(255,111,97,.15)' : 'none', color: v.fameResetArmed ? '#ffb3bf' : '#a99bc2', fontSize: '13px', fontWeight: '700' }}>{v.fameResetArmed ? 'Tap again to erase' : 'Reset'}</button> : null}
               </div>
             </section>
           </>
