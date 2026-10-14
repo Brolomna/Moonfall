@@ -660,7 +660,7 @@ export class PlayerView extends React.Component<any, any> {
                   ) : null}
                 </div>
                 <div style={{ flex: '1' }} />
-                <form style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '22px 20px 20px', borderRadius: '26px', background: 'rgba(20,12,34,.78)', border: '1px solid rgba(190,165,235,.2)', backdropFilter: 'blur(14px)' }}>
+                <form onSubmit={(e) => { e.preventDefault(); if (!v.noName) v.join(); } /* NET: Enter joins instead of reloading the page */} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '22px 20px 20px', borderRadius: '26px', background: 'rgba(20,12,34,.78)', border: '1px solid rgba(190,165,235,.2)', backdropFilter: 'blur(14px)' }}>
                   <span style={{ alignSelf: 'flex-start', height: '30px', padding: '0 12px', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', background: 'rgba(98,212,166,.12)', color: '#a6eedd' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12.5l4.5 4.5L19 7.5" />
@@ -671,7 +671,7 @@ export class PlayerView extends React.Component<any, any> {
                     <span style={{ fontFamily: v.fD, fontWeight: '600', fontSize: '22px' }}>
                       {v.T.whatsName}
                     </span>
-                    <input type="text" value={v.nameValue} onChange={v.setName} placeholder={v.T.namePh} autoComplete="nickname" style={{ height: '60px', padding: '0 18px', borderRadius: '16px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(10,6,18,.6)', color: '#ece6f6', fontSize: '20px', fontWeight: '600' }} />
+                    <input type="text" enterKeyHint="go" value={v.nameValue} onChange={v.setName} placeholder={v.T.namePh} autoComplete="nickname" style={{ height: '60px', padding: '0 18px', borderRadius: '16px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(10,6,18,.6)', color: '#ece6f6', fontSize: '20px', fontWeight: '600' }} />
                     <span style={{ fontSize: '13px', color: '#a99bc2' }}>
                       {v.T.nameHelp}
                     </span>
