@@ -1080,11 +1080,19 @@ export class HostView extends React.Component<any, any> {
     // ---------- answers the host passes on ----------
     // the Drunk's hidden role counts for every check, even before night 3 (official rule)
     const trueRole = (nm) => { const r = roleOf(nm); return mech.drunkAs && libOf(r.key) === 'Drunk' && byKey[mech.drunkAs] ? byKey[mech.drunkAs] : r; };
-    const looksWolf = (nm) => { const r = trueRole(nm); const w = (isWolf(r) && ['Shadow Wolf'].indexOf(r.lib) < 0) || r.key === 'lycan'; return disguisedNow.indexOf(nm) >= 0 ? !w : w; };
-    const seerResult = (nm) => (rules.seerSees === 'role' ? trueRole(nm).name : looksWolf(nm) ? 'a werewolf — nod' : 'not a werewolf — shake');
+    // What investigating roles see — kept apart from the true role:
+    //  · Shadow Wolf and Traitor pass every check as a plain Villager (exact role, wolf check, aura, Spy, Revealer, Medium)
+    //  · the Lycan shows up as a werewolf to wolf checks (Seer, Revealer) but as the Lycan to exact-role checks
+    //  · an Illusionist's disguise tonight flips every check on that player (wolf ↔ not, special ↔ plain, Seer ↔ not)
+    const hiddenAs = (r) => (['Shadow Wolf', 'Traitor'].indexOf(libOf(r.key)) >= 0 && byKey.villager ? byKey.villager : r);
+    const disguised = (nm) => disguisedNow.indexOf(nm) >= 0;
+    const apparentRole = (nm) => { const r = hiddenAs(trueRole(nm)); if (!disguised(nm)) return r; return r.team === 'Werewolves' || isWolf(r) || r.key === 'lycan' ? byKey.villager : byKey.werewolf; };
+    const looksWolf = (nm) => { const r = hiddenAs(trueRole(nm)); const w = isWolf(r) || r.key === 'lycan'; return disguised(nm) ? !w : w; };
+    const seerResult = (nm) => (rules.seerSees === 'role' ? apparentRole(nm).name : looksWolf(nm) ? 'a werewolf — nod' : 'not a werewolf — shake');
     // official Aura Seer: thumbs up for anyone who isn't a plain Villager or plain Werewolf (a disguise flips it)
-    const auraSpecial = (nm) => { const k = trueRole(nm).key; const sp = k !== 'villager' && k !== 'werewolf'; return disguisedNow.indexOf(nm) >= 0 ? !sp : sp; };
-    const auraOf = (nm) => { const r = roleOf(nm); let a = r.team === 'Loner' ? 'neutral' : (r.team === 'Werewolves' && r.lib !== 'Traitor' && r.lib !== 'Shadow Wolf') ? 'evil' : 'good'; if (disguisedNow.indexOf(nm) >= 0 && a !== 'neutral') a = a === 'good' ? 'evil' : 'good'; return a; };
+    const auraSpecial = (nm) => { const k = hiddenAs(trueRole(nm)).key; const sp = k !== 'villager' && k !== 'werewolf'; return disguised(nm) ? !sp : sp; };
+    const looksSeer = (nm) => { const y = trueRole(nm).key === 'seer'; return disguised(nm) ? !y : y; };
+    const auraOf = (nm) => { const r = hiddenAs(trueRole(nm)); let a = r.team === 'Loner' ? 'neutral' : (r.team === 'Werewolves' && r.lib !== 'Traitor' && r.lib !== 'Shadow Wolf') ? 'evil' : 'good'; if (disguisedNow.indexOf(nm) >= 0 && a !== 'neutral') a = a === 'good' ? 'evil' : 'good'; return a; };
     const actorsOf = (a) => (a.kind === 'kill' ? wolves : names.filter(nm => wokeAs(nm).key === a.key && !isOut(nm)));
     const visitsBy = (nm) => tonightActs.filter(a => actorsOf(a).indexOf(nm) >= 0).reduce((s0, a) => s0.concat(a.targets || []), []).filter((v, i, arr) => arr.indexOf(v) === i);
     const visitorsOf = (nm) => tonightActs.filter(a => (a.targets || []).indexOf(nm) >= 0).reduce((s0, a) => s0.concat(actorsOf(a)), []).filter((v, i, arr) => arr.indexOf(v) === i && v !== nm);
@@ -1092,13 +1100,13 @@ export class HostView extends React.Component<any, any> {
     let lastInvestigate = [];
     // the answer an information role reads on their own phone (translated there): plain facts, no English
     const whisperFor = (kind, t, actors, two) => {
-      if (kind === 'check' && t) return { kind, target: t, wolf: looksWolf(t), role: rules.seerSees === 'role' ? trueRole(t).key : null };
-      if (kind === 'seek' && t) return { kind, target: t, yes: roleOf(t).key === 'seer' };
+      if (kind === 'check' && t) return { kind, target: t, wolf: looksWolf(t), role: rules.seerSees === 'role' ? apparentRole(t).key : null };
+      if (kind === 'seek' && t) return { kind, target: t, yes: looksSeer(t) };
       if (kind === 'aura' && t) return { kind, target: t, yes: auraSpecial(t) };
-      if (kind === 'fortune' && t) return { kind, target: t, role: trueRole(t).key };
-      if (kind === 'medium' && t) return { kind, target: t, role: roleOf(t).key };
+      if (kind === 'fortune' && t) return { kind, target: t, role: apparentRole(t).key };
+      if (kind === 'medium' && t) return { kind, target: t, role: hiddenAs(roleOf(t)).key };
       if (kind === 'investigate' && t) { resultFor('investigate', t, actors); return { kind, target: t, roles: lastInvestigate.slice() }; }
-      if (kind === 'spy') { const w0 = wolves.slice().sort((a, b) => seedOf(a + round) - seedOf(b + round))[0]; return w0 ? { kind, target: w0 } : null; }
+      if (kind === 'spy') { const w0 = wolves.filter(looksWolf).slice().sort((a, b) => seedOf(a + round) - seedOf(b + round))[0]; return w0 ? { kind, target: w0 } : null; }
       if (kind === 'track' && t) return { kind, target: t, list: visitsBy(t) };
       if (kind === 'watch' && t) return { kind, target: t, list: visitorsOf(t) };
       if (kind === 'insomniac' && two && two.length === 2) { const woke = defs.filter(d => !d.ghost).reduce((s0, d) => s0.concat(d.who.filter(nm => !isOut(nm))), []); return { kind, list: two, yes: two.some(nm => woke.indexOf(nm) >= 0) }; }
@@ -1107,25 +1115,25 @@ export class HostView extends React.Component<any, any> {
     const resultFor = (kind, t, actors) => {
       if (kind === 'drunk' && mech.drunkAs) return 'The Drunk is really the ' + roleLabel(mech.drunkAs) + ' — show them, and their card changes now.';
       if (kind === 'check' && t) return 'Show the Seer: ' + t + ' is ' + seerResult(t) + '.';
-      if (kind === 'seek' && t) return roleOf(t).key === 'seer' ? 'Nod — ' + t + ' is the Seer.' : 'Shake — ' + t + ' is not the Seer.';
+      if (kind === 'seek' && t) return looksSeer(t) ? 'Nod — ' + t + ' is the Seer.' : 'Shake — ' + t + ' is not the Seer.';
       if (kind === 'aura' && t) return auraSpecial(t) ? 'Nod — ' + t + ' has a special role.' : 'Shake — ' + t + ' is a plain Villager or Werewolf.';
-      if (kind === 'fortune' && t) return 'Show the Fortune Teller: ' + t + ' is the ' + trueRole(t).name + '.';
-      if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + roleOf(t).name + '.';
+      if (kind === 'fortune' && t) return 'Show the Fortune Teller: ' + t + ' is the ' + apparentRole(t).name + '.' + (apparentRole(t).key !== trueRole(t).key ? ' (Really the ' + trueRole(t).name + ' — they pass as this.)' : '');
+      if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + hiddenAs(roleOf(t)).name + '.' + (hiddenAs(roleOf(t)).key !== roleOf(t).key ? ' (Really the ' + roleOf(t).name + '.)' : '');
       if (kind === 'investigate' && t) {
         // The host picks the two decoys (any role in this game, alive or dead, except the Investigator's own);
         // the real role is always added, and the three are said in a mixed order — but the real one is never first.
-        const real = trueRole(t), dec = (s.invDecoys || []).filter(k => k !== real.key && byKey[k]);
-        if (dec.length < 2) return 'Pick ' + (2 - dec.length) + ' more role' + (dec.length ? '' : 's') + ' below — the Investigator hears them along with ' + t + '’s real role (the ' + real.name + ').';
+        const real = apparentRole(t), dec = (s.invDecoys || []).filter(k => k !== real.key && byKey[k]); // what they look like (a Shadow Wolf passes as a Villager)
+        if (dec.length < 2) return 'Pick ' + (2 - dec.length) + ' more role' + (dec.length ? '' : 's') + ' below — the Investigator hears them along with the ' + real.name + (real.key !== trueRole(t).key ? ' (what ' + t + ' looks like)' : ' (' + t + '’s real role)') + '.';
         const threeK = dec.slice(0, 2).sort((x, y) => seedOf(x + round + t) - seedOf(y + round + t));
         threeK.splice(1 + seedOf(real.key + round + t) % 2, 0, real.key);
         lastInvestigate = threeK.slice();
-        return 'Tell the Investigator: ' + t + ' is one of — ' + threeK.map(k => byKey[k].name).join(', ') + '.';
+        return 'Tell the Investigator: ' + t + ' is one of — ' + threeK.map(k => byKey[k].name).join(', ') + '.' + (real.key !== trueRole(t).key ? ' (Really the ' + trueRole(t).name + ' — they pass as the ' + real.name + '.)' : '');
       }
       if (kind === 'track' && t) { const v = visitsBy(t); return 'Tell the Tracker: ' + t + (v.length ? ' visited ' + v.join(' and ') : ' visited no one') + ' tonight.'; }
       if (kind === 'watch' && t) { const v = visitorsOf(t); return 'Tell the Watcher: ' + (v.length ? v.join(' and ') + ' visited ' + t : 'no one visited ' + t) + ' tonight.'; }
-      if (kind === 'reveal' && t) return (isWolf(roleOf(t)) || roleOf(t).key === 'lycan' ? t + ' dies at dawn' : t + ' is not a werewolf — the Revealer dies at dawn') + ' (don’t tell the Revealer).';
+      if (kind === 'reveal' && t) return (looksWolf(t) ? t + ' dies at dawn' : t + ' is not a werewolf — the Revealer dies at dawn') + ' (don’t tell the Revealer).';
       if (kind === 'vhunt' && t) return isVampire(t) ? t + ' is a vampire — they will die at dawn.' : t + ' is not a vampire.';
-      if (kind === 'spy') { const w = wolves.slice().sort((a, b) => seedOf(a + round) - seedOf(b + round))[0]; return w ? 'Point at ' + w + ' — one of the wolves.' : 'No wolves left to show.'; }
+      if (kind === 'spy') { const w = wolves.filter(looksWolf).slice().sort((a, b) => seedOf(a + round) - seedOf(b + round))[0]; return w ? 'Point at ' + w + ' — one of the wolves.' : 'No wolves left to show.'; }
       if (kind === 'insomniac' && t) {
         const two = (s.pick || []).slice(0, 2); if (two.length < 2) return '';
         const woke = defs.filter(d => !d.ghost).reduce((s0, d) => s0.concat(d.who.filter(nm => !isOut(nm))), []);
@@ -1154,7 +1162,7 @@ export class HostView extends React.Component<any, any> {
       const result = resultFor(spec.kind, pick[0], actors) + (spec.kind === 'swap' && pick.length === 2 ? pick[0] + ' and ' + pick[1] + ' swap roles.' : '');
       const doused = (mech.doused || []).filter(nm => !isOut(nm));
       // Investigator: every role in this game (alive or dead), minus the Investigator's own and the target's real one
-      const invMine = actors.map(nm => roleOf(nm).key), invReal = spec.kind === 'investigate' && pick[0] ? trueRole(pick[0]).key : null;
+      const invMine = actors.map(nm => roleOf(nm).key), invReal = spec.kind === 'investigate' && pick[0] ? apparentRole(pick[0]).key : null;
       const invPool = spec.kind !== 'investigate' ? [] : names.map(nm => roleOf(nm).key).concat(names.map(nm => trueRole(nm).key)).concat(inPlay)
         .filter((k, i, arr) => arr.indexOf(k) === i && byKey[k] && invMine.indexOf(k) < 0 && k !== invReal);
       const invDec = (s.invDecoys || []).filter(k => invPool.indexOf(k) >= 0);
@@ -1226,7 +1234,7 @@ export class HostView extends React.Component<any, any> {
         emptyText: spec.pool.length || spec.kind === 'drunk' || spec.count === 0 ? '' : (spec.emptyText || 'No one to choose.'),
         // extra switches: the Alpha turning the victim, the Arsonist lighting the fire
         hasDecoys: spec.kind === 'investigate' && !!pick[0],
-        decoyHead: invReal ? 'Two more roles to name (' + invDec.length + ' / 2) — ' + pick[0] + '’s real role, the ' + byKey[invReal].name + ', is always included' : '',
+        decoyHead: invReal ? 'Two more roles to name (' + invDec.length + ' / 2) — ' + pick[0] + (invReal !== trueRole(pick[0]).key ? ' passes as the ' + byKey[invReal].name + ' (really the ' + trueRole(pick[0]).name + '); that one' : '’s real role, the ' + byKey[invReal].name + ',') + ' is always included' : '',
         decoyRows: invPool.map(k => { const rr = byKey[k], on = invDec.indexOf(k) >= 0, dead = names.some(nm => roleOf(nm).key === k) && !names.some(nm => !isOut(nm) && roleOf(nm).key === k);
           return { name: rr.name + (dead ? ' · dead' : ''), color: rr.color, on, toggle: () => this.setState({ invDecoys: on ? invDec.filter(x => x !== k) : invDec.length < 2 ? invDec.concat([k]) : invDec.slice(1).concat([k]) }) }; }),
         hasAlpha: !!spec.alpha, alphaOn: !!s.alphaTurn, toggleAlpha: () => this.setState({ alphaTurn: !s.alphaTurn }),
@@ -1970,10 +1978,11 @@ export class HostView extends React.Component<any, any> {
         let convertLeft = !!(wolvesAct && wolvesAct.convert && !usedAt('Alpha Werewolf'));
         ((wolvesAct && wolvesAct.targets) || []).filter(nm => !isOut(nm)).forEach(v => {
           if (isLib(v, 'Serial Killer')) { saves.push({ name: v, by: 'their own strength — wolves can’t kill the Serial Killer' }); return; }
-          if (convertLeft) { convertLeft = false; turned.push({ nm: v, key: 'werewolf', why: 'Alpha Werewolf' }); nm2.used['Alpha Werewolf'] = round; return; }
+          // protection comes first: a protected victim is neither killed nor turned by the Alpha (the charge isn't used up)
           if (protect === v) { saves.push({ name: v, by: roleLabel('healer') }); return; }
           if (witch && witch.save === v) { saves.push({ name: v, by: roleLabel('witch') }); return; }
           if (guard === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); die(guardian, 'sacrifice'); return; }
+          if (convertLeft) { convertLeft = false; turned.push({ nm: v, key: 'werewolf', why: 'Alpha Werewolf' }); nm2.used['Alpha Werewolf'] = round; return; }
           if (blessedSave(v)) return;
           if (isLib(v, 'Elder') && !nm2.elderHit[v]) { nm2.elderHit[v] = true; saves.push({ name: v, by: 'the Elder’s luck (next time it kills)' }); return; }
           if (roleOf(v).key === 'toughguy' && !(v in nm2.wounded) && !deaths.find(d => d.nm === v)) { nm2.wounded[v] = round; toughLog.push(ev('tough', { name: v, phase: 'night' })); return; }
@@ -1992,7 +2001,7 @@ export class HostView extends React.Component<any, any> {
         if (arson && arson.ignite) { nm2.doused.filter(nm => !isOut(nm)).forEach(nm => kill2(nm, 'burned')); nm2.doused = []; }
         else if (arson && arson.targets && arson.targets[0] && nm2.doused.indexOf(arson.targets[0]) < 0) nm2.doused.push(arson.targets[0]);
         const rev = eff('reveal')[0];
-        if (rev && rev.targets && rev.targets[0]) { const t = rev.targets[0]; if (isWolf(roleOf(t)) || roleOf(t).key === 'lycan') kill2(t, 'revealed'); else actorsOf(rev).forEach(nm => kill2(nm, 'misfire')); }
+        if (rev && rev.targets && rev.targets[0]) { const t = rev.targets[0]; if (looksWolf(t)) kill2(t, 'revealed'); /* what the Revealer sees: a Shadow Wolf survives, a Lycan or a disguised villager dies */ else actorsOf(rev).forEach(nm => kill2(nm, 'misfire')); }
         const vh = first1('vhunt'); if (vh && isVampire(vh)) kill2(vh, 'staked');
         const ven = eff('vengeance')[0]; if (ven && ven.targets && ven.targets[0]) { kill2(ven.targets[0], 'vengeance'); nm2.used['Vengeful Spirit'] = round; }
         if (witch && witch.poison && !blessedSave(witch.poison)) die(witch.poison, 'poison');
