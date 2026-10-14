@@ -1112,10 +1112,11 @@ export class HostView extends React.Component<any, any> {
       if (kind === 'medium' && t) return 'Show the Medium: ' + t + ' was the ' + roleOf(t).name + '.';
       if (kind === 'investigate' && t) {
         // The host picks the two decoys (any role in this game, alive or dead, except the Investigator's own);
-        // the real role is always added, and the three are said in a mixed order.
+        // the real role is always added, and the three are said in a mixed order — but the real one is never first.
         const real = trueRole(t), dec = (s.invDecoys || []).filter(k => k !== real.key && byKey[k]);
         if (dec.length < 2) return 'Pick ' + (2 - dec.length) + ' more role' + (dec.length ? '' : 's') + ' below — the Investigator hears them along with ' + t + '’s real role (the ' + real.name + ').';
-        const threeK = [real.key].concat(dec.slice(0, 2)).sort((x, y) => seedOf(x + round + t) - seedOf(y + round + t));
+        const threeK = dec.slice(0, 2).sort((x, y) => seedOf(x + round + t) - seedOf(y + round + t));
+        threeK.splice(1 + seedOf(real.key + round + t) % 2, 0, real.key);
         lastInvestigate = threeK.slice();
         return 'Tell the Investigator: ' + t + ' is one of — ' + threeK.map(k => byKey[k].name).join(', ') + '.';
       }
