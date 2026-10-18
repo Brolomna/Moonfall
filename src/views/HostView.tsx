@@ -392,7 +392,7 @@ export class HostView extends React.Component<any, any> {
     const picked = s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'];
     const setCount = (k, v) => this.setState({ counts: { ...counts, [k]: v } });
     const wolfPicks = picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && isWolfRole(byKey[k])).length;
-    const wolfMin = wolfPicks >= needWolves ? 0 : 1; // 0 basic Werewolves only when the special wolves cover the pack
+    const wolfMin = 0; // the host may go down to 0 Werewolf cards (special wolf roles, or a wolf-less game)
     const counted = visible.filter(r => r.kind !== 'unique').map(r => {
       const c = counts[r.key] || 0;
       const pair = r.kind === 'pair';
@@ -405,7 +405,7 @@ export class HostView extends React.Component<any, any> {
         edit: () => openEdit(r),
         inc: () => setCount(r.key, pair ? (c === 0 ? 2 : Math.min(4, c + 1)) : Math.min(16, c + 1)),
         dec: () => setCount(r.key, pair ? (c <= 2 ? 0 : c - 1) : Math.max(r.key === 'werewolf' ? Math.min(wolfMin, c) : 0, c - 1)),
-        ...(r.key === 'werewolf' ? { countHint: wolfMin === 0 ? 'Can be 0 — your ' + wolfPicks + ' wolf role' + (wolfPicks > 1 ? 's hunt' : ' hunts') + ' instead' : r.countHint + '. Pick ' + needWolves + ' wolf role' + (needWolves > 1 ? 's' : '') + ' to go down to 0.' } : {})
+        ...(r.key === 'werewolf' ? { countHint: r.countHint + (wolfPicks ? ' · your ' + wolfPicks + ' wolf role' + (wolfPicks > 1 ? 's' : '') + ' also hunt' + (wolfPicks > 1 ? '' : 's') : '') } : {})
       };
     });
     const locked = (s.locked || []).filter(k => picked.indexOf(k) >= 0); // roles the presets must keep
@@ -441,17 +441,18 @@ export class HostView extends React.Component<any, any> {
     if (score > 3) { balLabel = 'Village favored'; balColor = '#8fe0b8'; }
     if (score < -3) { balLabel = 'Wolves favored'; balColor = '#ff8a9b'; }
     const diff = n - total;
-    // Bluff cards: up to one extra card per werewolf card. At the deal the extras are left out at random (never a
-    // wolf-side card or a Mason), and nobody — phones included — learns which roles weren't dealt.
+    // Bluff cards: up to one extra card per werewolf card. Dealing goes by priority — every wolf-side card first, then
+    // every solo-win role, then village cards — so the cards left out are always village roles (good-guy bluffs).
+    // Nobody — phones included — learns which roles weren't dealt.
     const wolfSlots = wolfCards + wolfPicks;
-    const bluffable = Math.max(0, total - wolfCards - picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team === 'Werewolves').length - (counts.mason || 0));
+    const bluffable = Math.max(0, total - wolfCards - picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length - (counts.mason || 0));
     const extraOk = diff < 0 && -diff <= wolfSlots && -diff <= bluffable;
     let deckHint = 'Ready — ' + total + ' cards for ' + n + ' players', deckColor = '#8fe0b8';
-    if (wolfCards === 0 && wolfPicks < needWolves) { deckHint = wolfPicks ? 'With 0 Werewolf cards, pick ' + needWolves + ' wolf roles (' + wolfPicks + ' picked)' : 'Add at least one Werewolf'; deckColor = '#f2a65a'; }
+    if (false) { /* the werewolf count never blocks the deal */ }
     else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
     else if (diff < 0 && extraOk) { deckHint = 'Ready — ' + total + ' cards for ' + n + ' players · ' + (-diff) + ' won’t be dealt (secret bluffs)'; deckColor = '#8fe0b8'; }
     else if (diff < 0) { deckHint = 'Remove ' + (-diff - Math.min(wolfSlots, bluffable)) + ' card' + (-diff - Math.min(wolfSlots, bluffable) > 1 ? 's' : '') + ' — up to ' + Math.min(wolfSlots, bluffable) + ' extra can stay as bluffs (one per werewolf)'; deckColor = '#f2a65a'; }
-    const ready = (diff === 0 || extraOk) && (wolfCards > 0 || wolfPicks >= needWolves);
+    const ready = diff === 0 || extraOk;
 
     // ---------- draft ----------
     const icons = this.icons(), colors = this.colors();
@@ -590,7 +591,6 @@ export class HostView extends React.Component<any, any> {
       { id: 'classic', label: 'Classic', sub: 'The well-known roles', special: (k) => Math.max(2, Math.round(k * 0.5)), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard', 'Prince', 'Apprentice Seer'] },
       { id: 'intermediate', label: 'Intermediate', sub: 'New twists every tap', random: true },
       { id: 'advanced', label: 'Advanced', sub: 'A wild new mix every tap', random: true },
-      { id: 'wolfpack', label: 'Wolf Pack', sub: 'No plain Werewolves', special: (k) => Math.max(2, Math.round(k * 0.6)), wolfRoles: (w) => ['Alpha Werewolf', 'Wolf King', 'Shadow Wolf', 'Nightmare Wolf', 'Omega Wolf', 'Wolf Cub'].slice(0, w), roles: ['Seer', 'Witch', 'Bodyguard', 'Hunter', 'Watcher', 'Elder', 'Tracker', 'Prince', 'Medium', 'Mayor'] },
     ];
     const libEntry = (nm) => ROLE_LIBRARY.find(e => e.name === nm);
     const strengthOf = (nm) => { const e = libEntry(nm); return e.builtin && byKey[e.builtin] ? byKey[e.builtin].strength : e.s; };
@@ -1514,10 +1514,11 @@ export class HostView extends React.Component<any, any> {
 
     const dealNow = () => {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
-        // bluff cards: leave the extra cards out at random — never a wolf-side card, a Mason, or a card a fixed player needs
+        // bluff cards — deal by priority: 1. every wolf-side card, 2. every solo-win role, 3. village cards.
+        // The extras are left out at random among village cards only (never a Mason, or a card a fixed player needs).
         const extraN = Math.max(0, deck.length - n);
         const keep = deck.map(() => true), needFixed = {}; Object.values(fixed).forEach(k => { needFixed[k] = (needFixed[k] || 0) + 1; });
-        const canDrop = deck.map((r, i) => i).filter(i => deck[i].team !== 'Werewolves' && deck[i].key !== 'mason').sort(() => Math.random() - 0.5);
+        const canDrop = deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason').sort(() => Math.random() - 0.5);
         let dropped = 0;
         for (const i of canDrop) {
           if (dropped >= extraN) break;
