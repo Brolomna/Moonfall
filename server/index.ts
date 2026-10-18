@@ -222,6 +222,7 @@ function playerView(p: Player) {
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
     sponsor: sponsorView(),
+    theme: room.shared.theme || null, // the host's look (e.g. 'halloween')
     spirit: spiritView(p.name), // only when this player is dead
     // whispers spirits sent to this living player (anonymous)
     spiritWhispers: room.council && !isSpirit(p.name) ? Object.values(room.council.spirits).filter(x => x.to === p.name && x.text).map(x => ({ id: 'sw' + x.at, text: x.text })) : [],
@@ -247,6 +248,7 @@ function spectatorView(sp: Player) {
   return {
     spectator: true,
     sponsor: sponsorView(),
+    theme: room.shared.theme || null,
     dawnDeaths: dawnDeaths(),
     name: sp.name,
     dealt: room.dealt,
@@ -328,6 +330,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use('/sponsor', express.static(SPONSOR_DIR, { maxAge: '1h' })); // the sponsor folder's pictures
 // the sponsor before a phone has joined (splash + join screen), and its logo as a plain image
 app.get('/api/sponsor', (_req, res) => res.json(sponsorView()));
+app.get('/api/theme', (_req, res) => res.json({ theme: room.shared.theme || null }));
 app.get('/api/sponsor/logo', (_req, res) => {
   const m = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/.exec(String(room.shared.sponsorLogo || ''));
   if (!m) return res.status(404).end();
@@ -399,6 +402,7 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:patch', (patch: Shared) => {
       if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       Object.assign(room.shared, patch);
+      if ('theme' in patch) io.emit('room:theme', room.shared.theme || null); // every phone, joined or not, follows the host's theme
       pushAll();
     });
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)

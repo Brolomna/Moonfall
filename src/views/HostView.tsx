@@ -15,7 +15,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme'];
 
   constructor(props) {
     super(props);
@@ -2130,6 +2130,7 @@ export class HostView extends React.Component<any, any> {
               ) : null}
               {(this.props.onLock) ? (
                 <>
+                <button className="press" onClick={() => this.setState({ theme: this.state.theme === 'halloween' ? null : 'halloween' })} aria-label={this.state.theme === 'halloween' ? 'Turn the Halloween theme off' : 'Turn the Halloween theme on'} aria-pressed={this.state.theme === 'halloween'} title="Halloween theme (every phone follows)" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: `1px solid ${this.state.theme === 'halloween' ? 'rgba(255,140,40,.9)' : 'rgba(255,140,40,.35)'}`, background: this.state.theme === 'halloween' ? 'rgba(255,120,20,.3)' : 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', filter: this.state.theme === 'halloween' ? 'none' : 'grayscale(.7)' }}>🎃</button>
                 <button className="press" onClick={v.openFame} aria-label="Hall of Fame" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(242,208,107,.4)', background: 'rgba(20,12,34,.6)', color: '#f2d06b', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🏆</button>
                 <button className="press" onClick={this.props.onLock} aria-label="Lock the host screen (asks for the PIN again)" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" /></svg>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from './net';
 import { PhoneFrame } from './PhoneFrame';
+import { HalloweenLayer } from './halloween';
 import { HostView } from './views/HostView';
 import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
 import { useWakeLock } from './wakeLock';
@@ -74,8 +75,10 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
   }, [soundOn, stage.screen, stage.phase]);
   useEffect(() => () => stopAmbience(), []);
 
+  const [theme, setTheme] = useState<string | null>(null);
   const onPatch = (patch: Record<string, unknown>) => {
     socket.emit('host:patch', patch);
+    if ('theme' in patch) setTheme((patch.theme as string) || null);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     if (patch.status) statusRef.current = patch.status as Record<string, unknown>;
     // Night / Day buttons send phase without screen; deal and end-game also send screen (no sound for those)
@@ -107,7 +110,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
         if (snap && snap.players && snap.players.length && Date.now() - (snap.at || 0) < 24 * 3600 * 1000) { socket.emit('host:restore', snap); return; }
       }
       if (restored) setInitKey(k => k + 1); // rebuild the screen from the restored game
-      setInit(shared || {}); setNet(room);
+      setInit(shared || {}); setNet(room); setTheme((shared && shared.theme) || null);
       phaseRef.current = (shared && shared.phase) || 'night';
       statusRef.current = (shared && shared.status) || {};
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
@@ -163,6 +166,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
           </>
         )}
       </PhoneFrame>
+      <HalloweenLayer on={theme === 'halloween'} />
       {!online && <div className="offline">Reconnecting to the room…</div>}
     </>
   );

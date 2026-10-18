@@ -21,6 +21,8 @@ the host a guide (wake-up order, special-case reminders, win check).
     (restart / redeploy / sleep) it sends it back with `host:restore` and players' phones reconnect (`room:restored`)
 - `src/main.tsx` — lazy-loads HostApp or PlayerApp (separate chunks), adds the app manifest (`public/manifest*.webmanifest`, icons in `public/icons`) and `public/sw.js` (installable; caches nothing)
 - `src/wakeLock.ts` — keeps phones' screens on during a game
+- `src/halloween.tsx` (+ `html.halloween` rules in `src/global.css`) — the Halloween theme: the host's 🎃 header button sets shared `theme`;
+  the server sends it to every phone (`theme` in views, `/api/theme`, live `room:theme`). A decoration layer (no taps) + card frame touches.
 - `src/brand.ts` — `DONATE_URL` (Ko-fi / PayPal.me; empty hides every "Support Moonfall" button) and the sponsor/support lines in 7 languages.
   Sponsor: host → Players screen → Sponsor (name, offer, link, logo; saved in the host phone's localStorage `moonfall.sponsor`), shared as
   `sponsor` + `sponsorLogo`; phones get `sponsorView()` (server) — splash, join, waiting, end card — and the logo from `/api/sponsor/logo`.

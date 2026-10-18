@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect, playerId } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { brandText, type Sponsor } from './brand';
+import { HalloweenLayer } from './halloween';
 import { PlayerView } from './views/PlayerView';
 import { installAudioUnlock, playDawn, playHowl } from './sound';
 
@@ -36,6 +37,9 @@ export function PlayerApp() {
   const [splash, setSplash] = useState(true);
   // the host's sponsor, shown on the splash and the join screen before this phone has joined
   const [preSponsor, setPreSponsor] = useState<Sponsor>(null);
+  // the host's theme (Halloween…): fetched on load, then pushed live by the server
+  const [theme, setTheme] = useState<string | null>(null);
+  useEffect(() => { fetch('/api/theme').then(r => r.json()).then(t => setTheme(t.theme || null)).catch(() => { /* default look */ }); }, []);
   useEffect(() => { fetch('/api/sponsor').then(r => r.json()).then(setPreSponsor).catch(() => { /* none */ }); }, []);
   useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
   const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
@@ -53,6 +57,7 @@ export function PlayerApp() {
 
   useEffect(() => {
     socket.on('player:view', (v: View) => { setView(v); if (v && (v as { now?: number }).now) skew.current = (v as { now: number }).now - Date.now(); });
+    socket.on('room:theme', (t: string | null) => setTheme(t || null));
     socket.on('player:kicked', () => { playerId.clear(); setView(null); });
     // the server restarted and the host put the game back: reconnect to find this phone's seat again
     socket.on('room:restored', () => { socket.disconnect(); socket.connect(); });
@@ -109,6 +114,7 @@ export function PlayerApp() {
           />
         )}
       </PhoneFrame>
+      <HalloweenLayer on={theme === 'halloween'} />
       {splash && (
         <div className="splash" onClick={() => setSplash(false)}>
           <img src="/splash.webp" alt="Moonfall" />
