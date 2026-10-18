@@ -195,7 +195,10 @@ function playerView(p: Player) {
     ? [...Object.entries((sh.counts || {}) as Record<string, number>), ...((sh.picked || []) as string[]).map(k => [k, 1] as [string, number])]
         .filter(([k, n]) => n > 0 && !hidden.includes(k))
     : [];
-  const deck = room.dealt ? Object.entries(counts) : draft;
+  // with bluff cards the phones see the whole selected deck (sh.pool), never which cards were actually dealt
+  const poolCounts: Record<string, number> = {};
+  if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
+  const deck = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
 
   // roles named in this player's night answer too (e.g. the Drunk's real role, which was never dealt)
   const wh = (sh.whispers || {})[p.name] || {};

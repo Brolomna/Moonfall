@@ -56,6 +56,9 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   Exception by design: people who join after the deal are **spectators** (`room.spectators`, `spectatorView()`) and see every role,
   the status marks and the host's log; `host:end` turns them into players for the next game.
 - Host-owned fields mirrored to the server are listed in `HostView.SHARED`.
+- Bluff cards: the deck may hold up to one extra card per werewolf card. `dealNow` leaves the extras out at random (never a wolf-side
+  card or a Mason); shared `pool` = every selected card (what phones list as the round's roles), `unused` = not dealt (host only).
+  The wake-up order still calls roles nobody holds (not dealt, or the player was turned) as "fake it" steps, so it never gives anything away.
 - Master controls (secret: tap the "N alive" counter 5 times on the Play screen): force any ending (`state.forced`, never saved
   to the Hall of Fame), give anyone any library role (via `override`), set any fate/death card, shuffle roles, revive, change round,
   scenario presets + a simulator (`simNight`/`simDay`/`simAll` drive the real host screens through `this._v`), and secret messages
