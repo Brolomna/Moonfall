@@ -87,3 +87,19 @@ input::placeholder{color:#7f7397}
 .spirit-wisp { transform-box: fill-box; animation: spiritWisp 7.5s linear infinite; opacity: 0; }
 @keyframes spiritWisp { 0% { transform: translateY(30px) scale(.8); opacity: 0; } 25% { opacity: .55; } 100% { transform: translateY(-150px) scale(1.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .spirit-float, .spirit-wisp { animation: none; } .spirit-wisp { opacity: .3; } }
+
+/* the spirit card (new): the rune circle turns, motes rise */
+.spirit-runes { transform-origin: 163px 190px; animation: spiritRunes 60s linear infinite; }
+@keyframes spiritRunes { to { transform: rotate(360deg); } }
+.spirit-mote { transform-box: fill-box; animation: spiritMote 6s ease-in infinite; opacity: 0; }
+@keyframes spiritMote { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-170px); opacity: 0; } }
+/* the spirit realm backdrop (dead players) */
+.realm-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.realm-mist { position: absolute; left: -50%; width: 200%; height: 260px; border-radius: 50%; filter: blur(30px); }
+.realm-mist-a { top: 18%; background: radial-gradient(50% 50% at 50% 50%, rgba(200,255,228,.12), transparent 70%); animation: realmDrift 26s ease-in-out infinite alternate; }
+.realm-mist-b { bottom: 4%; background: radial-gradient(50% 50% at 50% 50%, rgba(170,255,210,.14), transparent 70%); animation: realmDrift 34s ease-in-out infinite alternate-reverse; }
+@keyframes realmDrift { from { transform: translateX(-12%); } to { transform: translateX(12%); } }
+.realm-runes { position: absolute; left: 50%; top: 40%; margin: -260px 0 0 -260px; animation: spiritRunes 120s linear infinite; transform-origin: 260px 260px; }
+.realm-mote { position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%; background: #dcffee; box-shadow: 0 0 8px rgba(190,255,220,.9); animation: realmMote 11s linear infinite; opacity: 0; }
+@keyframes realmMote { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .8; } 100% { transform: translateY(-900px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .spirit-runes, .spirit-mote, .realm-mist, .realm-runes, .realm-mote { animation: none; } }

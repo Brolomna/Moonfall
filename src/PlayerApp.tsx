@@ -50,7 +50,8 @@ export function PlayerApp() {
     const inGame = !!view && (view.dealt || !!view.spectator);
     const phase = inGame ? view!.phase : null;
     if (phase && lastPhase.current && phase !== lastPhase.current) {
-      if (soundRef.current) { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
+      // spirits (dead players) are out of the village's day and night: no howl / sunrise for them
+      if (soundRef.current && (view!.fate || 'none') === 'none') { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
     }
     lastPhase.current = phase;
   }, [view]);

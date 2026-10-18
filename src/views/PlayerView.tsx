@@ -501,6 +501,7 @@ export class PlayerView extends React.Component<any, any> {
       T, lang, fD, fI, fB, rc, fmt,
       // NET: the host's sponsor (name, offer, link, logo) and the "Support Moonfall" link
       sp: this.props.sponsor || null, B: brandText(lang), donate: DONATE_URL,
+      realm: fate !== 'none' && screen === 'card', // dead players live in the spirit realm (own backdrop, no day/night)
       ...(() => {
         // NET: the Spirit Realm — dead players' chat, the Spirit Council (secret new faction + one whisper), whispers to the living
         const sp = this.props.spirit, ST = spiritText(lang), c = sp && sp.council;
@@ -595,7 +596,6 @@ export class PlayerView extends React.Component<any, any> {
       cardTransform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
       cardAria: revealed ? T.hintHide : T.tapToSee,
       cardHint: fate !== 'none' ? (revealed ? spiritText(lang).hintDeath : spiritText(lang).hintSpirit) : (revealed ? T.hintHide : T.hintPeek),
-      spiritOnce: fmt(spiritText(lang).once, { role: R.name }), // the spirit card remembers the role (it never changes)
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
       ...(() => {
@@ -665,9 +665,18 @@ export class PlayerView extends React.Component<any, any> {
   render() {
     const v: any = this.renderVals();
     return (
-      <div className="sky" lang={v.lang} style={{ position: 'relative', width: '390px', overflow: 'clip', height: (this.props.frameH ? this.props.frameH + 'px' : '844px') /* NET: fills the phone screen */, fontFamily: v.fB, color: '#ece6f6', background: v.skyBg }}>
-        <div aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: v.orbTop, right: '30px', width: '58px', height: '58px', borderRadius: '50%', background: v.orbBg, boxShadow: v.orbGlow, transition: 'all 1.4s ease' }} />
+      <div className={'sky' + (v.realm ? ' realm' : '')} lang={v.lang} style={{ position: 'relative', width: '390px', overflow: 'clip', height: (this.props.frameH ? this.props.frameH + 'px' : '844px') /* NET: fills the phone screen */, fontFamily: v.fB, color: '#ece6f6', background: v.realm ? 'radial-gradient(120% 75% at 50% 28%, #17352d 0%, #0a1916 45%, #030807 100%)' : v.skyBg }}>
+        {(v.realm) ? (
+          <div className="realm-bg" aria-hidden="true">
+            {/* NET: the spirit realm — dead players leave the village's sky: drifting mist, rising motes, a faint rune circle */}
+            <div className="realm-mist realm-mist-a" />
+            <div className="realm-mist realm-mist-b" />
+            <svg className="realm-runes" width="520" height="520" viewBox="0 0 520 520"><g fill="none" stroke="rgba(190,255,222,.13)"><circle cx="260" cy="260" r="240" /><circle cx="260" cy="260" r="214" strokeDasharray="2 10" /><circle cx="260" cy="260" r="186" /></g></svg>
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <span key={i} className="realm-mote" style={{ left: (8 + i * 9.3) + '%', animationDelay: (i * 1.3) + 's', animationDuration: (9 + (i % 4) * 2) + 's' }} />)}
+          </div>
+        ) : null}
+        <div aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none', display: v.realm ? 'none' : 'block' }}>
+          <div className="orb" style={{ position: 'absolute', top: v.orbTop, right: '30px', width: '58px', height: '58px', borderRadius: '50%', background: v.orbBg, boxShadow: v.orbGlow, transition: 'all 1.4s ease' }} />
           <span className="twinkle" style={{ position: 'absolute', top: '70px', left: '40px', width: '2px', height: '2px', borderRadius: '50%', background: '#fff', opacity: v.starOpacity }} />
           <span className="twinkle" style={{ position: 'absolute', top: '130px', left: '150px', width: '3px', height: '3px', borderRadius: '50%', background: '#e6dcff', animationDelay: '1.1s', opacity: v.starOpacity }} />
           <span className="twinkle" style={{ position: 'absolute', top: '46px', left: '220px', width: '2px', height: '2px', borderRadius: '50%', background: '#fff', animationDelay: '2.2s', opacity: v.starOpacity }} />
@@ -675,7 +684,7 @@ export class PlayerView extends React.Component<any, any> {
           <img src="/forest-phone.svg" alt="" style={{ position: 'absolute', left: '0', bottom: '0', width: '390px', height: '280px', objectFit: 'cover', objectPosition: 'bottom' }} />
           <div className="fog" style={{ position: 'absolute', left: '0', bottom: '20px', width: '780px', height: '180px', background: 'radial-gradient(40% 50% at 20% 60%, rgba(190,165,240,.12), transparent 70%), radial-gradient(35% 45% at 60% 50%, rgba(190,165,240,.09), transparent 70%), radial-gradient(40% 50% at 90% 60%, rgba(190,165,240,.12), transparent 70%)' }} />
         </div>
-        <div className="vignette" aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none', opacity: v.vigOpacity, background: v.vigBg }} />
+        <div className="vignette" aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none', opacity: v.realm ? 0 : v.vigOpacity, background: v.vigBg }} />
         <div style={{ position: 'absolute', inset: '0', padding: '56px 24px 30px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
           {(v.isJoin) ? (
             <>
@@ -1397,35 +1406,49 @@ export class PlayerView extends React.Component<any, any> {
                       </div>
                     </div>
                     ) : (
-                      <div className="face" style={{ position: 'absolute', inset: '0', transform: 'rotateY(180deg)', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 36%, #2a4d44 0%, #12261f 48%, #060c0b 100%)', border: '1px solid rgba(206,255,230,.5)', boxShadow: '0 0 60px rgba(170,255,210,.28), inset 0 0 50px rgba(170,255,210,.08)' }}>
-                        {/* the spirit card (dead players): white smoke with a light green glow */}
-                        <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(206,255,230,.25)' }} />
+                      <div className="face" style={{ position: 'absolute', inset: '0', transform: 'rotateY(180deg)', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 32%, #1f4339 0%, #0b1a16 52%, #030706 100%)', border: '1px solid rgba(206,255,230,.55)', boxShadow: '0 0 70px rgba(150,255,200,.3), inset 0 0 60px rgba(150,255,200,.1)' }}>
+                        {/* the spirit card: a hooded wraith of white smoke with a light green glow, a slow rune circle, rising motes */}
+                        <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(206,255,230,.22)' }} />
                         <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
                           <defs>
-                            <filter id="spSoft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="10" /></filter>
-                            <filter id="spMist" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6" /></filter>
-                            <radialGradient id="spGlow" cx="50%" cy="38%" r="52%"><stop offset="0" stopColor="#d9ffec" stopOpacity=".5" /><stop offset="1" stopColor="#d9ffec" stopOpacity="0" /></radialGradient>
+                            <filter id="spSmoke" x="-30%" y="-20%" width="160%" height="150%">
+                              <feTurbulence type="fractalNoise" baseFrequency="0.013 0.035" numOctaves="3" seed="7" result="n">
+                                <animate attributeName="baseFrequency" values="0.013 0.035;0.017 0.045;0.013 0.035" dur="10s" repeatCount="indefinite" />
+                              </feTurbulence>
+                              <feDisplacementMap in="SourceGraphic" in2="n" scale="20" />
+                              <feGaussianBlur stdDeviation="1.4" />
+                            </filter>
+                            <filter id="spHalo" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="12" /></filter>
+                            <filter id="spEye" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.2" /></filter>
+                            <linearGradient id="spRobe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".96" /><stop offset=".55" stopColor="#eafff4" stopOpacity=".8" /><stop offset="1" stopColor="#d9ffec" stopOpacity="0" /></linearGradient>
+                            <radialGradient id="spAura" cx="50%" cy="36%" r="50%"><stop offset="0" stopColor="#c9ffe2" stopOpacity=".42" /><stop offset="1" stopColor="#c9ffe2" stopOpacity="0" /></radialGradient>
                           </defs>
-                          <ellipse cx="163" cy="165" rx="160" ry="170" fill="url(#spGlow)" />
-                          <g transform="translate(24 -40) scale(0.85)"><g className="spirit-float">
-                            <path d="M113 160C113 114 138 90 163 90C188 90 213 114 213 160L218 246C221 286 231 308 248 330C228 327 215 318 205 305C199 326 186 340 171 348C169 331 165 318 159 309C149 326 136 337 117 342C126 323 128 306 124 289C114 304 100 313 80 317C97 297 106 272 109 248Z" fill="#a9ffd2" opacity=".55" filter="url(#spSoft)" />
-                            <path d="M113 160C113 114 138 90 163 90C188 90 213 114 213 160L218 246C221 286 231 308 248 330C228 327 215 318 205 305C199 326 186 340 171 348C169 331 165 318 159 309C149 326 136 337 117 342C126 323 128 306 124 289C114 304 100 313 80 317C97 297 106 272 109 248Z" fill="#f6fffa" opacity=".88" filter="url(#spMist)" />
-                            <ellipse cx="147" cy="150" rx="7" ry="10" fill="#0d211b" opacity=".7" />
-                            <ellipse cx="179" cy="150" rx="7" ry="10" fill="#0d211b" opacity=".7" />
-                          </g></g>
-                          <g filter="url(#spSoft)" fill="#eafff4">
-                            <circle className="spirit-wisp" cx="70" cy="380" r="16" style={{ animationDelay: '0s' }} />
-                            <circle className="spirit-wisp" cx="250" cy="360" r="20" style={{ animationDelay: '2.2s' }} />
-                            <circle className="spirit-wisp" cx="120" cy="420" r="13" style={{ animationDelay: '4.1s' }} />
-                            <circle className="spirit-wisp" cx="210" cy="430" r="15" style={{ animationDelay: '5.6s' }} />
+                          <ellipse cx="163" cy="190" rx="165" ry="185" fill="url(#spAura)" />
+                          <g className="spirit-runes">
+                            <circle cx="163" cy="190" r="128" fill="none" stroke="rgba(200,255,226,.28)" />
+                            <circle cx="163" cy="190" r="116" fill="none" stroke="rgba(200,255,226,.18)" strokeDasharray="3 9" />
+                            {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(d => (
+                              <g key={d} transform={'rotate(' + d + ' 163 190) translate(163 66)'}><path d="M-4 0L0 -7L4 0L0 7Z M0 -7V-12" fill="none" stroke="rgba(200,255,226,.45)" strokeWidth="1.2" /></g>
+                            ))}
                           </g>
+                          <g className="spirit-float">
+                            <path d="M163 60C127 60 107 91 105 132C103 160 111 181 118 197L114 262C112 281 103 297 90 311C109 307 122 300 130 290C134 307 142 319 152 328C156 313 160 303 163 296C166 303 170 313 174 328C184 319 192 307 196 290C204 300 217 307 236 311C223 297 214 281 212 262L208 197C215 181 223 160 221 132C219 91 199 60 163 60Z" fill="#9effc9" opacity=".5" filter="url(#spHalo)" />
+                            <path d="M163 60C127 60 107 91 105 132C103 160 111 181 118 197L114 262C112 281 103 297 90 311C109 307 122 300 130 290C134 307 142 319 152 328C156 313 160 303 163 296C166 303 170 313 174 328C184 319 192 307 196 290C204 300 217 307 236 311C223 297 214 281 212 262L208 197C215 181 223 160 221 132C219 91 199 60 163 60Z" fill="url(#spRobe)" filter="url(#spSmoke)" />
+                            <ellipse cx="163" cy="138" rx="30" ry="36" fill="#05110d" opacity=".92" />
+                            <ellipse cx="151" cy="137" rx="5.5" ry="3.4" fill="#b8ffd8" filter="url(#spEye)" />
+                            <ellipse cx="175" cy="137" rx="5.5" ry="3.4" fill="#b8ffd8" filter="url(#spEye)" />
+                            <ellipse cx="151" cy="137" rx="3" ry="1.8" fill="#f2fff8" />
+                            <ellipse cx="175" cy="137" rx="3" ry="1.8" fill="#f2fff8" />
+                          </g>
+                          {[60, 96, 130, 196, 232, 266, 110, 214].map((x, i) => (
+                            <circle key={i} className="spirit-mote" cx={x} cy={330 + (i % 3) * 18} r={1.6 + (i % 3) * .6} fill="#dcffee" style={{ animationDelay: (i * .9) + 's' }} />
+                          ))}
                         </svg>
-                        <div style={{ position: 'absolute', left: '0', right: '0', bottom: '26px', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: '#b9f5d6', textShadow: '0 0 8px rgba(6,16,13,.9)' }}>{v.ST.cardKicker}</span>
-                          <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '34px', letterSpacing: '.08em', color: '#f4fff9', textShadow: '0 0 24px rgba(170,255,210,.7)' }}>{v.ST.cardName}</span>
-                          <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '17px', color: '#cfeee0' }}>{v.ST.cardMotto}</span>
-                          <span style={{ fontSize: '12.5px', color: '#9ccdb7' }}>{v.spiritOnce}</span>
-                          <span style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '14px', background: 'rgba(6,16,13,.6)', border: `1px solid ${v.council ? v.council.color : 'rgba(206,255,230,.3)'}`, fontSize: '13px', lineHeight: '1.45', color: '#dff7ec' }}>
+                        <div style={{ position: 'absolute', left: '0', right: '0', bottom: '24px', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textAlign: 'center' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '.28em', textTransform: 'uppercase', color: '#b9f5d6', textShadow: '0 0 10px rgba(4,12,10,.95)' }}>{v.ST.cardKicker}</span>
+                          <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '42px', lineHeight: '1.05', letterSpacing: '.1em', color: '#f4fff9', textShadow: '0 0 18px rgba(160,255,210,.85), 0 0 42px rgba(120,255,190,.45)' }}>{v.ST.cardName}</span>
+                          <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '17px', color: '#cfeee0', marginBottom: '8px' }}>{v.ST.cardMotto}</span>
+                          <span style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '14px', background: 'rgba(4,14,11,.72)', border: `1px solid ${v.council ? v.council.color : 'rgba(206,255,230,.3)'}`, boxShadow: v.council ? `0 0 22px ${v.council.color}44` : 'none', fontSize: '13px', lineHeight: '1.45', color: '#dff7ec' }}>
                             {v.council ? <><b style={{ color: v.council.color, fontSize: '15px' }}>{v.council.label}</b><br />{v.council.goal}</> : v.spiritLate ? v.ST.late : v.ST.undecided}
                           </span>
                         </div>

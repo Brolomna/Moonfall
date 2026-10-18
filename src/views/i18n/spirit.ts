@@ -1,7 +1,7 @@
 // The Spirit Realm on players' phones (dead players' chat, the Spirit Council, whispers) — 7 languages.
 const S = {
   en: {
-    cardKicker: 'Your spirit', cardName: 'Spirit', cardMotto: 'Between two worlds', once: 'Once the {role}', undecided: 'Your side is not decided yet. The Spirit Council will choose it.', hintSpirit: 'Tap the card to see your spirit', hintDeath: 'Tap the card to see how you died',
+    cardKicker: 'You became a', cardName: 'Spirit', cardMotto: 'Between two worlds', once: 'Once the {role}', undecided: 'Your side is not decided yet. The Spirit Council will choose it.', hintSpirit: 'Tap the card to see your spirit', hintDeath: 'Tap the card to see how you died',
     open: 'Spirit realm', title: 'The Spirit Realm', sub: 'Only the dead can see this. Talk freely with the other spirits.',
     ph: 'Say something to the spirits…', send: 'Send', empty: 'No spirit has spoken yet.',
     waiting: 'The host will call the Spirit Council when the time is right.',
@@ -13,7 +13,7 @@ const S = {
     heard: 'A spirit whispers to you', ok: 'Got it', won: 'Your spirit won!', lost: 'Your spirit lost.', you: 'you',
   },
   zh: {
-    cardKicker: '你的灵魂', cardName: '灵魂', cardMotto: '徘徊于两个世界之间', once: '生前是{role}', undecided: '你的阵营尚未决定。灵魂议会将为你选择。', hintSpirit: '点击卡牌查看你的灵魂', hintDeath: '点击卡牌查看你的死因',
+    cardKicker: '你化为了', cardName: '灵魂', cardMotto: '徘徊于两个世界之间', once: '生前是{role}', undecided: '你的阵营尚未决定。灵魂议会将为你选择。', hintSpirit: '点击卡牌查看你的灵魂', hintDeath: '点击卡牌查看你的死因',
     open: '灵界', title: '灵界', sub: '只有死者能看到这里。和其他灵魂自由交谈吧。',
     ph: '对灵魂们说点什么…', send: '发送', empty: '还没有灵魂说话。',
     waiting: '主持人会在合适的时候召开灵魂议会。',
@@ -25,7 +25,7 @@ const S = {
     heard: '一个灵魂在对你低语', ok: '知道了', won: '你的灵魂获胜了！', lost: '你的灵魂输了。', you: '你',
   },
   ko: {
-    cardKicker: '당신의 영혼', cardName: '영혼', cardMotto: '두 세계 사이에서', once: '생전에는 {role}', undecided: '아직 진영이 정해지지 않았어요. 영혼 회의가 정해 줄 거예요.', hintSpirit: '카드를 눌러 영혼을 보세요', hintDeath: '카드를 눌러 어떻게 죽었는지 보세요',
+    cardKicker: '당신은 이제', cardName: '영혼', cardMotto: '두 세계 사이에서', once: '생전에는 {role}', undecided: '아직 진영이 정해지지 않았어요. 영혼 회의가 정해 줄 거예요.', hintSpirit: '카드를 눌러 영혼을 보세요', hintDeath: '카드를 눌러 어떻게 죽었는지 보세요',
     open: '영혼의 세계', title: '영혼의 세계', sub: '죽은 사람만 볼 수 있어요. 다른 영혼들과 자유롭게 이야기하세요.',
     ph: '영혼들에게 한마디…', send: '보내기', empty: '아직 아무 영혼도 말하지 않았어요.',
     waiting: '때가 되면 호스트가 영혼 회의를 열어요.',
@@ -37,7 +37,7 @@ const S = {
     heard: '영혼이 당신에게 속삭여요', ok: '확인', won: '당신의 영혼이 이겼어요!', lost: '당신의 영혼이 졌어요.', you: '나',
   },
   ja: {
-    cardKicker: 'あなたの霊', cardName: '霊', cardMotto: 'ふたつの世界のあいだで', once: '生前は{role}', undecided: '陣営はまだ決まっていません。霊の会議が決めます。', hintSpirit: 'カードをタップして霊を見る', hintDeath: 'カードをタップして死因を見る',
+    cardKicker: 'あなたは今や', cardName: '霊', cardMotto: 'ふたつの世界のあいだで', once: '生前は{role}', undecided: '陣営はまだ決まっていません。霊の会議が決めます。', hintSpirit: 'カードをタップして霊を見る', hintDeath: 'カードをタップして死因を見る',
     open: '霊界', title: '霊界', sub: '死者だけが見られます。ほかの霊と自由に話しましょう。',
     ph: '霊たちにひとこと…', send: '送信', empty: 'まだ誰も話していません。',
     waiting: 'ホストがころあいを見て霊の会議を開きます。',
@@ -49,7 +49,7 @@ const S = {
     heard: '霊があなたにささやいています', ok: 'OK', won: 'あなたの霊が勝ちました！', lost: 'あなたの霊は負けました。', you: 'あなた',
   },
   fr: {
-    cardKicker: 'Ton esprit', cardName: 'Esprit', cardMotto: 'Entre deux mondes', once: 'Autrefois {role}', undecided: 'Ton camp n’est pas encore décidé. Le Conseil des esprits le choisira.', hintSpirit: 'Touche la carte pour voir ton esprit', hintDeath: 'Touche la carte pour voir comment tu es mort',
+    cardKicker: 'Tu es devenu', cardName: 'Esprit', cardMotto: 'Entre deux mondes', once: 'Autrefois {role}', undecided: 'Ton camp n’est pas encore décidé. Le Conseil des esprits le choisira.', hintSpirit: 'Touche la carte pour voir ton esprit', hintDeath: 'Touche la carte pour voir comment tu es mort',
     open: 'Royaume des esprits', title: 'Le royaume des esprits', sub: 'Seuls les morts voient ceci. Parle librement avec les autres esprits.',
     ph: 'Dis quelque chose aux esprits…', send: 'Envoyer', empty: 'Aucun esprit n’a encore parlé.',
     waiting: 'L’hôte convoquera le Conseil des esprits au bon moment.',
@@ -61,7 +61,7 @@ const S = {
     heard: 'Un esprit te chuchote', ok: 'Compris', won: 'Ton esprit a gagné !', lost: 'Ton esprit a perdu.', you: 'toi',
   },
   th: {
-    cardKicker: 'วิญญาณของคุณ', cardName: 'วิญญาณ', cardMotto: 'ระหว่างสองโลก', once: 'ตอนมีชีวิตคือ{role}', undecided: 'ฝ่ายของคุณยังไม่ถูกกำหนด สภาวิญญาณจะเป็นผู้เลือก', hintSpirit: 'แตะการ์ดเพื่อดูวิญญาณของคุณ', hintDeath: 'แตะการ์ดเพื่อดูว่าคุณตายอย่างไร',
+    cardKicker: 'คุณได้กลายเป็น', cardName: 'วิญญาณ', cardMotto: 'ระหว่างสองโลก', once: 'ตอนมีชีวิตคือ{role}', undecided: 'ฝ่ายของคุณยังไม่ถูกกำหนด สภาวิญญาณจะเป็นผู้เลือก', hintSpirit: 'แตะการ์ดเพื่อดูวิญญาณของคุณ', hintDeath: 'แตะการ์ดเพื่อดูว่าคุณตายอย่างไร',
     open: 'โลกวิญญาณ', title: 'โลกวิญญาณ', sub: 'เฉพาะคนตายเท่านั้นที่เห็น คุยกับวิญญาณอื่นได้ตามสบาย',
     ph: 'พูดอะไรกับเหล่าวิญญาณหน่อย…', send: 'ส่ง', empty: 'ยังไม่มีวิญญาณพูดเลย',
     waiting: 'โฮสต์จะเรียกประชุมสภาวิญญาณเมื่อถึงเวลาที่เหมาะสม',
@@ -73,7 +73,7 @@ const S = {
     heard: 'มีวิญญาณกระซิบกับคุณ', ok: 'เข้าใจแล้ว', won: 'วิญญาณของคุณชนะ!', lost: 'วิญญาณของคุณแพ้', you: 'คุณ',
   },
   es: {
-    cardKicker: 'Tu espíritu', cardName: 'Espíritu', cardMotto: 'Entre dos mundos', once: 'Antes {role}', undecided: 'Tu bando aún no está decidido. El Consejo de los espíritus lo elegirá.', hintSpirit: 'Toca la carta para ver tu espíritu', hintDeath: 'Toca la carta para ver cómo moriste',
+    cardKicker: 'Te has convertido en', cardName: 'Espíritu', cardMotto: 'Entre dos mundos', once: 'Antes {role}', undecided: 'Tu bando aún no está decidido. El Consejo de los espíritus lo elegirá.', hintSpirit: 'Toca la carta para ver tu espíritu', hintDeath: 'Toca la carta para ver cómo moriste',
     open: 'Reino de los espíritus', title: 'El reino de los espíritus', sub: 'Solo los muertos ven esto. Habla libremente con los demás espíritus.',
     ph: 'Di algo a los espíritus…', send: 'Enviar', empty: 'Ningún espíritu ha hablado todavía.',
     waiting: 'El anfitrión convocará el Consejo de los espíritus en el momento adecuado.',
