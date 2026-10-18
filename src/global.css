@@ -73,3 +73,31 @@ html.halloween .face::after { content: ''; position: absolute; bottom: 2px; left
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M30 14c0-5 3-8 7-9l1 3c-3 1-4 3-4 6z' fill='%234a7a2a'/%3E%3Cellipse cx='18' cy='38' rx='14' ry='19' fill='%23e8650f'/%3E%3Cellipse cx='46' cy='38' rx='14' ry='19' fill='%23e8650f'/%3E%3Cellipse cx='32' cy='38' rx='16' ry='21' fill='%23ff8a24'/%3E%3Cg fill='%23ffe08a'%3E%3Cpath d='M20 30l7 6h-9z'/%3E%3Cpath d='M44 30l-7 6h9z'/%3E%3Cpath d='M18 44c4 5 9 7 14 7s10-2 14-7l-4 1-3 3-3-3-4 3-4-3-3 3-3-3z'/%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain; }
 html.halloween .splash { box-shadow: inset 0 -220px 160px -120px rgba(255,110,20,.45); }
 @media (prefers-reduced-motion: reduce) { .hw-bat, .hw-spider, .hw-flicker { animation: none; } .hw-bat { left: 30%; } }
+
+/* --- Halloween: more creatures --- */
+.hw-bat-3 { top: 22%; animation-delay: -2s; animation-duration: 16s; transform: scale(.8); }
+.hw-bat-4 { top: 12%; animation-delay: -13s; animation-duration: 20s; transform: scale(.6); }
+.hw-witch { position: absolute; top: 3%; left: -120px; animation: hwWitch 34s linear infinite; animation-delay: 6s; filter: drop-shadow(0 0 6px rgba(255,140,40,.35)); }
+@keyframes hwWitch { 0% { left: -120px; top: 9%; } 45% { left: 110%; top: 2%; } 100% { left: 110%; top: 2%; } }
+.hw-eyes { position: absolute; display: flex; gap: 7px; animation: hwBlink 6s infinite; }
+.hw-eyes span { width: 7px; height: 4px; border-radius: 50%; background: #ffcc33; box-shadow: 0 0 8px #ff9a1f; }
+.hw-eyes-a { left: 10px; top: 46%; }
+.hw-eyes-b { right: 14px; top: 62%; animation-delay: -3s; }
+@keyframes hwBlink { 0%, 40%, 100% { opacity: 0; } 46%, 88% { opacity: .9; } 90%, 92% { opacity: 0; } 94% { opacity: .9; } }
+.hw-leaf { position: absolute; top: -20px; animation: hwLeaf 13s linear infinite; opacity: .85; }
+.hw-leaf-0 { left: 8%; } .hw-leaf-1 { left: 27%; animation-delay: -4s; animation-duration: 16s; } .hw-leaf-2 { left: 46%; animation-delay: -9s; }
+.hw-leaf-3 { left: 63%; animation-delay: -2s; animation-duration: 18s; } .hw-leaf-4 { left: 80%; animation-delay: -7s; } .hw-leaf-5 { left: 92%; animation-delay: -11s; animation-duration: 15s; }
+@keyframes hwLeaf { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(24px, 25vh) rotate(120deg); } 50% { transform: translate(-12px, 50vh) rotate(220deg); } 75% { transform: translate(20px, 75vh) rotate(320deg); } 100% { transform: translate(0, 105vh) rotate(420deg); } }
+/* --- Halloween: the whole look, not just decorations (the views use inline colours, so these override them) --- */
+html.halloween .sky:not(.realm) { background: radial-gradient(120% 70% at 80% 6%, #4a1530 0%, #1f0a18 42%, #0c0408 78%) !important; }
+html.halloween .orb { background: radial-gradient(circle at 40% 35%, #ffe7a8, #ff9a2e 55%, #c2510e) !important; box-shadow: 0 0 70px 20px rgba(255,140,40,.45) !important; }
+html.halloween img[src*="forest-phone"], html.halloween img[src*="forest-wide"] { content: url(/halloween-yard.svg); }
+html.halloween .fog { background: radial-gradient(40% 50% at 20% 60%, rgba(255,140,60,.12), transparent 70%), radial-gradient(35% 45% at 60% 50%, rgba(170,60,140,.12), transparent 70%) !important; }
+html.halloween [style*="background: rgb(233, 220, 255)"] { background: linear-gradient(180deg, #ffa043, #ff7a14) !important; color: #200a02 !important; box-shadow: 0 0 18px rgba(255,122,20,.35); }
+html.halloween [style*="color: rgb(199, 168, 255)"] { color: #ffad5c !important; }
+html.halloween [style*="background: rgba(20, 12, 34"], html.halloween [style*="background: rgba(22, 13, 38"] { background: rgba(32,12,14,.78) !important; }
+html.halloween [style*="rgba(199, 168, 255"], html.halloween [style*="rgba(190, 165, 235"], html.halloween [style*="rgba(236, 230, 246, 0.1"] { border-color: rgba(255,140,50,.32) !important; }
+html.halloween [style*="Cinzel"] { font-family: 'Creepster', 'Cinzel', 'Noto Serif KR', 'Noto Serif SC', 'Noto Serif JP', 'Noto Serif Thai', serif !important; letter-spacing: .06em !important; }
+html.halloween .twinkle { background: #ffb066 !important; }
+@media (prefers-reduced-motion: reduce) { .hw-witch, .hw-leaf, .hw-eyes { animation: none; } .hw-witch, .hw-leaf { display: none; } }
+html.halloween [style*="background: rgb(201, 167, 255)"] { background: radial-gradient(circle at 40% 35%, #ffc27a, #ff7a14 70%) !important; box-shadow: 0 0 50px rgba(255,122,20,.45) !important; }

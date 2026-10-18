@@ -38,8 +38,20 @@ export function HalloweenLayer({ on }: { on: boolean }) {
       <svg className="hw-web hw-web-l" width="120" height="120" viewBox="0 0 120 120"><path d={WEB} fill="none" stroke="rgba(235,230,245,.55)" strokeWidth="1" /></svg>
       <svg className="hw-web hw-web-r" width="120" height="120" viewBox="0 0 120 120"><path d={WEB} fill="none" stroke="rgba(235,230,245,.55)" strokeWidth="1" /></svg>
       <div className="hw-spider"><span className="hw-thread" /><svg width="18" height="16" viewBox="0 0 18 16"><g stroke="#1a1020" strokeWidth="1.4" fill="none"><path d="M3 4L0 1M3 8H0M3 11L0 15M15 4l3-3M15 8h3M15 11l3 4" /></g><ellipse cx="9" cy="8" rx="5.5" ry="6" fill="#1a1020" /><circle cx="7.4" cy="6.5" r="1" fill="#ff8a2a" /><circle cx="10.6" cy="6.5" r="1" fill="#ff8a2a" /></svg></div>
-      {[0, 1, 2].map(i => (
+      {[0, 1, 2, 3, 4].map(i => (
         <svg key={i} className={'hw-bat hw-bat-' + i} width="36" height="14" viewBox="0 0 36 14"><path d={BAT} fill="#160c1c" /></svg>
+      ))}
+      {/* a witch on her broom crosses the moon now and then */}
+      <svg className="hw-witch" width="92" height="52" viewBox="0 0 92 52"><g fill="#120610">
+        <path d="M2 40L60 30L62 34L4 44Z" /><path d="M58 28L80 20L84 24L80 30L86 34L80 38L62 36Z" />
+        <path d="M30 34C28 26 30 18 36 14L34 6L44 12C50 12 54 18 52 26L50 34Z" /><path d="M30 8L40 0L42 10Z" /><path d="M24 12L48 10L46 14L26 16Z" />
+        <path d="M44 22L58 18L58 21L46 25Z" /></g></svg>
+      {/* eyes blinking in the dark */}
+      <div className="hw-eyes hw-eyes-a"><span /><span /></div>
+      <div className="hw-eyes hw-eyes-b"><span /><span /></div>
+      {/* falling autumn leaves */}
+      {[0, 1, 2, 3, 4, 5].map(i => (
+        <svg key={'l' + i} className={'hw-leaf hw-leaf-' + i} width="16" height="16" viewBox="0 0 16 16"><path d="M8 0C10 4 16 5 12 9C14 12 11 14 8 16C5 14 2 12 4 9C0 5 6 4 8 0Z" fill={['#e8650f', '#c94a10', '#f2a03a', '#a83a0c', '#ff8a24', '#d9541a'][i]} /></svg>
       ))}
       <div className="hw-pumpkin hw-pumpkin-l"><Pumpkin size={38} /></div>
       <div className="hw-pumpkin hw-pumpkin-r"><Pumpkin size={30} /></div>

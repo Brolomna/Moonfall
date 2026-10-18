@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 280" preserveAspectRatio="xMidYMax slice">
+  <!-- Halloween theme: replaces the forest behind the app (src/global.css → html.halloween img[src*="forest"]) -->
+  <defs>
+    <radialGradient id="g" cx="50%" cy="100%" r="70%"><stop offset="0" stop-color="#ff7a1a" stop-opacity=".45"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="p" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#ffcf6a"/><stop offset=".6" stop-color="#ff7a14"/><stop offset="1" stop-color="#9a3608"/></radialGradient>
+    <filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+  <ellipse cx="195" cy="285" rx="260" ry="120" fill="url(#g)"/>
+  <!-- far hill -->
+  <path d="M0 205C60 180 110 186 160 196C220 208 270 176 330 182C360 185 380 192 390 196V280H0Z" fill="#1c0912"/>
+  <!-- dead trees -->
+  <g fill="none" stroke="#0c0406" stroke-linecap="round">
+    <path d="M38 230V120M38 160L14 136M38 150L60 118M38 132L24 104M60 118L72 106M14 136L4 132M24 104L18 92" stroke-width="5"/>
+    <path d="M36 128L44 112M50 140L64 140" stroke-width="3"/>
+    <path d="M352 236V108M352 150L376 124M352 138L330 112M352 120L364 94M376 124L388 120M330 112L322 100M364 94L372 84" stroke-width="5"/>
+  </g>
+  <!-- tombstones -->
+  <g fill="#160810" stroke="rgba(255,150,60,.28)" stroke-width="1.2">
+    <path d="M88 236V204a16 16 0 0 1 32 0V236Z"/>
+    <path d="M140 238V196h10v-10h8v10h10v8h-10v34Z"/>
+    <path d="M196 240V210a12 12 0 0 1 24 0V240Z"/>
+    <path d="M246 238V200a18 18 0 0 1 36 0V238Z"/>
+    <path d="M300 240v-26h8v-8h6v8h8v6h-8v20Z"/>
+  </g>
+  <g fill="rgba(255,170,90,.22)" font-family="serif" font-size="8" text-anchor="middle"><text x="104" y="214">RIP</text><text x="264" y="212">RIP</text></g>
+  <!-- near ground -->
+  <path d="M0 236C70 226 120 232 190 240C260 248 320 232 390 228V280H0Z" fill="#0e0408"/>
+  <!-- iron fence -->
+  <g stroke="#090205" stroke-width="2.4"><path d="M0 262H390"/><path d="M0 250H390" stroke-width="1.6"/>
+    <path d="M10 270V238M30 270V238M50 270V238M70 270V238M90 270V238M110 270V238M130 270V238M150 270V238M170 270V238M190 270V238M210 270V238M230 270V238M250 270V238M270 270V238M290 270V238M310 270V238M330 270V238M350 270V238M370 270V238"/></g>
+  <g fill="#090205"><path d="M7 240l3-7 3 7zM27 240l3-7 3 7zM47 240l3-7 3 7zM67 240l3-7 3 7zM87 240l3-7 3 7zM107 240l3-7 3 7zM127 240l3-7 3 7zM147 240l3-7 3 7zM167 240l3-7 3 7zM187 240l3-7 3 7zM207 240l3-7 3 7zM227 240l3-7 3 7zM247 240l3-7 3 7zM267 240l3-7 3 7zM287 240l3-7 3 7zM307 240l3-7 3 7zM327 240l3-7 3 7zM347 240l3-7 3 7zM367 240l3-7 3 7z"/></g>
+  <!-- jack-o'-lanterns on the ground -->
+  <g>
+    <ellipse cx="128" cy="232" rx="18" ry="10" fill="#ff7a14" opacity=".55" filter="url(#b)"/>
+    <ellipse cx="122" cy="230" rx="7" ry="8" fill="url(#p)"/><ellipse cx="134" cy="230" rx="7" ry="8" fill="url(#p)"/><ellipse cx="128" cy="230" rx="8" ry="9" fill="url(#p)"/>
+    <path d="M127 221c0-2 1-4 3-4" stroke="#3d6a22" stroke-width="2" fill="none"/>
+    <path d="M123 228l3 2h-4zM133 228l-3 2h4zM122 233c3 2 9 2 12 0l-2 1-2-1-2 1-2-1-2 1z" fill="#ffe08a"/>
+    <ellipse cx="232" cy="238" rx="14" ry="8" fill="#ff7a14" opacity=".5" filter="url(#b)"/>
+    <ellipse cx="228" cy="236" rx="5" ry="6" fill="url(#p)"/><ellipse cx="236" cy="236" rx="5" ry="6" fill="url(#p)"/><ellipse cx="232" cy="236" rx="6" ry="7" fill="url(#p)"/>
+    <path d="M229 234l2 1.5h-3zM235 234l-2 1.5h3zM228 238c2 1.5 6 1.5 8 0l-1.5.8-1.5-.8-1.5.8-1.5-.8z" fill="#ffe08a"/>
+  </g>
+</svg>

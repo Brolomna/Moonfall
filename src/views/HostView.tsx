@@ -2105,7 +2105,7 @@ export class HostView extends React.Component<any, any> {
     return (
       <div className="sky" style={{ position: 'relative', width: '390px', overflow: 'clip', height: (this.props.frameH ? this.props.frameH + 'px' : '844px') /* NET: fills the phone screen */, fontFamily: "'Manrope', sans-serif", color: '#ece6f6', background: v.skyBg }}>
         <div aria-hidden="true" style={{ position: 'absolute', inset: '0', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', top: v.orbTop, right: '30px', width: '54px', height: '54px', borderRadius: '50%', background: v.orbBg, boxShadow: v.orbGlow, transition: 'all 1.2s ease' }} />
+          <div className="orb" style={{ position: 'absolute', top: v.orbTop, right: '30px', width: '54px', height: '54px', borderRadius: '50%', background: v.orbBg, boxShadow: v.orbGlow, transition: 'all 1.2s ease' }} />
           <span className="twinkle" style={{ position: 'absolute', top: '74px', left: '40px', width: '2px', height: '2px', borderRadius: '50%', background: '#fff', opacity: v.starOpacity }} />
           <span className="twinkle" style={{ position: 'absolute', top: '130px', left: '170px', width: '3px', height: '3px', borderRadius: '50%', background: '#e6dcff', animationDelay: '1.1s', opacity: v.starOpacity }} />
           <span className="twinkle" style={{ position: 'absolute', top: '40px', left: '250px', width: '2px', height: '2px', borderRadius: '50%', background: '#fff', animationDelay: '2.2s', opacity: v.starOpacity }} />
