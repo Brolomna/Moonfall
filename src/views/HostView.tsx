@@ -871,6 +871,8 @@ export class HostView extends React.Component<any, any> {
       if (!firstOut) push('ivory-' + ivoryHolder, 'Ivory Tower · ' + ivoryHolder, ivoryHolder + ' holds the Ivory Tower', ivoryHolder + ' was the first one out last game, so they can’t be the first one out this game — not by the wolves, not by the vote.', '230,238,252', '#e6eefc', 'M5 21V9l2-2V4h2v2h2V4h2v2h2V4h2v3l2 2v12z M10 21v-5h4v5');
       else if (firstOut.name === ivoryHolder && isOut(ivoryHolder)) push('ivory-hit-' + ivoryHolder, 'Ivory Tower · ' + ivoryHolder, 'The Ivory Tower protects ' + ivoryHolder, ivoryHolder + ' can’t be the first one out this game. Undo it — the wolves or the village must choose someone else.', '230,238,252', '#e6eefc', 'M5 21V9l2-2V4h2v2h2V4h2v2h2V4h2v3l2 2v12z M10 21v-5h4v5', { label: 'Undo — keep ' + ivoryHolder + ' alive', fn: () => this.setState(markPatch(ivoryHolder, 'alive')) });
     }
+    const council0 = this.props.net && this.props.net.spirits && this.props.net.spirits.council;
+    if (council0) push('council', 'Spirit Realm', 'The Spirit Council has gathered', Object.keys(council0.spirits).length + ' spirit' + (Object.keys(council0.spirits).length > 1 ? 's' : '') + ' secretly got a new faction on their phones and may each whisper once to a living player. Their old team no longer counts for them. Their factions and whispers are on the Spirit Realm card.', '184,212,255', '#b8d4ff', 'M12 3c-4 0-7 3-7 7v10l2.3-1.6L9.7 20l2.3-1.6 2.3 1.6 2.4-1.6L19 20V10c0-4-3-7-7-7z M9.5 10.5h.01 M14.5 10.5h.01');
     const alien = names.find(nm => isLibA(nm, 'Alien') && !isOut(nm));
     if (alien && alive.length === 3) push('alien-' + round, 'Alien · ' + alien, 'The Alien wins!', 'Exactly three players are left and ' + alien + ' is one of them — the Alien wins alone. Keep playing for everyone else.', '143,211,232', '#8fd3e8', roleOf(alien).icon);
     names.filter(isOut).forEach(nm => {
@@ -1503,10 +1505,22 @@ export class HostView extends React.Component<any, any> {
     const winSide = winSide0;
     // a finished game is written to the Hall of Fame once (componentDidUpdate); the first player out gets the Ivory Tower
     const firstOutEv = log.find(e => e.t === 'out' && e.how !== 'removed');
+    // The Spirit Council (server-run): a dead spirit's original team no longer counts — its secret new faction decides
+    // (good wins with the village, evil with the werewolves, neutral if the player it whispered to is alive). Its role never
+    // changes; personal goals (Angel, Survivor…) still count.
+    const spiritsNet = (this.props.net && this.props.net.spirits) || null, councilNet = spiritsNet && spiritsNet.council;
+    const spiritFac = (nm) => (councilNet && councilNet.spirits && councilNet.spirits[nm] && isOut(nm) ? councilNet.spirits[nm].faction : null);
+    const spiritWins = (nm) => { const f = spiritFac(nm), sp = councilNet.spirits[nm]; return f === 'good' ? winSide === 'village' : f === 'evil' ? winSide === 'wolves' : !!(sp.to && !isOut(sp.to)); };
+    const facName = { good: 'good spirit', evil: 'evil spirit', neutral: 'neutral spirit' };
     const winnersAll = !gameOver ? [] : tannerWin ? [tannerWin] : soloWins ? solo.names.slice()
-      : names.filter(nm => (winSide === 'village' ? roleOf(nm).team === 'Village' : roleOf(nm).team === 'Werewolves'));
+      : names.filter(nm => !spiritFac(nm) && (winSide === 'village' ? roleOf(nm).team === 'Village' : roleOf(nm).team === 'Werewolves'));
     also.forEach(x => { if (winnersAll.indexOf(x.name) < 0) winnersAll.push(x.name); });
-    this._record = gameOver && !forced && s.story !== undefined ? { id: String(s.story) + '|' + ((log[0] && log[0].text) || ''), players: names.slice(), winners: winnersAll, roles: Object.fromEntries(names.map(nm => [nm, roleOf(nm).name])), firstOut: firstOutEv ? firstOutEv.name : '' } : null;
+    if (gameOver && !tannerWin && councilNet) {
+      const sp = names.filter(spiritFac);
+      sp.forEach(nm => { if (spiritWins(nm) && winnersAll.indexOf(nm) < 0) winnersAll.push(nm); });
+      if (sp.length) endTips.push('Spirits: ' + sp.map(nm => nm + ' (' + facName[spiritFac(nm)] + ') ' + (spiritWins(nm) ? 'wins' : 'loses')).join(', ') + '.');
+    }
+    this._record = gameOver && !forced && s.story !== undefined ? { id: String(s.story) + '|' + ((log[0] && log[0].text) || ''), players: names.slice(), winners: winnersAll, roles: Object.fromEntries(names.map(nm => [nm, spiritFac(nm) ? facName[spiritFac(nm)].replace(/^./, c => c.toUpperCase()) : roleOf(nm).name])), firstOut: firstOutEv ? firstOutEv.name : '' } : null;
     const alsoOut = also.map(x => ({ name: x.name, key: x.key }));
     this._winner = !winSide ? null : winSide === 'solo'
       ? { side: 'solo', key: tannerWin ? 'tanner' : keyOfLib(solo.lib) || roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
@@ -1783,6 +1797,17 @@ export class HostView extends React.Component<any, any> {
       qrSrc: (this.props.info && this.props.info.qr) || '', joinHost: (this.props.info && this.props.info.host) || '…', // NET
       players, playerCount: n, tooFew: n < 5,
       // Test players (added by the server, no phone) — handy for trying the game alone
+      spiritHost: (() => {
+        const sn = (this.props.net && this.props.net.spirits) || null;
+        if (!sn || screen !== 'play') return null;
+        const c = sn.council, col = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
+        return {
+          show: sn.dead > 0 || !!c, need: sn.need, dead: sn.dead, triggered: !!c,
+          head: c ? 'The Spirit Council has gathered' : 'Spirit Council at ' + sn.need + ' deaths · ' + sn.dead + ' so far',
+          rows: c ? Object.keys(c.spirits).map(nm => { const x = c.spirits[nm], r = (this.props.net.assign || {})[nm]; return { name: nm, fac: x.faction, color: col[x.faction], to: x.to || '', text: x.text || '', won: sn.won ? sn.won[nm] : null }; }) : [],
+          chat: (sn.chat || []).slice(-60), chatN: (sn.chat || []).length, chatOpen: !!s.spChat, toggleChat: () => this.setState({ spChat: !s.spChat }),
+        };
+      })(),
       sponsorView: (() => {
         // the host's sponsor: shown on players' splash, join and waiting screens and on the end-of-game card
         const sp = s.sponsor || {}, logo = s.sponsorLogo || null;
@@ -2686,6 +2711,31 @@ export class HostView extends React.Component<any, any> {
                       </button>
                     </section>
                   </>
+                ) : null}
+                {(v.spiritHost && v.spiritHost.show) ? (
+                  <section aria-label="Spirit Realm" style={{ padding: '14px', borderRadius: '20px', background: 'linear-gradient(160deg, rgba(40,60,100,.55), rgba(14,10,28,.85))', border: '1px solid rgba(184,212,255,.35)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#b8d4ff' }}>👻 Spirit Realm · only you see this</span>
+                    <span style={{ fontSize: '15px', fontWeight: '700', color: '#eef4ff' }}>{v.spiritHost.head}</span>
+                    {!v.spiritHost.triggered ? <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#9fb2d4' }}>Dead players chat on their phones. When the Council gathers, each spirit secretly gets a new faction and whispers once to a living player.</span> : null}
+                    {v.spiritHost.rows.map((r: any) => (
+                      <span key={r.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '8px 10px', borderRadius: '12px', background: 'rgba(0,0,0,.25)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700' }}>
+                          {r.name}
+                          <span style={{ padding: '1px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '800', color: '#10131c', background: r.color, textTransform: 'capitalize' }}>{r.fac}</span>
+                          {r.won === true ? <span style={{ fontSize: '12px', color: '#8fe0b8' }}>wins</span> : r.won === false ? <span style={{ fontSize: '12px', color: '#ff8a9b' }}>loses</span> : null}
+                        </span>
+                        <span style={{ fontSize: '12.5px', color: '#c4d2ea' }}>{r.to ? 'Whispered to ' + r.to + ': “' + r.text + '”' : 'Choosing whom to whisper to…'}</span>
+                      </span>
+                    ))}
+                    {(v.spiritHost.chatN) ? (
+                      <button className="press" onClick={v.spiritHost.toggleChat} style={{ alignSelf: 'flex-start', padding: '0', border: 'none', background: 'none', color: '#b8d4ff', fontSize: '13px', fontWeight: '700' }}>{v.spiritHost.chatOpen ? 'Hide' : 'Read'} the spirits’ chat ({v.spiritHost.chatN})</button>
+                    ) : null}
+                    {(v.spiritHost.chatOpen) ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '220px', overflowY: 'auto' }}>
+                        {v.spiritHost.chat.map((m: any, i: number) => <span key={i} style={{ fontSize: '13px', color: '#d6e2f6' }}><b style={{ color: '#9fb2d4' }}>{m.from}:</b> {m.text}</span>)}
+                      </div>
+                    ) : null}
+                  </section>
                 ) : null}
                 {((v.alerts) || []).map((a: any, $index: number) => (
                   <React.Fragment key={$index}>

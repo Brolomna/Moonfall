@@ -8,6 +8,7 @@ import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 import { FATE_LOOK, FateArt } from './fateCards';
 import { endArt } from '../endArt';
 import { brandText, DONATE_URL } from '../brand';
+import { spiritText } from './i18n/spirit';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
 const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
@@ -492,6 +493,40 @@ export class PlayerView extends React.Component<any, any> {
       T, lang, fD, fI, fB, rc, fmt,
       // NET: the host's sponsor (name, offer, link, logo) and the "Support Moonfall" link
       sp: this.props.sponsor || null, B: brandText(lang), donate: DONATE_URL,
+      ...(() => {
+        // NET: the Spirit Realm — dead players' chat, the Spirit Council (secret new faction + one whisper), whispers to the living
+        const sp = this.props.spirit, ST = spiritText(lang), c = sp && sp.council;
+        const mine = c && !c.late ? c : null;
+        const seenW = (() => { try { return JSON.parse(localStorage.getItem('moonfall.swSeen') || '[]'); } catch { return []; } })().concat(s.swSeen || []);
+        const heard = (this.props.spiritWhispers || []).find(x => seenW.indexOf(x.id) < 0) || null;
+        const facColor = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
+        const lastSeenChat = s.spiritRead || 0, chat = (sp && sp.chat) || [];
+        const councilNew = !!(mine && !mine.to && !s.councilSeen);
+        return {
+          ST, spiritOn: !!sp && screen === 'card',
+          spiritOpen: !!sp && screen === 'card' && (!!s.spiritOpen || councilNew),
+          openSpirit: () => this.setState({ spiritOpen: true, spiritRead: chat.length }),
+          closeSpirit: () => this.setState({ spiritOpen: false, councilSeen: true, spiritRead: chat.length }),
+          spiritBadge: councilNew || (mine && !mine.to) ? '!' : chat.length > lastSeenChat && !s.spiritOpen ? String(chat.length - lastSeenChat) : '',
+          spiritWaiting: sp && !c ? fmt(ST.waiting, { n: sp.need, d: sp.dead }) : '',
+          spiritLate: !!(c && c.late),
+          council: mine ? {
+            label: ST[mine.faction], color: facColor[mine.faction], goal: ST['goal' + mine.faction[0].toUpperCase() + mine.faction.slice(1)],
+            canWhisper: !mine.to, sent: mine.to ? fmt(ST.sent, { name: mine.to, text: mine.text || '' }) : '',
+            living: (mine.living || []).map(nm => ({ name: nm, on: s.swTo === nm, pick: () => this.setState({ swTo: nm }) })),
+            text: s.swText || '', setText: (e) => this.setState({ swText: e.target.value }),
+            ready: !!s.swTo && !!(s.swText || '').trim() && (mine.living || []).indexOf(s.swTo) >= 0,
+            send: () => { if (!s.swTo || !(s.swText || '').trim()) return; this.props.onSpiritWhisper && this.props.onSpiritWhisper(s.swTo, s.swText.trim()); this.setState({ swText: '', councilSeen: true, spiritOpen: true }); },
+            result: mine.won === true ? ST.won : mine.won === false ? ST.lost : '',
+          } : null,
+          chatRows: chat.map(m => ({ from: m.from === this.props.name ? ST.you : m.from, mine: m.from === this.props.name, text: m.text })),
+          spiritMsg: s.spiritMsg || '', setSpiritMsg: (e) => this.setState({ spiritMsg: e.target.value }),
+          sayToSpirits: (e) => { e && e.preventDefault && e.preventDefault(); const t = (s.spiritMsg || '').trim(); if (!t) return; this.props.onSpiritSay && this.props.onSpiritSay(t); this.setState({ spiritMsg: '' }); },
+          heardShow: !!heard && screen === 'card', heardText: heard ? heard.text : '',
+          heardOk: () => { if (!heard) return; try { const a = JSON.parse(localStorage.getItem('moonfall.swSeen') || '[]'); localStorage.setItem('moonfall.swSeen', JSON.stringify(a.concat([heard.id]).slice(-50))); } catch { /* private mode */ } this.setState({ swSeen: (s.swSeen || []).concat([heard.id]) }); },
+          spiritEnd: mine && mine.won !== null && mine.won !== undefined ? (mine.won ? ST.won : ST.lost) + ' · ' + ST[mine.faction] : '',
+        };
+      })(),
       nameValue: name, displayName, initial: displayName[0].toUpperCase(),
       youreIn: fmt(T.youreIn, { name: displayName }),
       waitingHost: fmt(T.waitingHost, { n: this.props.playerCount || 1 }), // NET
@@ -1702,6 +1737,71 @@ export class PlayerView extends React.Component<any, any> {
             </section>
           </div>
         ) : null}
+        {/* NET: the Spirit Realm — a button for dead players, their chat and the Spirit Council */}
+        {(v.spiritOn && !v.spiritOpen) ? (
+          <button className="press" onClick={v.openSpirit} style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: '100px', zIndex: 60, height: '46px', padding: '0 18px', borderRadius: '999px', border: '1px solid rgba(184,212,255,.5)', background: 'linear-gradient(160deg, rgba(60,90,140,.85), rgba(18,10,31,.92))', color: '#e6f0ff', fontSize: '15px', fontWeight: '800', fontFamily: v.fB, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 30px rgba(140,180,255,.35)' }}>
+            👻 {v.ST.open}
+            {v.spiritBadge ? <span style={{ minWidth: '20px', height: '20px', padding: '0 5px', borderRadius: '999px', background: '#ff8a9b', color: '#1a0610', fontSize: '12px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{v.spiritBadge}</span> : null}
+          </button>
+        ) : null}
+        {(v.spiritOpen) ? (
+          <div style={{ position: 'absolute', inset: '0', zIndex: 85, background: 'linear-gradient(180deg, rgba(12,18,34,.97), rgba(8,6,16,.98))', display: 'flex', flexDirection: 'column', fontFamily: v.fB, color: '#eef4ff' }}>
+            <div style={{ padding: '22px 20px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#d8e6ff' }}>👻 {v.ST.title}</span>
+              <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#9fb2d4' }}>{v.ST.sub}</span>
+            </div>
+            <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '4px 20px 12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(v.council) ? (
+                <section style={{ padding: '14px', borderRadius: '18px', background: 'rgba(255,255,255,.05)', border: `1px solid ${v.council.color}`, boxShadow: `0 0 30px ${v.council.color}33`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#9fb2d4' }}>{v.ST.council}</span>
+                  <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '22px', color: v.council.color }}>{v.council.label}</span>
+                  <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#d6e2f6' }}>{v.ST.councilSub} {v.council.goal}</span>
+                  {v.council.result ? <span style={{ fontSize: '15px', fontWeight: '800', color: v.council.color }}>{v.council.result}</span> : null}
+                  {(v.council.canWhisper) ? (
+                    <>
+                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#eef4ff' }}>{v.ST.pick}</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {v.council.living.map((p: any) => (
+                          <button key={p.name} className="press" onClick={p.pick} aria-pressed={p.on} style={{ height: '36px', padding: '0 12px', borderRadius: '999px', border: `1.5px solid ${p.on ? v.council.color : 'rgba(184,212,255,.25)'}`, background: p.on ? v.council.color : 'rgba(255,255,255,.04)', color: p.on ? '#10131c' : '#e6f0ff', fontSize: '14px', fontWeight: '700' }}>{p.name}</button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input type="text" value={v.council.text} onChange={v.council.setText} maxLength={160} placeholder={v.ST.wph} style={{ flex: '1', minWidth: '0', height: '44px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(184,212,255,.25)', background: 'rgba(255,255,255,.06)', color: '#eef4ff', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+                        <button className="press" onClick={v.council.send} disabled={!v.council.ready} style={{ ...{ height: '44px', padding: '0 16px', flex: 'none', borderRadius: '12px', border: 'none', background: '#b8d4ff', color: '#0c1424', fontSize: '14px', fontWeight: '800' }, background: v.council.color, opacity: v.council.ready ? 1 : 0.45 }}>{v.ST.whisper}</button>
+                      </div>
+                    </>
+                  ) : <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#d6e2f6', fontStyle: 'italic' }}>{v.council.sent}</span>}
+                </section>
+              ) : null}
+              {(v.spiritLate) ? <span style={{ fontSize: '13px', color: '#9fb2d4' }}>{v.ST.late}</span> : null}
+              {(v.spiritWaiting) ? <span style={{ fontSize: '13px', color: '#9fb2d4' }}>{v.spiritWaiting}</span> : null}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {v.chatRows.length ? v.chatRows.map((m: any, i: number) => (
+                  <span key={i} style={{ alignSelf: m.mine ? 'flex-end' : 'flex-start', maxWidth: '82%', padding: '8px 11px', borderRadius: m.mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: m.mine ? 'rgba(184,212,255,.2)' : 'rgba(255,255,255,.06)', fontSize: '14px', lineHeight: '1.4', overflowWrap: 'anywhere' }}>
+                    <b style={{ display: 'block', fontSize: '11.5px', color: '#9fb2d4' }}>{m.from}</b>{m.text}
+                  </span>
+                )) : <span style={{ fontSize: '13px', color: '#7f8fae', textAlign: 'center', padding: '10px 0' }}>{v.ST.empty}</span>}
+              </div>
+            </div>
+            <form onSubmit={v.sayToSpirits} style={{ padding: '10px 20px 8px', display: 'flex', gap: '8px', margin: '0' }}>
+              <input type="text" value={v.spiritMsg} onChange={v.setSpiritMsg} maxLength={200} enterKeyHint="send" placeholder={v.ST.ph} style={{ flex: '1', minWidth: '0', height: '44px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(184,212,255,.25)', background: 'rgba(255,255,255,.06)', color: '#eef4ff', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+              <button type="submit" className="press" disabled={!v.spiritMsg.trim()} style={{ ...{ height: '44px', padding: '0 16px', flex: 'none', borderRadius: '12px', border: 'none', background: '#b8d4ff', color: '#0c1424', fontSize: '14px', fontWeight: '800' }, opacity: v.spiritMsg.trim() ? 1 : 0.45 }}>{v.ST.send}</button>
+            </form>
+            <div style={{ padding: '4px 20px 26px' }}>
+              <button className="press" onClick={v.closeSpirit} style={{ width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(184,212,255,.3)', background: 'none', color: '#d8e6ff', fontSize: '15px', fontWeight: '700' }}>{v.T.close}</button>
+            </div>
+          </div>
+        ) : null}
+        {/* NET: a whisper from a spirit to this living player (anonymous) */}
+        {(v.heardShow) ? (
+          <div className="fade" style={{ position: 'absolute', inset: '0', zIndex: 89, background: 'rgba(4,8,18,.82)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: v.fB }}>
+            <section className="rise" style={{ width: '100%', padding: '22px 20px', borderRadius: '24px', background: 'linear-gradient(170deg, rgba(40,70,120,.85), rgba(12,10,26,.95))', border: '1px solid rgba(184,212,255,.5)', boxShadow: '0 0 60px rgba(140,180,255,.3)', display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'center' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.18em', textTransform: 'uppercase', color: '#b8d4ff' }}>👻 {v.ST.heard}</span>
+              <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontWeight: '600', fontSize: '24px', lineHeight: '1.35', color: '#f2f6ff', overflowWrap: 'anywhere' }}>“{v.heardText}”</span>
+              <button className="press" onClick={v.heardOk} style={{ height: '50px', borderRadius: '16px', border: 'none', background: '#b8d4ff', color: '#0c1424', fontSize: '16px', fontWeight: '700' }}>{v.ST.ok}</button>
+            </section>
+          </div>
+        ) : null}
         {/* NET: a secret message from the host */}
         {(v.noteShow) ? (
           <div className="fade" style={{ position: 'absolute', inset: '0', zIndex: 90, background: 'rgba(5,3,10,.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: v.fB }}>
@@ -1753,6 +1853,7 @@ export class PlayerView extends React.Component<any, any> {
               <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', lineHeight: '1.2', color: '#f6f1ff' }}>{v.endCaption}</span>
               {(v.endAlso) ? <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: v.endColor, maxWidth: '300px' }}>{v.T.endAlso}: {v.endAlso}</span> : null}
               <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
+              {(v.spiritEnd) ? <span style={{ fontSize: '14px', fontWeight: '800', color: '#b8d4ff' }}>👻 {v.spiritEnd}</span> : null}
               {(v.sp && !v.sp.name && !v.sp.offer && v.sp.banner) ? (
                 <img src={v.sp.banner} alt="" style={{ width: '80%', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '12px', border: '1px solid rgba(242,195,138,.35)' }} />
               ) : null}

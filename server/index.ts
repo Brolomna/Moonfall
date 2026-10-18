@@ -36,7 +36,12 @@ const room = {
   assign: {} as Record<string, string>, // player name -> dealt role key
   dealt: false,
   ballot: null as null | { nominee: string; votes: Record<string, 'kill' | 'spare'> }, // one accused player at a time
+  // the Spirit Realm (dead players): their own chat, and the one Spirit Council per game — kept on the server only
+  spiritChat: [] as { from: string; text: string; at: number }[],
+  council: null as null | Council,
 };
+type Faction = 'good' | 'evil' | 'neutral';
+type Council = { at: number; round: number; phase: string; start: number; spirits: Record<string, { faction: Faction; to?: string; text?: string; at?: number }> };
 
 // ---------- helpers ----------
 // Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
@@ -217,6 +222,9 @@ function playerView(p: Player) {
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
     sponsor: sponsorView(),
+    spirit: spiritView(p.name), // only when this player is dead
+    // whispers spirits sent to this living player (anonymous)
+    spiritWhispers: room.council && !isSpirit(p.name) ? Object.values(room.council.spirits).filter(x => x.to === p.name && x.text).map(x => ({ id: 'sw' + x.at, text: x.text })) : [],
     note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
@@ -257,6 +265,42 @@ function spectatorView(sp: Player) {
   };
 }
 
+// ---------- the Spirit Realm ----------
+// Dead players are spirits: they chat with each other on their phones. Once ceil(30% of the starting players) are dead,
+// the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
+// neutral — which replaces their old team for winning (their role itself never changes), and may whisper one message
+// to one living player. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
+const startCount = () => Object.keys(room.assign).length;
+const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
+const isSpirit = (name: string) => { const m = (room.shared.status || {})[name]; return room.dealt && !!m && m.how !== 'removed'; };
+const livingNames = () => room.players.filter(p => room.assign[p.name] && !(room.shared.status || {})[p.name]).map(p => p.name);
+function checkCouncil() {
+  if (!room.dealt || room.council || !startCount()) return;
+  const dead = room.players.map(p => p.name).filter(isSpirit);
+  if (dead.length < councilNeed()) return;
+  const order: Faction[] = shuffle(['good', 'evil', 'neutral'] as Faction[]);
+  const spirits: Council['spirits'] = {};
+  shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % 3] }; }); // a fair spread of the three
+  room.council = { at: Date.now(), round: room.shared.round || 1, phase: room.shared.phase || 'night', start: startCount(), spirits };
+}
+/** Did this spirit win? good → with the village, evil → with the werewolves, neutral → the player they whispered to is alive. */
+function spiritWon(name: string): boolean | null {
+  const s = room.council && room.council.spirits[name]; const w = room.shared.winner;
+  if (!s || !w || !isSpirit(name)) return null;
+  if (s.faction === 'good') return w.side === 'village';
+  if (s.faction === 'evil') return w.side === 'wolves';
+  return !!s.to && !(room.shared.status || {})[s.to];
+}
+function spiritView(name: string) {
+  if (!isSpirit(name)) return null;
+  const c = room.council, mine = c && c.spirits[name];
+  return {
+    chat: room.spiritChat.slice(-80),
+    council: c ? (mine ? { faction: mine.faction, to: mine.to || null, text: mine.text || null, living: livingNames(), won: spiritWon(name) } : { late: true }) : null,
+    need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
+  };
+}
+
 function hostView() {
   return {
     spectators: room.spectators.filter(p => p.connected).length,
@@ -270,6 +314,9 @@ function hostView() {
       voted: Object.keys(room.ballot.votes).length,
       voters: room.players.filter(p => !(room.shared.status || {})[p.name] && p.name !== room.ballot!.nominee).length, // the nominee doesn't vote on themselves
     } : null,
+    // the host sees the whole Spirit Realm (it runs the game); players never get this
+    spirits: room.dealt ? { chat: room.spiritChat, council: room.council, need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
+      won: room.council ? Object.fromEntries(Object.keys(room.council.spirits).map(nm => [nm, spiritWon(nm)])) : {} } : null,
   };
 }
 
@@ -309,7 +356,7 @@ if (PROD) {
 /** Everything needed to rebuild the room. The host's phone keeps a copy, so a server restart
  *  (redeploy, crash, free-plan sleep) doesn't end the game: the host sends it back when it reconnects. */
 function snapshot() {
-  return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt };
+  return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt, spiritChat: room.spiritChat, council: room.council };
 }
 const isFresh = () => !room.players.length && !room.dealt && !Object.keys(room.shared).length;
 
@@ -342,6 +389,8 @@ io.on('connection', (socket: Socket) => {
       room.shared = snap.shared || {};
       room.assign = snap.assign || {};
       room.dealt = !!snap.dealt;
+      room.spiritChat = Array.isArray(snap.spiritChat) ? snap.spiritChat : [];
+      room.council = snap.council || null;
       socket.emit('host:init', { shared: room.shared, room: hostView(), fresh: false, restored: true });
       io.emit('room:restored'); // phones reconnect and find their seat (and card) again
       pushAll();
@@ -350,6 +399,7 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:patch', (patch: Shared) => {
       if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       Object.assign(room.shared, patch);
+      if (patch.status) checkCouncil(); // a death may call the Spirit Council
       pushAll();
     });
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
@@ -391,12 +441,14 @@ io.on('connection', (socket: Socket) => {
       const deck = shuffle(rest);
       shuffle(room.players.filter(p => !room.assign[p.name])).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
       room.dealt = true;
+      room.spiritChat = []; room.council = null;
       pushAll();
     });
     socket.on('host:end', () => {
       room.ballot = null;
       room.assign = {};
       room.dealt = false;
+      room.spiritChat = []; room.council = null;
       for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor() }); // they join the next game
       room.spectators = [];
       pushAll();
@@ -422,6 +474,24 @@ io.on('connection', (socket: Socket) => {
     if (choice !== 'kill' && choice !== 'spare') return;
     if (me.name === room.ballot.nominee) return; // no voting on yourself
     room.ballot.votes[me.name] = choice;
+    pushAll();
+  });
+
+  // the Spirit Realm: dead players talk among themselves…
+  socket.on('spirit:say', (text: string) => {
+    if (!me || !room.players.includes(me) || !isSpirit(me.name)) return;
+    const t = String(text || '').trim().slice(0, 200); if (!t) return;
+    room.spiritChat.push({ from: me.name, text: t, at: Date.now() });
+    if (room.spiritChat.length > 300) room.spiritChat = room.spiritChat.slice(-300);
+    pushAll();
+  });
+  // …and at the Spirit Council each one whispers once to one living player
+  socket.on('spirit:whisper', (msg: { to: string; text: string }) => {
+    const s = me && room.council && room.council.spirits[me.name];
+    if (!me || !s || s.to || !isSpirit(me.name)) return;
+    const to = String(msg && msg.to || ''), t = String(msg && msg.text || '').trim().slice(0, 160);
+    if (!t || livingNames().indexOf(to) < 0) return;
+    s.to = to; s.text = t; s.at = Date.now();
     pushAll();
   });
 
