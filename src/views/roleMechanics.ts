@@ -80,5 +80,6 @@ export const DAY_REMINDERS: Record<string, string> = {
   'Serial Killer': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
   'Arsonist': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
   'Death': 'plays alone: wins once no werewolves are left and they are one of the last two alive. The village can’t win while they live.',
+  'Atheist': 'no werewolves this game — you fake the night and may lie. If the village votes out the host, the village wins.',
   'Vampire': 'vampires win once they outnumber everyone else. The village can’t win while a vampire lives.',
 };

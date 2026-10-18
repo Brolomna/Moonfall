@@ -16,6 +16,7 @@ export default {
     'Fortune Teller': ['Diseuse de bonne aventure', 'Les cartes ne mentent jamais', 'Une fois par partie, quand le meneur te réveille la nuit, désigne un joueur. Le meneur te montre son rôle exact.'],
     'Baker': ['Boulanger', 'Pas de pain, pas de village', 'Tant que tu vis, le village mange à sa faim. Une fois que tu es éliminé, la famine frappe : tous les trois jours, le meneur élimine un joueur de plus.'],
     'Revealer': ['Révélateur', 'Quitte ou double', 'Une fois par partie, la nuit, désigne un joueur. S’il est loup-garou — ou Lycan —, il est éliminé. Sinon, c’est toi qui meurs.'],
+    'Atheist': ['Athée', 'Il n’y a pas de mal ici', 'Il n’y a aucun loup-garou dans cette partie — l’hôte invente chaque nuit et peut mentir. Si le village élimine l’hôte au vote, le village gagne, même si tu es mort.'],
     'Spy': ['Espion', 'Connais ton ennemi', 'Après le choix des loups, le meneur te réveille et te désigne l’un d’eux.'],
     'Robber': ['Brigand', 'Ce qui est à toi est à moi', 'La première nuit, désigne un joueur et échange ton rôle avec le sien. Le meneur vous dit en secret vos nouveaux rôles.'],
     'Troublemaker': ['Noiseuse', 'Sème la zizanie', 'La première nuit, désigne deux autres joueurs. Le meneur échange leurs rôles en secret — ils découvrent leur nouveau rôle au matin.'],

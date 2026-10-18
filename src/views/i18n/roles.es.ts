@@ -16,6 +16,7 @@ export default {
     'Fortune Teller': ['Adivina', 'Las cartas nunca mienten', 'Una vez por partida, cuando el anfitrión te despierte de noche, señala a un jugador. El anfitrión te muestra su rol exacto.'],
     'Baker': ['Panadero', 'Sin pan no hay aldea', 'Mientras vivas, la aldea come. Cuando te eliminen, la aldea pasa hambre: desde entonces, cada tres días el anfitrión elimina a un jugador más.'],
     'Revealer': ['Revelador', 'Todo o nada', 'Una vez por partida, de noche, señala a un jugador. Si es un hombre lobo —o un Licántropo—, queda eliminado. Si no, mueres tú.'],
+    'Atheist': ['Ateo', 'Aquí no hay mal', 'En esta partida no hay hombres lobo: el anfitrión inventa cada noche y puede mentir. Si el pueblo expulsa al anfitrión en la votación, el pueblo gana, aunque estés muerto.'],
     'Spy': ['Espía', 'Conoce a tu enemigo', 'Cuando los hombres lobo hayan elegido, el anfitrión te despierta y te señala a uno de ellos.'],
     'Robber': ['Atracador', 'Lo tuyo es mío', 'La primera noche, señala a un jugador e intercambia tu rol con el suyo. El anfitrión les dice a ambos en privado su nuevo rol.'],
     'Troublemaker': ['Alborotador', 'A río revuelto…', 'La primera noche, señala a otros dos jugadores. El anfitrión intercambia sus roles en privado: descubren su nuevo rol por la mañana.'],

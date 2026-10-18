@@ -58,6 +58,10 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   Exception by design: people who join after the deal are **spectators** (`room.spectators`, `spectatorView()`) and see every role,
   the status marks and the host's log; `host:end` turns them into players for the next game.
 - Host-owned fields mirrored to the server are listed in `HostView.SHARED`.
+- The Atheist (Blood on the Clocktower): with it in the deck, every non-village card is shown in the role list but never dealt (no evil players);
+  the host fakes the Werewolves step and may lie (no automatic phone answers). The vote can nominate the host (`HOST = '__host__'`, `mech.hostOut`):
+  voted out with an Atheist dealt → village wins, without → wolves win; in an Atheist game the wolves win at 2 players left. Phones see the
+  Atheist as a Villager in the role list (server `playerView`).
 - Spirit Realm (server-authoritative, `server/index.ts` → "the Spirit Realm"): dead players chat (`spirit:say`, `room.spiritChat`).
   The host calls the one Spirit Council (`host:council` → `callCouncil()`; suggested at ceil(30% of the starting players) dead): each spirit at that moment gets a secret
   faction (good / evil / neutral, `room.council.spirits[name].faction`) and may `spirit:whisper` once to a living player (anonymous

@@ -203,7 +203,11 @@ function playerView(p: Player) {
   // with bluff cards the phones see the whole selected deck (sh.pool), never which cards were actually dealt
   const poolCounts: Record<string, number> = {};
   if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
-  const deck = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
+  const deck0 = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
+  // the Atheist never shows in the players' role list (it would give the twist away): it's listed as a Villager
+  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
+  const hiddenN = deck0.filter(([k]) => atheistKeys.includes(k)).reduce((a, [, c]) => a + Number(c), 0);
+  const deck = hiddenN ? deck0.filter(([k]) => !atheistKeys.includes(k)).map(([k, c]) => [k, k === 'villager' ? Number(c) + hiddenN : c] as [string, number]).concat(deck0.some(([k]) => k === 'villager') ? [] : [['villager', hiddenN] as [string, number]]) : deck0;
 
   // roles named in this player's night answer too (e.g. the Drunk's real role, which was never dealt)
   const wh = (sh.whispers || {})[p.name] || {};

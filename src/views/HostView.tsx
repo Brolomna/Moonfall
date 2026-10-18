@@ -447,12 +447,22 @@ export class HostView extends React.Component<any, any> {
     const wolfSlots = wolfCards + wolfPicks;
     const bluffable = Math.max(0, total - wolfCards - picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length - (counts.mason || 0));
     const extraOk = diff < 0 && -diff <= wolfSlots && -diff <= bluffable;
+    // The Atheist (Blood on the Clocktower): with it in the deck there are no evil players — every non-village card is
+    // shown in the role list but never dealt, so the deck holds exactly one card per player plus those evil cards.
+    const atheistIn = picked.some(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].lib === 'Atheist');
+    const evilCards = wolfCards + picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length;
     let deckHint = 'Ready — ' + total + ' cards for ' + n + ' players', deckColor = '#8fe0b8';
     if (false) { /* the werewolf count never blocks the deal */ }
     else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
     else if (diff < 0 && extraOk) { deckHint = 'Ready — ' + total + ' cards for ' + n + ' players · ' + (-diff) + ' won’t be dealt (secret bluffs)'; deckColor = '#8fe0b8'; }
     else if (diff < 0) { deckHint = 'Remove ' + (-diff - Math.min(wolfSlots, bluffable)) + ' card' + (-diff - Math.min(wolfSlots, bluffable) > 1 ? 's' : '') + ' — up to ' + Math.min(wolfSlots, bluffable) + ' extra can stay as bluffs (one per werewolf)'; deckColor = '#f2a65a'; }
-    const ready = diff === 0 || extraOk;
+    let ready = diff === 0 || extraOk;
+    if (atheistIn) {
+      const dealtN = total - evilCards;
+      ready = dealtN === n;
+      deckHint = ready ? 'Atheist game — ' + n + ' village cards dealt; the ' + evilCards + ' evil card' + (evilCards === 1 ? '' : 's') + ' only show in the role list' : dealtN < n ? 'Atheist game: add ' + (n - dealtN) + ' village card' + (n - dealtN > 1 ? 's' : '') + ' — every player gets a village card' : 'Atheist game: remove ' + (dealtN - n) + ' village card' + (dealtN - n > 1 ? 's' : '');
+      deckColor = ready ? '#b8c4ff' : '#f2a65a';
+    }
 
     // ---------- draft ----------
     const icons = this.icons(), colors = this.colors();
@@ -727,6 +737,7 @@ export class HostView extends React.Component<any, any> {
 
     const baseRole = {}; names.forEach((nm, i) => { baseRole[nm] = byKey[((this.props.net && this.props.net.assign) || {})[nm]] || shuffled[i] || byKey.villager; /* NET: server deals the cards */ });
     const roleOf = (nm) => (override[nm] && byKey[override[nm]]) || baseRole[nm];
+    const atheistGame = names.some(nm => baseRole[nm] && baseRole[nm].lib === 'Atheist'); // an Atheist was dealt: no evil players
     const isOut = (nm) => !!status[nm];
     const alive = names.filter(nm => !isOut(nm));
     const aliveWith = (key) => alive.filter(nm => roleOf(nm).key === key);
@@ -982,6 +993,7 @@ export class HostView extends React.Component<any, any> {
       : first && rules.peaceful ? 'Peaceful night — the wolves only see each other.'
         : (victimsWanted > 1 ? 'The wolves pick ' + victimsWanted + ' victims' + (rage ? ' (the Wolf Cub died)' : bigBad ? ' (Big Bad Wolf: the second sits next to the first)' : ' (Omega Wolf)') + '.' : 'The wolves pick a victim.') + agree + (alphaReady ? ' The Alpha may turn the victim instead.' : '');
     if (wolves.length) add('werewolf', 'Werewolves', wolves, wolfSay, { kind: 'kill', prio: 10, rage: victimsWanted > 1, peaceful: first && rules.peaceful });
+    else if (atheistGame) add('werewolf', 'Werewolves', [], 'Atheist game: there are no werewolves. Call them as usual, then choose tonight’s victim yourself (or no one). You may lie in every answer tonight.', { kind: 'kill', prio: 10, deadRole: true });
     // every other role in play, by its rules
     const inPlay = [];
     names.forEach(nm => { const k = wokeAs(nm).key; if (inPlay.indexOf(k) < 0) inPlay.push(k); });
@@ -1030,7 +1042,7 @@ export class HostView extends React.Component<any, any> {
       const cultMembers = acts.filter(a => a.kind === 'cult' && a.round !== round).reduce((s0, a) => s0.concat(a.targets || []), []);
       const one = (pool, ask, extra) => ({ kind: x.kind, count: 1, pool, ask: ask || (MECH[libOf(x.key)] || {}).ask || 'Who did the ' + x.title + ' choose?', ...(extra || {}) });
       switch (x.kind) {
-        case 'kill': return x.peaceful || sick ? null : { kind: 'kill', count: victimsWanted, pool: alive.filter(nm => !isWolf(roleOf(nm))), alpha: alphaReady, ask: victimsWanted > 1 ? 'Who did the wolves choose? Pick ' + victimsWanted + '.' : 'Who did the wolves choose to eliminate?' };
+        case 'kill': return x.peaceful || sick ? null : { kind: 'kill', count: victimsWanted, pool: alive.filter(nm => !isWolf(roleOf(nm))), optional: atheistGame, alpha: alphaReady, ask: victimsWanted > 1 ? 'Who did the wolves choose? Pick ' + victimsWanted + '.' : 'Who did the wolves choose to eliminate?' };
         case 'check': return one(others, 'Who did the Seer point at?');
         case 'bite': return one(others.filter(nm => libOf(roleOf(nm).key) !== 'Vampire')); // vampires know each other; a bitten werewolf just shrugs it off
         case 'block': return one(libOf(x.key) === 'Nightmare Wolf' ? others.filter(nm => !isWolf(roleOf(nm))) : others); // the Nightmare Wolf blocks the village, not its own pack
@@ -1222,7 +1234,7 @@ export class HostView extends React.Component<any, any> {
         }
         if (spec.kind === 'lovers') patch.lovers = pick.length === 2 ? pick.slice() : null;
         if (spec.kind === 'copy') patch.dgCopy = pick[0] || null;
-        if (rules.phoneAnswers) {
+        if (rules.phoneAnswers && !atheistGame) { // in an Atheist game the host may lie, so nothing is sent automatically
           const wh = whisperFor(spec.kind, pick[0], actors, pick);
           if (wh) { const all0 = { ...(s.whispers || {}) }; actors.filter(nm => !isOut(nm)).forEach(nm => { all0[nm] = { ...wh, round, key: actX.key }; }); patch.whispers = all0; }
         }
@@ -1283,7 +1295,13 @@ export class HostView extends React.Component<any, any> {
     const setVote = (nv, extra) => this.setState({ vote: { ...vote, ...nv }, ...(extra || {}) });
     const voters = alive.length;
     const need = Math.floor(voters / 2) + 1; // more than half of the living players
+    const HOST = '__host__'; // the host as a nominee (Atheist rule)
     const voteOut = (nm, tally) => {
+      if (nm === HOST) {
+        const t2 = (tally || []).map(x => [x[0] === HOST ? 'the host' : x[0], x[1]]);
+        this.setState({ mech: { ...mech, hostOut: round }, log: log.concat([ev('vote', { tally: t2, out: 'the host' })]), vote: { ...vote, ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: HOST, tally } }, nominating: false });
+        return;
+      }
       const patch = markPatch(nm, 'voted');
       const vEv = ev('vote', { tally, out: nm });
       const lg = patch.log.slice(); const at = lg.findIndex(e => e.t === 'out' && e.name === nm && e.round === round && e.phase === phase);
@@ -1312,7 +1330,7 @@ export class HostView extends React.Component<any, any> {
     const openBallot = (name) => this.props.onBallot && this.props.onBallot(name);
     const reopen = () => {
       const r = vote.result || {};
-      const base = r.out && status[r.out] && status[r.out].how === 'voted' ? markPatch(r.out, 'alive') : { log };
+      const base = r.out === HOST ? { log, mech: { ...mech, hostOut: null } } : r.out && status[r.out] && status[r.out].how === 'voted' ? markPatch(r.out, 'alive') : { log };
       this.setState({ ...base, log: base.log.filter(e => !(e.t === 'vote' && e.round === round)), vote: { ...vote, closed: false, result: null } });
     };
     const res = vote.result;
@@ -1326,12 +1344,12 @@ export class HostView extends React.Component<any, any> {
         const lead = !vote.closed && countOf(n) > 0 && countOf(n) === Math.max(...nominees.map(countOf));
         const set = (c) => setVote({ noms: vote.noms.map(x => (x.name === n.name ? { ...x, count: Math.max(0, Math.min(voters, c)) } : x)) });
         return {
-          name: n.name + (n.name === s.ivory ? ' 🏰' : ''), initial: n.name.charAt(0).toUpperCase(), count: countOf(n), lead,
+          name: n.name === HOST ? 'The host' : n.name + (n.name === s.ivory ? ' 🏰' : ''), initial: n.name === HOST ? '👑' : n.name.charAt(0).toUpperCase(), count: countOf(n), lead,
           majority: countOf(n) > voters / 2,
           inc: () => set(n.count + 1), dec: () => set(n.count - 1),
           remove: () => { setVote({ noms: vote.noms.filter(x => x.name !== n.name) }); if (ballot && ballot.nominee === n.name) this.props.onBallot && this.props.onBallot(null); },
           canEdit: !vote.closed && !(ballot && ballot.nominee === n.name),
-          canPhone: !vote.closed && !ballot, phone: () => openBallot(n.name),
+          canPhone: !vote.closed && !ballot && n.name !== HOST, phone: () => openBallot(n.name),
           onTrial: !!(ballot && ballot.nominee === n.name),
           canRemove: !vote.closed,
         };
@@ -1340,7 +1358,7 @@ export class HostView extends React.Component<any, any> {
       toggleNominate: () => this.setState({ nominating: !s.nominating }),
       candidates: alive.filter(nm => !vote.noms.some(n => n.name === nm)).map(nm => ({
         name: nm + (nm === s.ivory ? ' 🏰' : ''), pick: () => setVote({ noms: vote.noms.concat([{ name: nm, count: 0 }]) }, { nominating: false }),
-      })),
+      })).concat(vote.noms.some(n => n.name === HOST) ? [] : [{ name: '👑 The host (Atheist rule)', pick: () => setVote({ noms: vote.noms.concat([{ name: HOST, count: 0 }]) }, { nominating: false }) }]),
       canEnd: !vote.closed,
       endLabel: nominees.some(n => countOf(n) > 0) ? 'End vote & reveal' : 'End vote — no one is out',
       endVote,
@@ -1348,7 +1366,7 @@ export class HostView extends React.Component<any, any> {
       skip: () => noOneOut('skipped'),
       closed: vote.closed,
       isOut: !!(res && res.out), isNone: !!(res && !res.out && !res.tie), isTie: !!(res && res.tie),
-      outName: res && res.out, outVotes: res && res.out ? (res.tally.find(x => x[0] === res.out) || [0, 0])[1] : 0,
+      outName: res && (res.out === HOST ? 'The host' : res.out), outVotes: res && res.out ? (res.tally.find(x => x[0] === res.out) || [0, 0])[1] : 0,
       noneText: res && res.why === 'skipped' ? 'The village chose to skip the vote. No one is out today.' : res && res.why === 'no majority' ? 'No one reached a majority (' + need + ' votes needed). No one is out today.' : res && res.why === 'tie' ? 'The vote stayed tied. No one is out today.' : 'No votes were cast. No one is out today.',
       tieText: res && res.tie ? 'Tie: ' + res.tie.join(' and ') + ' — ' + res.tally[0][1] + ' votes each.' : '',
       tieHint: { revote: 'House rule: vote again between the tied players.', none: 'House rule: on a tie, no one is out.', host: 'House rule: the host decides.' }[tieRule] || '',
@@ -1451,6 +1469,11 @@ export class HostView extends React.Component<any, any> {
     if (!solo && anyOut && leader && alive.length > 1 && alive.every(nm => nm === leader || inCult.indexOf(nm) >= 0)) solo = { lib: 'Cult', names: [leader].concat(alive.filter(nm => nm !== leader)) };
     // the Lone Wolf wins only as the last wolf standing
     if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'Lone Wolf')) solo = { lib: 'Lone Wolf', names: wolvesNow };
+    // The Atheist: voting out the host wins it for the village when an Atheist was dealt — and for the wolves when not.
+    // In an Atheist game the (imaginary) wolves win once only two players are left.
+    const hostOut = !!mech.hostOut;
+    if (atheistGame) { solo = null; villageWins = hostOut; wolvesWin = !hostOut && anyOut && alive.length <= 2; }
+    else if (hostOut) { solo = null; villageWins = false; wolvesWin = true; }
     // master controls: the host forced an ending (to test the end cards, or just for fun)
     const forced = screen === 'play' && n > 0 ? s.forced || null : null;
     if (forced) {
@@ -1530,9 +1553,10 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         // bluff cards — deal by priority: 1. every wolf-side card, 2. every solo-win role, 3. village cards.
         // The extras are left out at random among village cards only (never a Mason, or a card a fixed player needs).
-        const extraN = Math.max(0, deck.length - n);
+        const extraN = atheistIn ? deck.filter(r => r.team !== 'Village').length : Math.max(0, deck.length - n);
         const keep = deck.map(() => true), needFixed = {}; Object.values(fixed).forEach(k => { needFixed[k] = (needFixed[k] || 0) + 1; });
-        const canDrop = deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason').sort(() => Math.random() - 0.5);
+        const canDrop = atheistIn ? deck.map((r, i) => i).filter(i => deck[i].team !== 'Village') // Atheist game: every evil card stays out
+          : deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason').sort(() => Math.random() - 0.5);
         let dropped = 0;
         for (const i of canDrop) {
           if (dropped >= extraN) break;
@@ -1975,7 +1999,7 @@ export class HostView extends React.Component<any, any> {
       noteInput: s.noteDraft || '', setNote: e => this.setState({ noteDraft: e.target.value }),
       addNote: e => { e.preventDefault(); const t = (s.noteDraft || '').trim(); if (t) this.setState({ log: log.concat([ev('note', { text: t })]), noteDraft: '' }); },
       endTitle: (soloWins || tannerWin) ? (soloTitle2 || soloTitle) : villageWins ? 'The village wins!' : 'The werewolves win!',
-      endText: (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : ((wolfNames.join(' and ') || 'The werewolves') + ' now equal the rest of the village. Nobody can outvote them.'),
+      endText: atheistGame && villageWins ? 'The Atheist was right: there were never any werewolves. Voting out the host won it for the village.' : atheistGame && wolvesWin ? 'There were never any werewolves — but nobody voted out the host. The imaginary wolves win.' : hostOut && wolvesWin ? 'The village voted out the host — but there was no Atheist. The werewolves win.' : (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : ((wolfNames.join(' and ') || 'The werewolves') + ' now equal the rest of the village. Nobody can outvote them.'),
       endTips,
       endColor: (soloWins || tannerWin) ? '#f2a65a' : villageWins ? '#8fe0b8' : '#ff8a9b',
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',

@@ -46,6 +46,7 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'Fortune Teller': ['Your exact-role check works once — use it on a big claim.', 'Check the player most likely to be lying about a power.', 'Reveal the result only when it can decide a vote.'],
   'Baker': ['While you live, the village is fed — stay alive.', 'If you die, the village starts losing players — warn them early if wolves eye you.', 'Make friends with the protectors.'],
   'Revealer': ['Only use your power when you’re very sure — a miss kills you.', 'Target someone the Seer or Watcher has already hinted at.', 'Waiting a few nights for more clues is often smarter.'],
+  'Atheist': ['Find others who doubt the deaths — but don’t show your card too early.', 'Once the “wolf kills” stop making sense, push the village to vote out the host.', 'Wait too long and, with two players left, the host wins for the imaginary wolves.'],
   'Spy': ['You’ll learn one wolf — don’t rush to name them.', 'Watch who that wolf protects in talks; they may be packmates.', 'Lead the vote with logic, not with “I saw it”.'],
   'Robber': ['Swap with a player whose role might be powerful.', 'Act as if you’re still your old role for a while.', 'Remember: the player you robbed now has your old card.'],
   'Troublemaker': ['Swap two players you suspect — confusion hurts the wolves most.', 'Don’t tell anyone whom you swapped.', 'Watch the swapped players’ reactions the next morning.'],

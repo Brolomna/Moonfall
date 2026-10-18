@@ -43,6 +43,7 @@ export default {
     'Fortune Teller': ['Tu revisión del rol exacto funciona una vez: úsala con una afirmación fuerte.', 'Revisa al jugador que más probablemente miente sobre un poder.', 'Revela el resultado solo cuando pueda decidir una votación.'],
     'Baker': ['Mientras vivas, la aldea come: sigue vivo.', 'Si mueres, la aldea empieza a perder jugadores; avisa pronto si los lobos te miran.', 'Hazte amigo de los protectores.'],
     'Revealer': ['Usa tu poder solo si estás muy seguro: si fallas, mueres.', 'Apunta a alguien que la Vidente o el Vigía ya hayan insinuado.', 'Esperar unas noches a tener más pistas suele ser lo más listo.'],
+    'Atheist': ['Busca a quienes dudan de las muertes, pero no enseñes tu carta demasiado pronto.', 'Cuando los “ataques de lobo” dejen de tener sentido, empuja al pueblo a expulsar al anfitrión.', 'Si esperáis demasiado y solo quedan dos, el anfitrión gana por unos lobos imaginarios.'],
     'Spy': ['Conocerás a un lobo: no corras a nombrarlo.', 'Fíjate a quién protege ese lobo al hablar; pueden ser de su manada.', 'Guía la votación con lógica, no con un “yo lo vi”.'],
     'Robber': ['Intercambia con un jugador que pueda tener un rol poderoso.', 'Actúa un tiempo como si siguieras con tu rol anterior.', 'Recuerda: el jugador al que robaste ahora tiene tu carta anterior.'],
     'Troublemaker': ['Intercambia a dos jugadores sospechosos: la confusión perjudica más a los lobos.', 'No le cuentes a nadie a quién intercambiaste.', 'Observa cómo reaccionan los intercambiados a la mañana siguiente.'],
