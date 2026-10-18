@@ -16,26 +16,34 @@ const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
 export class PlayerView extends React.Component<any, any> {
   // NET: turn the card face-down again whenever the host marks this player out / in
   componentDidUpdate(prev, prevState) {
-    if (prev.fate !== this.props.fate || prev.role !== this.props.role) this.setState({ revealed: false });
-    // Auto-hide so nobody can peek: a revealed card flips back by itself —
-    // after 5 s while alive, after 3 s (back to the death card) once the player is out
+    if (prev.fate !== this.props.fate || prev.role !== this.props.role) { this.setState({ revealed: false }); this.spiritTimer(); }
+    // Auto-hide so nobody can peek: while alive a revealed card flips back by itself after 5 s.
+    // Once out, the card shows the death first and turns to the spirit side 10 s later — and stays there.
     const revealed = !!(this.state && this.state.revealed), was = !!(prevState && prevState.revealed);
+    const fate = (this.state && this.state.fate) || this.props.fate || 'none';
     if (revealed && !was) {
       this.setState({ peeks: ((this.state && this.state.peeks) || 0) + 1 }); // next tip on every peek
       clearTimeout(this._hide);
-      const fate = (this.state && this.state.fate) || this.props.fate || 'none';
-      this._hide = setTimeout(() => this.setState({ revealed: false }), fate === 'none' ? 5000 : 3000);
+      if (fate === 'none') this._hide = setTimeout(() => this.setState({ revealed: false }), 5000);
     }
     if (!revealed && was) clearTimeout(this._hide);
   }
 
+  // a dead player's card: the death side first, then it turns to the spirit by itself after 10 s
+  spiritTimer() {
+    clearTimeout(this._spirit);
+    if ((this.props.fate || 'none') !== 'none') this._spirit = setTimeout(() => this.setState({ revealed: true }), 10000);
+  }
+
   componentDidMount() {
+    this.spiritTimer();
     // NET: the host's discussion timer counts down on this phone
     this._tick = setInterval(() => { const t = this.props.timer; if (t && t.running) this.forceUpdate(); }, 500);
   }
 
   componentWillUnmount() {
     clearTimeout(this._hide);
+    clearTimeout(this._spirit);
     clearInterval(this._tick);
   }
 
@@ -586,7 +594,8 @@ export class PlayerView extends React.Component<any, any> {
 
       cardTransform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
       cardAria: revealed ? T.hintHide : T.tapToSee,
-      cardHint: fate !== 'none' ? (revealed ? T.hintFell : T.hintHad) : (revealed ? T.hintHide : T.hintPeek),
+      cardHint: fate !== 'none' ? (revealed ? spiritText(lang).hintDeath : spiritText(lang).hintSpirit) : (revealed ? T.hintHide : T.hintPeek),
+      spiritOnce: fmt(spiritText(lang).once, { role: R.name }), // the spirit card remembers the role (it never changes)
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
       ...(() => {
@@ -1212,6 +1221,7 @@ export class PlayerView extends React.Component<any, any> {
                         </div>
                       </>
                     ) : null}
+                    {(v.isAlive || !v.ST) ? (
                     <div className="face" style={{ position: 'absolute', inset: '0', transform: 'rotateY(180deg)', borderRadius: '26px', overflow: 'hidden', background: `linear-gradient(170deg, ${v.rc.tint} 0%, #120a1f 62%, #0b0614 100%)`, border: `1px solid ${v.rc.edge}`, boxShadow: `0 30px 80px rgba(0,0,0,.6), 0 0 70px ${v.rc.halo}` }}>
                       <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: `1px solid ${v.rc.frame}` }} />
                       <span style={{ position: 'absolute', top: '6px', left: '6px', width: '8px', height: '8px', transform: 'rotate(45deg)', background: v.rc.color }} />
@@ -1386,6 +1396,41 @@ export class PlayerView extends React.Component<any, any> {
                         </span>
                       </div>
                     </div>
+                    ) : (
+                      <div className="face" style={{ position: 'absolute', inset: '0', transform: 'rotateY(180deg)', borderRadius: '26px', overflow: 'hidden', background: 'radial-gradient(circle at 50% 36%, #2a4d44 0%, #12261f 48%, #060c0b 100%)', border: '1px solid rgba(206,255,230,.5)', boxShadow: '0 0 60px rgba(170,255,210,.28), inset 0 0 50px rgba(170,255,210,.08)' }}>
+                        {/* the spirit card (dead players): white smoke with a light green glow */}
+                        <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: '1px solid rgba(206,255,230,.25)' }} />
+                        <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
+                          <defs>
+                            <filter id="spSoft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="10" /></filter>
+                            <filter id="spMist" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.6" /></filter>
+                            <radialGradient id="spGlow" cx="50%" cy="38%" r="52%"><stop offset="0" stopColor="#d9ffec" stopOpacity=".5" /><stop offset="1" stopColor="#d9ffec" stopOpacity="0" /></radialGradient>
+                          </defs>
+                          <ellipse cx="163" cy="165" rx="160" ry="170" fill="url(#spGlow)" />
+                          <g transform="translate(24 -40) scale(0.85)"><g className="spirit-float">
+                            <path d="M113 160C113 114 138 90 163 90C188 90 213 114 213 160L218 246C221 286 231 308 248 330C228 327 215 318 205 305C199 326 186 340 171 348C169 331 165 318 159 309C149 326 136 337 117 342C126 323 128 306 124 289C114 304 100 313 80 317C97 297 106 272 109 248Z" fill="#a9ffd2" opacity=".55" filter="url(#spSoft)" />
+                            <path d="M113 160C113 114 138 90 163 90C188 90 213 114 213 160L218 246C221 286 231 308 248 330C228 327 215 318 205 305C199 326 186 340 171 348C169 331 165 318 159 309C149 326 136 337 117 342C126 323 128 306 124 289C114 304 100 313 80 317C97 297 106 272 109 248Z" fill="#f6fffa" opacity=".88" filter="url(#spMist)" />
+                            <ellipse cx="147" cy="150" rx="7" ry="10" fill="#0d211b" opacity=".7" />
+                            <ellipse cx="179" cy="150" rx="7" ry="10" fill="#0d211b" opacity=".7" />
+                          </g></g>
+                          <g filter="url(#spSoft)" fill="#eafff4">
+                            <circle className="spirit-wisp" cx="70" cy="380" r="16" style={{ animationDelay: '0s' }} />
+                            <circle className="spirit-wisp" cx="250" cy="360" r="20" style={{ animationDelay: '2.2s' }} />
+                            <circle className="spirit-wisp" cx="120" cy="420" r="13" style={{ animationDelay: '4.1s' }} />
+                            <circle className="spirit-wisp" cx="210" cy="430" r="15" style={{ animationDelay: '5.6s' }} />
+                          </g>
+                        </svg>
+                        <div style={{ position: 'absolute', left: '0', right: '0', bottom: '26px', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}>
+                          <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.22em', textTransform: 'uppercase', color: '#b9f5d6', textShadow: '0 0 8px rgba(6,16,13,.9)' }}>{v.ST.cardKicker}</span>
+                          <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '34px', letterSpacing: '.08em', color: '#f4fff9', textShadow: '0 0 24px rgba(170,255,210,.7)' }}>{v.ST.cardName}</span>
+                          <span style={{ fontFamily: v.fI, fontStyle: 'italic', fontSize: '17px', color: '#cfeee0' }}>{v.ST.cardMotto}</span>
+                          <span style={{ fontSize: '12.5px', color: '#9ccdb7' }}>{v.spiritOnce}</span>
+                          <span style={{ marginTop: '6px', width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '14px', background: 'rgba(6,16,13,.6)', border: `1px solid ${v.council ? v.council.color : 'rgba(206,255,230,.3)'}`, fontSize: '13px', lineHeight: '1.45', color: '#dff7ec' }}>
+                            {v.council ? <><b style={{ color: v.council.color, fontSize: '15px' }}>{v.council.label}</b><br />{v.council.goal}</> : v.spiritLate ? v.ST.late : v.ST.undecided}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </button>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#c4b8da' }}>

@@ -1803,7 +1803,9 @@ export class HostView extends React.Component<any, any> {
         const c = sn.council, col = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
         return {
           show: sn.dead > 0 || !!c, need: sn.need, dead: sn.dead, triggered: !!c,
-          head: c ? 'The Spirit Council has gathered' : 'Spirit Council at ' + sn.need + ' deaths · ' + sn.dead + ' so far',
+          head: c ? 'The Spirit Council has gathered' : sn.dead + ' spirit' + (sn.dead === 1 ? '' : 's') + ' · call the Council whenever you like (suggested at ' + sn.need + ')',
+          canCall: !c && sn.dead > 0, confirm: !!s.councilAsk,
+          call: () => { if (!s.councilAsk) { this.setState({ councilAsk: true }); clearTimeout(this._ca); this._ca = setTimeout(() => this.setState({ councilAsk: false }), 4000); return; } this.setState({ councilAsk: false }); this.props.onCouncil && this.props.onCouncil(); },
           rows: c ? Object.keys(c.spirits).map(nm => { const x = c.spirits[nm], r = (this.props.net.assign || {})[nm]; return { name: nm, fac: x.faction, color: col[x.faction], to: x.to || '', text: x.text || '', won: sn.won ? sn.won[nm] : null }; }) : [],
           chat: (sn.chat || []).slice(-60), chatN: (sn.chat || []).length, chatOpen: !!s.spChat, toggleChat: () => this.setState({ spChat: !s.spChat }),
         };
@@ -2716,7 +2718,12 @@ export class HostView extends React.Component<any, any> {
                   <section aria-label="Spirit Realm" style={{ padding: '14px', borderRadius: '20px', background: 'linear-gradient(160deg, rgba(40,60,100,.55), rgba(14,10,28,.85))', border: '1px solid rgba(184,212,255,.35)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#b8d4ff' }}>👻 Spirit Realm · only you see this</span>
                     <span style={{ fontSize: '15px', fontWeight: '700', color: '#eef4ff' }}>{v.spiritHost.head}</span>
-                    {!v.spiritHost.triggered ? <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#9fb2d4' }}>Dead players chat on their phones. When the Council gathers, each spirit secretly gets a new faction and whispers once to a living player.</span> : null}
+                    {!v.spiritHost.triggered ? <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#9fb2d4' }}>Dead players chat on their phones. When you call the Council, every spirit at that moment secretly gets a new faction and whispers once to a living player. Once per game.</span> : null}
+                    {(v.spiritHost.canCall) ? (
+                      <button className="press" onClick={v.spiritHost.call} style={{ height: '46px', borderRadius: '14px', border: `1px solid ${v.spiritHost.confirm ? '#d9ffec' : 'rgba(184,212,255,.5)'}`, background: v.spiritHost.confirm ? 'rgba(170,255,210,.2)' : 'rgba(184,212,255,.12)', color: '#e6f0ff', fontSize: '15px', fontWeight: '800' }}>
+                        {v.spiritHost.confirm ? 'Tap again to call it now' : '👻 Call the Spirit Council'}
+                      </button>
+                    ) : null}
                     {v.spiritHost.rows.map((r: any) => (
                       <span key={r.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '8px 10px', borderRadius: '12px', background: 'rgba(0,0,0,.25)' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700' }}>

@@ -38,7 +38,7 @@ input::placeholder{color:#7f7397}
 @keyframes stamp{0%{transform:scale(2.4) rotate(-24deg);opacity:0}60%{transform:scale(.92) rotate(-8deg);opacity:1}80%{transform:scale(1.04) rotate(-10deg)}100%{transform:scale(1) rotate(-10deg);opacity:1}}
 .stamp{animation:stamp .6s cubic-bezier(.3,.7,.2,1) .25s both}
 @keyframes fateIn{from{filter:brightness(2.2) saturate(.4)}to{filter:none}}
-.fateIn{animation:fateIn 1s ease-out both}
+.fateIn{animation:fateIn 1s ease-out backwards;transform:rotateY(0deg)} /* backwards: no filter left on the face afterwards, so the card can still flip in 3D */
 .vignette{transition:opacity 1.2s ease}
 @keyframes tap{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(.86);opacity:.5}}
 .tap{animation:tap 1.8s ease-in-out infinite}
@@ -80,3 +80,10 @@ input::placeholder{color:#7f7397}
 /* claw / slash strokes on the newer death cards (fateCards.tsx) */
 @keyframes slash2{from{stroke-dashoffset:260}to{stroke-dashoffset:0}}
 .slashline{stroke-dasharray:260;stroke-dashoffset:260;animation:slash2 .45s cubic-bezier(.6,0,.3,1) .3s forwards}
+
+/* the spirit card: the body drifts, smoke wisps rise */
+.spirit-float { animation: spiritFloat 6s ease-in-out infinite; }
+@keyframes spiritFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.spirit-wisp { transform-box: fill-box; animation: spiritWisp 7.5s linear infinite; opacity: 0; }
+@keyframes spiritWisp { 0% { transform: translateY(30px) scale(.8); opacity: 0; } 25% { opacity: .55; } 100% { transform: translateY(-150px) scale(1.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .spirit-float, .spirit-wisp { animation: none; } .spirit-wisp { opacity: .3; } }

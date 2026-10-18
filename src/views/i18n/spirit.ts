@@ -1,9 +1,10 @@
 // The Spirit Realm on players' phones (dead players' chat, the Spirit Council, whispers) — 7 languages.
 const S = {
   en: {
+    cardKicker: 'Your spirit', cardName: 'Spirit', cardMotto: 'Between two worlds', once: 'Once the {role}', undecided: 'Your side is not decided yet. The Spirit Council will choose it.', hintSpirit: 'Tap the card to see your spirit', hintDeath: 'Tap the card to see how you died',
     open: 'Spirit realm', title: 'The Spirit Realm', sub: 'Only the dead can see this. Talk freely with the other spirits.',
     ph: 'Say something to the spirits…', send: 'Send', empty: 'No spirit has spoken yet.',
-    waiting: 'The Spirit Council gathers when {n} players have died ({d} so far).',
+    waiting: 'The host will call the Spirit Council when the time is right.',
     council: 'The Spirit Council', councilSub: 'The spirits have gathered. You no longer belong to your old team.',
     good: 'Good spirit', evil: 'Evil spirit', neutral: 'Neutral spirit',
     goalGood: 'You win if the village wins.', goalEvil: 'You win if the werewolves win.', goalNeutral: 'You win if the player you whisper to is still alive at the end.',
@@ -12,9 +13,10 @@ const S = {
     heard: 'A spirit whispers to you', ok: 'Got it', won: 'Your spirit won!', lost: 'Your spirit lost.', you: 'you',
   },
   zh: {
+    cardKicker: '你的灵魂', cardName: '灵魂', cardMotto: '徘徊于两个世界之间', once: '生前是{role}', undecided: '你的阵营尚未决定。灵魂议会将为你选择。', hintSpirit: '点击卡牌查看你的灵魂', hintDeath: '点击卡牌查看你的死因',
     open: '灵界', title: '灵界', sub: '只有死者能看到这里。和其他灵魂自由交谈吧。',
     ph: '对灵魂们说点什么…', send: '发送', empty: '还没有灵魂说话。',
-    waiting: '当 {n} 名玩家死亡时，灵魂议会将召开（目前 {d} 名）。',
+    waiting: '主持人会在合适的时候召开灵魂议会。',
     council: '灵魂议会', councilSub: '灵魂们聚集了。你不再属于原来的阵营。',
     good: '善良的灵魂', evil: '邪恶的灵魂', neutral: '中立的灵魂',
     goalGood: '村庄获胜，你就获胜。', goalEvil: '狼人获胜，你就获胜。', goalNeutral: '你低语的那名玩家活到最后，你就获胜。',
@@ -23,9 +25,10 @@ const S = {
     heard: '一个灵魂在对你低语', ok: '知道了', won: '你的灵魂获胜了！', lost: '你的灵魂输了。', you: '你',
   },
   ko: {
+    cardKicker: '당신의 영혼', cardName: '영혼', cardMotto: '두 세계 사이에서', once: '생전에는 {role}', undecided: '아직 진영이 정해지지 않았어요. 영혼 회의가 정해 줄 거예요.', hintSpirit: '카드를 눌러 영혼을 보세요', hintDeath: '카드를 눌러 어떻게 죽었는지 보세요',
     open: '영혼의 세계', title: '영혼의 세계', sub: '죽은 사람만 볼 수 있어요. 다른 영혼들과 자유롭게 이야기하세요.',
     ph: '영혼들에게 한마디…', send: '보내기', empty: '아직 아무 영혼도 말하지 않았어요.',
-    waiting: '{n}명이 죽으면 영혼 회의가 열려요 (지금 {d}명).',
+    waiting: '때가 되면 호스트가 영혼 회의를 열어요.',
     council: '영혼 회의', councilSub: '영혼들이 모였어요. 이제 당신은 원래 팀 소속이 아니에요.',
     good: '선한 영혼', evil: '악한 영혼', neutral: '중립 영혼',
     goalGood: '마을이 이기면 당신도 이겨요.', goalEvil: '늑대인간이 이기면 당신도 이겨요.', goalNeutral: '속삭인 상대가 끝까지 살아 있으면 이겨요.',
@@ -34,9 +37,10 @@ const S = {
     heard: '영혼이 당신에게 속삭여요', ok: '확인', won: '당신의 영혼이 이겼어요!', lost: '당신의 영혼이 졌어요.', you: '나',
   },
   ja: {
+    cardKicker: 'あなたの霊', cardName: '霊', cardMotto: 'ふたつの世界のあいだで', once: '生前は{role}', undecided: '陣営はまだ決まっていません。霊の会議が決めます。', hintSpirit: 'カードをタップして霊を見る', hintDeath: 'カードをタップして死因を見る',
     open: '霊界', title: '霊界', sub: '死者だけが見られます。ほかの霊と自由に話しましょう。',
     ph: '霊たちにひとこと…', send: '送信', empty: 'まだ誰も話していません。',
-    waiting: '{n}人が脱落すると霊の会議が開かれます（今は{d}人）。',
+    waiting: 'ホストがころあいを見て霊の会議を開きます。',
     council: '霊の会議', councilSub: '霊たちが集まりました。あなたはもう元の陣営ではありません。',
     good: '善の霊', evil: '悪の霊', neutral: '中立の霊',
     goalGood: '村が勝てばあなたの勝ち。', goalEvil: '人狼が勝てばあなたの勝ち。', goalNeutral: 'ささやいた相手が最後まで生き残ればあなたの勝ち。',
@@ -45,9 +49,10 @@ const S = {
     heard: '霊があなたにささやいています', ok: 'OK', won: 'あなたの霊が勝ちました！', lost: 'あなたの霊は負けました。', you: 'あなた',
   },
   fr: {
+    cardKicker: 'Ton esprit', cardName: 'Esprit', cardMotto: 'Entre deux mondes', once: 'Autrefois {role}', undecided: 'Ton camp n’est pas encore décidé. Le Conseil des esprits le choisira.', hintSpirit: 'Touche la carte pour voir ton esprit', hintDeath: 'Touche la carte pour voir comment tu es mort',
     open: 'Royaume des esprits', title: 'Le royaume des esprits', sub: 'Seuls les morts voient ceci. Parle librement avec les autres esprits.',
     ph: 'Dis quelque chose aux esprits…', send: 'Envoyer', empty: 'Aucun esprit n’a encore parlé.',
-    waiting: 'Le Conseil des esprits se réunit quand {n} joueurs sont morts ({d} pour l’instant).',
+    waiting: 'L’hôte convoquera le Conseil des esprits au bon moment.',
     council: 'Le Conseil des esprits', councilSub: 'Les esprits se sont réunis. Tu n’appartiens plus à ton ancien camp.',
     good: 'Esprit bon', evil: 'Esprit maléfique', neutral: 'Esprit neutre',
     goalGood: 'Tu gagnes si le village gagne.', goalEvil: 'Tu gagnes si les loups gagnent.', goalNeutral: 'Tu gagnes si le joueur à qui tu chuchotes est encore en vie à la fin.',
@@ -56,9 +61,10 @@ const S = {
     heard: 'Un esprit te chuchote', ok: 'Compris', won: 'Ton esprit a gagné !', lost: 'Ton esprit a perdu.', you: 'toi',
   },
   th: {
+    cardKicker: 'วิญญาณของคุณ', cardName: 'วิญญาณ', cardMotto: 'ระหว่างสองโลก', once: 'ตอนมีชีวิตคือ{role}', undecided: 'ฝ่ายของคุณยังไม่ถูกกำหนด สภาวิญญาณจะเป็นผู้เลือก', hintSpirit: 'แตะการ์ดเพื่อดูวิญญาณของคุณ', hintDeath: 'แตะการ์ดเพื่อดูว่าคุณตายอย่างไร',
     open: 'โลกวิญญาณ', title: 'โลกวิญญาณ', sub: 'เฉพาะคนตายเท่านั้นที่เห็น คุยกับวิญญาณอื่นได้ตามสบาย',
     ph: 'พูดอะไรกับเหล่าวิญญาณหน่อย…', send: 'ส่ง', empty: 'ยังไม่มีวิญญาณพูดเลย',
-    waiting: 'สภาวิญญาณจะเริ่มเมื่อมีผู้เล่นตาย {n} คน (ตอนนี้ {d} คน)',
+    waiting: 'โฮสต์จะเรียกประชุมสภาวิญญาณเมื่อถึงเวลาที่เหมาะสม',
     council: 'สภาวิญญาณ', councilSub: 'เหล่าวิญญาณมารวมตัวกันแล้ว คุณไม่ได้อยู่ฝ่ายเดิมอีกต่อไป',
     good: 'วิญญาณฝ่ายดี', evil: 'วิญญาณฝ่ายร้าย', neutral: 'วิญญาณเป็นกลาง',
     goalGood: 'คุณชนะถ้าหมู่บ้านชนะ', goalEvil: 'คุณชนะถ้าหมาป่าชนะ', goalNeutral: 'คุณชนะถ้าคนที่คุณกระซิบด้วยยังมีชีวิตอยู่ตอนจบ',
@@ -67,9 +73,10 @@ const S = {
     heard: 'มีวิญญาณกระซิบกับคุณ', ok: 'เข้าใจแล้ว', won: 'วิญญาณของคุณชนะ!', lost: 'วิญญาณของคุณแพ้', you: 'คุณ',
   },
   es: {
+    cardKicker: 'Tu espíritu', cardName: 'Espíritu', cardMotto: 'Entre dos mundos', once: 'Antes {role}', undecided: 'Tu bando aún no está decidido. El Consejo de los espíritus lo elegirá.', hintSpirit: 'Toca la carta para ver tu espíritu', hintDeath: 'Toca la carta para ver cómo moriste',
     open: 'Reino de los espíritus', title: 'El reino de los espíritus', sub: 'Solo los muertos ven esto. Habla libremente con los demás espíritus.',
     ph: 'Di algo a los espíritus…', send: 'Enviar', empty: 'Ningún espíritu ha hablado todavía.',
-    waiting: 'El Consejo de los espíritus se reúne cuando hayan muerto {n} jugadores ({d} por ahora).',
+    waiting: 'El anfitrión convocará el Consejo de los espíritus en el momento adecuado.',
     council: 'El Consejo de los espíritus', councilSub: 'Los espíritus se han reunido. Ya no perteneces a tu antiguo bando.',
     good: 'Espíritu bueno', evil: 'Espíritu malvado', neutral: 'Espíritu neutral',
     goalGood: 'Ganas si gana el pueblo.', goalEvil: 'Ganas si ganan los lobos.', goalNeutral: 'Ganas si el jugador al que susurras sigue vivo al final.',

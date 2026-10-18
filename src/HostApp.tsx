@@ -69,7 +69,8 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
 
   useEffect(() => { installAudioUnlock(); }, []);
   useEffect(() => {
-    if (soundOn && stage.screen === 'play' && stage.phase === 'night') startAmbience(); else stopAmbience();
+    // LOCAL ONLY: night background ambience muted for now (howl / sunrise effects still play)
+    if (false && soundOn && stage.screen === 'play' && stage.phase === 'night') startAmbience(); else stopAmbience();
   }, [soundOn, stage.screen, stage.phase]);
   useEffect(() => () => stopAmbience(), []);
 
@@ -149,6 +150,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
             soundOn={soundOn}
             onToggleSound={toggleSound}
             onKick={(name: string) => socket.emit('host:kick', name)}
+            onCouncil={() => socket.emit('host:council')}
             onDeal={(keys: string[], fixed?: Record<string, string>) => socket.emit('host:deal', keys, fixed)}
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}

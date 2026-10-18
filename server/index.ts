@@ -266,18 +266,18 @@ function spectatorView(sp: Player) {
 }
 
 // ---------- the Spirit Realm ----------
-// Dead players are spirits: they chat with each other on their phones. Once ceil(30% of the starting players) are dead,
-// the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
+// Dead players are spirits: they chat with each other on their phones. When the host calls it (suggested once
+// ceil(30% of the starting players) are dead), the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
 // neutral — which replaces their old team for winning (their role itself never changes), and may whisper one message
 // to one living player. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
 const startCount = () => Object.keys(room.assign).length;
 const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
 const isSpirit = (name: string) => { const m = (room.shared.status || {})[name]; return room.dealt && !!m && m.how !== 'removed'; };
 const livingNames = () => room.players.filter(p => room.assign[p.name] && !(room.shared.status || {})[p.name]).map(p => p.name);
-function checkCouncil() {
+function callCouncil() {
   if (!room.dealt || room.council || !startCount()) return;
   const dead = room.players.map(p => p.name).filter(isSpirit);
-  if (dead.length < councilNeed()) return;
+  if (!dead.length) return; // needs at least one spirit
   const order: Faction[] = shuffle(['good', 'evil', 'neutral'] as Faction[]);
   const spirits: Council['spirits'] = {};
   shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % 3] }; }); // a fair spread of the three
@@ -399,10 +399,11 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:patch', (patch: Shared) => {
       if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       Object.assign(room.shared, patch);
-      if (patch.status) checkCouncil(); // a death may call the Spirit Council
       pushAll();
     });
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
+    // the host calls the Spirit Council when the game is ready for it (once per game)
+    socket.on('host:council', () => { callCouncil(); pushAll(); });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll();

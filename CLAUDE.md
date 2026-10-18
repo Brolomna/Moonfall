@@ -57,11 +57,12 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   the status marks and the host's log; `host:end` turns them into players for the next game.
 - Host-owned fields mirrored to the server are listed in `HostView.SHARED`.
 - Spirit Realm (server-authoritative, `server/index.ts` → "the Spirit Realm"): dead players chat (`spirit:say`, `room.spiritChat`).
-  At ceil(30% of the starting players) dead, `checkCouncil()` runs the one Spirit Council: each spirit at that moment gets a secret
+  The host calls the one Spirit Council (`host:council` → `callCouncil()`; suggested at ceil(30% of the starting players) dead): each spirit at that moment gets a secret
   faction (good / evil / neutral, `room.council.spirits[name].faction`) and may `spirit:whisper` once to a living player (anonymous
   `spiritWhispers` on that phone). Role and faction are separate: the role never changes; for winning, a dead spirit's old team stops
   counting — good wins with the village, evil with the wolves, neutral if its whisper target is alive (`spiritWon`; host mirrors it in
   `winnersAll`). Phones get only their own `spirit` view; the host gets everything via `hostView().spirits`. Phone text: `src/views/i18n/spirit.ts`.
+  A dead player's card: death side first, then (10 s, `spiritTimer`) the spirit side instead of the role — faction shown only after the Council.
 - Bluff cards: the deck may hold up to one extra card per werewolf card. `dealNow` deals by priority (wolf side, then solo roles,
   then village) and leaves the extras out at random among village cards (never a Mason); shared `pool` = every selected card (what phones list as the round's roles), `unused` = not dealt (host only).
   The wake-up order still calls roles nobody holds (not dealt, or the player was turned) as "fake it" steps, so it never gives anything away.
