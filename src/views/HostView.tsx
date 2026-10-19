@@ -884,7 +884,7 @@ export class HostView extends React.Component<any, any> {
       else if (firstOut.name === ivoryHolder && isOut(ivoryHolder)) push('ivory-hit-' + ivoryHolder, 'Ivory Tower · ' + ivoryHolder, 'The Ivory Tower protects ' + ivoryHolder, ivoryHolder + ' can’t be the first one out this game. Undo it — the wolves or the village must choose someone else.', '230,238,252', '#e6eefc', 'M5 21V9l2-2V4h2v2h2V4h2v2h2V4h2v3l2 2v12z M10 21v-5h4v5', { label: 'Undo — keep ' + ivoryHolder + ' alive', fn: () => this.setState(markPatch(ivoryHolder, 'alive')) });
     }
     const council0 = this.props.net && this.props.net.spirits && this.props.net.spirits.council;
-    if (council0) push('council', 'Spirit Realm', 'The Spirit Council has gathered', Object.keys(council0.spirits).length + ' spirit' + (Object.keys(council0.spirits).length > 1 ? 's' : '') + ' secretly got a new faction on their phones and each secretly chooses one living player (no message is sent). Their old team no longer counts for them. Their factions and choices are on the Spirit Realm card.', '184,212,255', '#b8d4ff', 'M12 3c-4 0-7 3-7 7v10l2.3-1.6L9.7 20l2.3-1.6 2.3 1.6 2.4-1.6L19 20V10c0-4-3-7-7-7z M9.5 10.5h.01 M14.5 10.5h.01');
+    if (council0) push('council', 'Spirit Realm', 'The Spirit Council has gathered', Object.keys(council0.spirits).length + ' spirit' + (Object.keys(council0.spirits).length > 1 ? 's' : '') + ' secretly got a new faction and each secretly chooses one living player (no message is sent). Their old team no longer counts for them. Phones don’t show the factions until you tap Reveal factions on the Spirit Realm card.', '184,212,255', '#b8d4ff', 'M12 3c-4 0-7 3-7 7v10l2.3-1.6L9.7 20l2.3-1.6 2.3 1.6 2.4-1.6L19 20V10c0-4-3-7-7-7z M9.5 10.5h.01 M14.5 10.5h.01');
     const alien = names.find(nm => isLibA(nm, 'Alien') && !isOut(nm));
     if (alien && alive.length === 3) push('alien-' + round, 'Alien · ' + alien, 'The Alien wins!', 'Exactly three players are left and ' + alien + ' is one of them — the Alien wins alone. Keep playing for everyone else.', '143,211,232', '#8fd3e8', roleOf(alien).icon);
     names.filter(isOut).forEach(nm => {
@@ -1829,11 +1829,14 @@ export class HostView extends React.Component<any, any> {
         const c = sn.council, col = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
         return {
           show: sn.dead > 0 || !!c, need: sn.need, dead: sn.dead, triggered: !!c,
-          head: c ? 'The Spirit Council has gathered' : sn.dead + ' spirit' + (sn.dead === 1 ? '' : 's') + ' · call the Council whenever you like (suggested at ' + sn.need + ')',
+          head: c ? (c.revealed ? 'The Spirit Council is over · factions revealed' : 'The Spirit Council has gathered · factions still hidden on phones') : sn.dead + ' spirit' + (sn.dead === 1 ? '' : 's') + ' · call the Council whenever you like (suggested at ' + sn.need + ')',
           canCall: !c && sn.dead > 0, confirm: !!s.councilAsk,
           call: () => { if (!s.councilAsk) { this.setState({ councilAsk: true }); clearTimeout(this._ca); this._ca = setTimeout(() => this.setState({ councilAsk: false }), 4000); return; } this.setState({ councilAsk: false }); this.props.onCouncil && this.props.onCouncil(); },
           // undo the Council (tap twice): factions and choices are forgotten, and it can be called again
           canUndo: !!c, undoAsk: !!s.councilUndoAsk,
+          // after the Council: show each spirit its faction on its phone (tap twice)
+          canReveal: !!c && !c.revealed, revealAsk: !!s.councilRevealAsk,
+          reveal: () => { if (!s.councilRevealAsk) { this.setState({ councilRevealAsk: true }); clearTimeout(this._cr); this._cr = setTimeout(() => this.setState({ councilRevealAsk: false }), 4000); return; } this.setState({ councilRevealAsk: false }); this.props.onCouncilReveal && this.props.onCouncilReveal(); },
           undo: () => { if (!s.councilUndoAsk) { this.setState({ councilUndoAsk: true }); clearTimeout(this._cu); this._cu = setTimeout(() => this.setState({ councilUndoAsk: false }), 4000); return; } this.setState({ councilUndoAsk: false, dismissed: (s.dismissed || []).filter(d => d !== 'council') }); this.props.onCouncilUndo && this.props.onCouncilUndo(); },
           rows: c ? Object.keys(c.spirits).map(nm => { const x = c.spirits[nm], r = (this.props.net.assign || {})[nm]; return { name: nm, fac: x.faction, color: col[x.faction], to: x.to || '', text: x.text || '', won: sn.won ? sn.won[nm] : null }; }) : [],
           chat: (sn.chat || []).slice(-60), chatN: (sn.chat || []).length, chatOpen: !!s.spChat, toggleChat: () => this.setState({ spChat: !s.spChat }),
@@ -2752,6 +2755,11 @@ export class HostView extends React.Component<any, any> {
                     {(v.spiritHost.canCall) ? (
                       <button className="press" onClick={v.spiritHost.call} style={{ height: '46px', borderRadius: '14px', border: `1px solid ${v.spiritHost.confirm ? '#d9ffec' : 'rgba(184,212,255,.5)'}`, background: v.spiritHost.confirm ? 'rgba(170,255,210,.2)' : 'rgba(184,212,255,.12)', color: '#e6f0ff', fontSize: '15px', fontWeight: '800' }}>
                         {v.spiritHost.confirm ? 'Tap again to call it now' : '👻 Call the Spirit Council'}
+                      </button>
+                    ) : null}
+                    {(v.spiritHost.canReveal) ? (
+                      <button className="press" onClick={v.spiritHost.reveal} style={{ height: '46px', borderRadius: '14px', border: `1px solid ${v.spiritHost.revealAsk ? '#d9ffec' : 'rgba(184,212,255,.5)'}`, background: v.spiritHost.revealAsk ? 'rgba(170,255,210,.2)' : 'rgba(184,212,255,.12)', color: '#e6f0ff', fontSize: '15px', fontWeight: '800' }}>
+                        {v.spiritHost.revealAsk ? 'Tap again to reveal them now' : '👁 Reveal factions'}
                       </button>
                     ) : null}
                     {(v.spiritHost.canUndo) ? (

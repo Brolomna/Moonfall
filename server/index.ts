@@ -41,7 +41,7 @@ const room = {
   council: null as null | Council,
 };
 type Faction = 'good' | 'evil' | 'neutral';
-type Council = { at: number; round: number; phase: string; start: number; spirits: Record<string, { faction: Faction; to?: string; text?: string; at?: number }> };
+type Council = { at: number; round: number; phase: string; start: number; revealed?: boolean; spirits: Record<string, { faction: Faction; to?: string; text?: string; at?: number }> };
 
 // ---------- helpers ----------
 // Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
@@ -273,7 +273,8 @@ function spectatorView(sp: Player) {
 // Dead players are spirits: they chat with each other on their phones. When the host calls it (suggested once
 // ceil(30% of the starting players) are dead), the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
 // neutral — which replaces their old team for winning (their role itself never changes), and secretly chooses one
-// living player (no message is sent — the choice only matters for a neutral spirit's win). In an Atheist game there
+// living player (no message is sent — the choice only matters for a neutral spirit's win). Phones see their faction
+// only once the host reveals the factions (`host:council:reveal`), after the Council. In an Atheist game there
 // are no evil players, so every spirit becomes good. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
 const startCount = () => Object.keys(room.assign).length;
 const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
@@ -306,7 +307,7 @@ function spiritView(name: string) {
   const c = room.council, mine = c && c.spirits[name];
   return {
     chat: room.spiritChat.slice(-80),
-    council: c ? (mine ? { at: c.at, faction: mine.faction, to: mine.to || null, living: livingNames(), won: spiritWon(name) } : { late: true }) : null,
+    council: c ? (mine ? { at: c.at, faction: c.revealed ? mine.faction : null, to: mine.to || null, living: livingNames(), won: c.revealed ? spiritWon(name) : null } : { late: true }) : null,
     need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
   };
 }
@@ -418,6 +419,8 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:council', () => { callCouncil(); pushAll(); });
     // …and can undo it (called by mistake): factions and choices are forgotten, it can be called again
     socket.on('host:council:undo', () => { room.council = null; pushAll(); });
+    // …and reveals the factions on the spirits' phones once the Council is over
+    socket.on('host:council:reveal', () => { if (room.council) { room.council.revealed = true; pushAll(); } });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll();

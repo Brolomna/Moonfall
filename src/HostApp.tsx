@@ -155,6 +155,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
             onKick={(name: string) => socket.emit('host:kick', name)}
             onCouncil={() => socket.emit('host:council')}
             onCouncilUndo={() => socket.emit('host:council:undo')}
+            onCouncilReveal={() => socket.emit('host:council:reveal')}
             onDeal={(keys: string[], fixed?: Record<string, string>) => socket.emit('host:deal', keys, fixed)}
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}

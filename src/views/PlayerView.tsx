@@ -520,7 +520,8 @@ export class PlayerView extends React.Component<any, any> {
           spiritWaiting: sp && !c ? fmt(ST.waiting, { n: sp.need, d: sp.dead }) : '',
           spiritLate: !!(c && c.late),
           council: mine ? {
-            label: ST[mine.faction], color: facColor[mine.faction], goal: ST['goal' + mine.faction[0].toUpperCase() + mine.faction.slice(1)],
+            // the faction stays hidden on the phone until the host reveals it after the Council
+            label: mine.faction ? ST[mine.faction] : ST.pending, color: mine.faction ? facColor[mine.faction] : '#b8d4ff', goal: mine.faction ? ST['goal' + mine.faction[0].toUpperCase() + mine.faction.slice(1)] : ST.pendingGoal,
             canWhisper: !mine.to, sent: mine.to ? fmt(ST.sent, { name: mine.to }) : '',
             living: (mine.living || []).map(nm => ({ name: nm, on: s.swTo === nm, pick: () => this.setState({ swTo: nm }) })),
             ready: !!s.swTo && (mine.living || []).indexOf(s.swTo) >= 0,
