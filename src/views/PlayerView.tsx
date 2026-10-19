@@ -503,29 +503,28 @@ export class PlayerView extends React.Component<any, any> {
       sp: this.props.sponsor || null, B: brandText(lang), donate: DONATE_URL,
       realm: fate !== 'none' && screen === 'card', // dead players live in the spirit realm (own backdrop, no day/night)
       ...(() => {
-        // NET: the Spirit Realm — dead players' chat, the Spirit Council (secret new faction + one whisper), whispers to the living
+        // NET: the Spirit Realm — dead players' chat, the Spirit Council (secret new faction + one chosen living player)
         const sp = this.props.spirit, ST = spiritText(lang), c = sp && sp.council;
         const mine = c && !c.late ? c : null;
         const seenW = (() => { try { return JSON.parse(localStorage.getItem('moonfall.swSeen') || '[]'); } catch { return []; } })().concat(s.swSeen || []);
         const heard = (this.props.spiritWhispers || []).find(x => seenW.indexOf(x.id) < 0) || null;
         const facColor = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
         const lastSeenChat = s.spiritRead || 0, chat = (sp && sp.chat) || [];
-        const councilNew = !!(mine && !mine.to && !s.councilSeen);
+        const councilNew = !!(mine && !mine.to && s.councilSeen !== mine.at); // per Council, so a re-called one (after an undo) pops open again
         return {
           ST, spiritOn: !!sp && screen === 'card',
           spiritOpen: !!sp && screen === 'card' && (!!s.spiritOpen || councilNew),
           openSpirit: () => this.setState({ spiritOpen: true, spiritRead: chat.length }),
-          closeSpirit: () => this.setState({ spiritOpen: false, councilSeen: true, spiritRead: chat.length }),
+          closeSpirit: () => this.setState({ spiritOpen: false, councilSeen: mine ? mine.at : s.councilSeen, spiritRead: chat.length }),
           spiritBadge: councilNew || (mine && !mine.to) ? '!' : chat.length > lastSeenChat && !s.spiritOpen ? String(chat.length - lastSeenChat) : '',
           spiritWaiting: sp && !c ? fmt(ST.waiting, { n: sp.need, d: sp.dead }) : '',
           spiritLate: !!(c && c.late),
           council: mine ? {
             label: ST[mine.faction], color: facColor[mine.faction], goal: ST['goal' + mine.faction[0].toUpperCase() + mine.faction.slice(1)],
-            canWhisper: !mine.to, sent: mine.to ? fmt(ST.sent, { name: mine.to, text: mine.text || '' }) : '',
+            canWhisper: !mine.to, sent: mine.to ? fmt(ST.sent, { name: mine.to }) : '',
             living: (mine.living || []).map(nm => ({ name: nm, on: s.swTo === nm, pick: () => this.setState({ swTo: nm }) })),
-            text: s.swText || '', setText: (e) => this.setState({ swText: e.target.value }),
-            ready: !!s.swTo && !!(s.swText || '').trim() && (mine.living || []).indexOf(s.swTo) >= 0,
-            send: () => { if (!s.swTo || !(s.swText || '').trim()) return; this.props.onSpiritWhisper && this.props.onSpiritWhisper(s.swTo, s.swText.trim()); this.setState({ swText: '', councilSeen: true, spiritOpen: true }); },
+            ready: !!s.swTo && (mine.living || []).indexOf(s.swTo) >= 0,
+            send: () => { if (!s.swTo || (mine.living || []).indexOf(s.swTo) < 0) return; this.props.onSpiritWhisper && this.props.onSpiritWhisper(s.swTo); this.setState({ swTo: null, councilSeen: mine.at, spiritOpen: true }); },
             result: mine.won === true ? ST.won : mine.won === false ? ST.lost : '',
           } : null,
           chatRows: chat.map(m => ({ from: m.from === this.props.name ? ST.you : m.from, mine: m.from === this.props.name, text: m.text })),
@@ -1833,10 +1832,7 @@ export class PlayerView extends React.Component<any, any> {
                           <button key={p.name} className="press" onClick={p.pick} aria-pressed={p.on} style={{ height: '36px', padding: '0 12px', borderRadius: '999px', border: `1.5px solid ${p.on ? v.council.color : 'rgba(184,212,255,.25)'}`, background: p.on ? v.council.color : 'rgba(255,255,255,.04)', color: p.on ? '#10131c' : '#e6f0ff', fontSize: '14px', fontWeight: '700' }}>{p.name}</button>
                         ))}
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input type="text" value={v.council.text} onChange={v.council.setText} maxLength={160} placeholder={v.ST.wph} style={{ flex: '1', minWidth: '0', height: '44px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(184,212,255,.25)', background: 'rgba(255,255,255,.06)', color: '#eef4ff', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
-                        <button className="press" onClick={v.council.send} disabled={!v.council.ready} style={{ ...{ height: '44px', padding: '0 16px', flex: 'none', borderRadius: '12px', border: 'none', background: '#b8d4ff', color: '#0c1424', fontSize: '14px', fontWeight: '800' }, background: v.council.color, opacity: v.council.ready ? 1 : 0.45 }}>{v.ST.whisper}</button>
-                      </div>
+                      <button className="press" onClick={v.council.send} disabled={!v.council.ready} style={{ ...{ height: '44px', padding: '0 16px', borderRadius: '12px', border: 'none', background: '#b8d4ff', color: '#0c1424', fontSize: '14px', fontWeight: '800' }, background: v.council.color, opacity: v.council.ready ? 1 : 0.45 }}>{v.ST.whisper}</button>
                     </>
                   ) : <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: '#d6e2f6', fontStyle: 'italic' }}>{v.council.sent}</span>}
                 </section>

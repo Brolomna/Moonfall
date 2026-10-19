@@ -446,7 +446,7 @@ export class HostView extends React.Component<any, any> {
     // Nobody — phones included — learns which roles weren't dealt.
     const wolfSlots = wolfCards + wolfPicks;
     const bluffable = Math.max(0, total - wolfCards - picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length - (counts.mason || 0));
-    const extraOk = diff < 0 && -diff <= wolfSlots && -diff <= bluffable;
+    const extraOk = diff < 0 && -diff <= bluffable; // as many bluff cards as the host likes — as long as enough village cards can stay out
     // The Atheist (Blood on the Clocktower): with it in the deck there are no evil players — every non-village card is
     // shown in the role list but never dealt, so the deck holds exactly one card per player plus those evil cards.
     const atheistIn = picked.some(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].lib === 'Atheist');
@@ -455,12 +455,13 @@ export class HostView extends React.Component<any, any> {
     if (false) { /* the werewolf count never blocks the deal */ }
     else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
     else if (diff < 0 && extraOk) { deckHint = 'Ready — ' + total + ' cards for ' + n + ' players · ' + (-diff) + ' won’t be dealt (secret bluffs)'; deckColor = '#8fe0b8'; }
-    else if (diff < 0) { deckHint = 'Remove ' + (-diff - Math.min(wolfSlots, bluffable)) + ' card' + (-diff - Math.min(wolfSlots, bluffable) > 1 ? 's' : '') + ' — up to ' + Math.min(wolfSlots, bluffable) + ' extra can stay as bluffs (one per werewolf)'; deckColor = '#f2a65a'; }
+    else if (diff < 0) { deckHint = 'Remove ' + (-diff - bluffable) + ' card' + (-diff - bluffable > 1 ? 's' : '') + ' — only village cards can be left out as bluffs (' + bluffable + ' here)'; deckColor = '#f2a65a'; }
     let ready = diff === 0 || extraOk;
     if (atheistIn) {
-      const dealtN = total - evilCards;
-      ready = dealtN === n;
-      deckHint = ready ? 'Atheist game — ' + n + ' village cards dealt; the ' + evilCards + ' evil card' + (evilCards === 1 ? '' : 's') + ' only show in the role list' : dealtN < n ? 'Atheist game: add ' + (n - dealtN) + ' village card' + (n - dealtN > 1 ? 's' : '') + ' — every player gets a village card' : 'Atheist game: remove ' + (dealtN - n) + ' village card' + (dealtN - n > 1 ? 's' : '');
+      // Atheist game: every evil card is a bluff (shown, never dealt); extra village cards are left out at random too
+      const villageN = total - evilCards, spare = villageN - n;
+      ready = villageN >= n;
+      deckHint = ready ? 'Atheist game — ' + n + ' village cards dealt; ' + (evilCards + spare) + ' bluff card' + (evilCards + spare === 1 ? '' : 's') + ' (' + evilCards + ' evil' + (spare ? ', ' + spare + ' village' : '') + ') only show in the role list' : 'Atheist game: add ' + (n - villageN) + ' village card' + (n - villageN > 1 ? 's' : '') + ' — every player gets a village card';
       deckColor = ready ? '#b8c4ff' : '#f2a65a';
     }
 
@@ -883,7 +884,7 @@ export class HostView extends React.Component<any, any> {
       else if (firstOut.name === ivoryHolder && isOut(ivoryHolder)) push('ivory-hit-' + ivoryHolder, 'Ivory Tower · ' + ivoryHolder, 'The Ivory Tower protects ' + ivoryHolder, ivoryHolder + ' can’t be the first one out this game. Undo it — the wolves or the village must choose someone else.', '230,238,252', '#e6eefc', 'M5 21V9l2-2V4h2v2h2V4h2v2h2V4h2v3l2 2v12z M10 21v-5h4v5', { label: 'Undo — keep ' + ivoryHolder + ' alive', fn: () => this.setState(markPatch(ivoryHolder, 'alive')) });
     }
     const council0 = this.props.net && this.props.net.spirits && this.props.net.spirits.council;
-    if (council0) push('council', 'Spirit Realm', 'The Spirit Council has gathered', Object.keys(council0.spirits).length + ' spirit' + (Object.keys(council0.spirits).length > 1 ? 's' : '') + ' secretly got a new faction on their phones and may each whisper once to a living player. Their old team no longer counts for them. Their factions and whispers are on the Spirit Realm card.', '184,212,255', '#b8d4ff', 'M12 3c-4 0-7 3-7 7v10l2.3-1.6L9.7 20l2.3-1.6 2.3 1.6 2.4-1.6L19 20V10c0-4-3-7-7-7z M9.5 10.5h.01 M14.5 10.5h.01');
+    if (council0) push('council', 'Spirit Realm', 'The Spirit Council has gathered', Object.keys(council0.spirits).length + ' spirit' + (Object.keys(council0.spirits).length > 1 ? 's' : '') + ' secretly got a new faction on their phones and each secretly chooses one living player (no message is sent). Their old team no longer counts for them. Their factions and choices are on the Spirit Realm card.', '184,212,255', '#b8d4ff', 'M12 3c-4 0-7 3-7 7v10l2.3-1.6L9.7 20l2.3-1.6 2.3 1.6 2.4-1.6L19 20V10c0-4-3-7-7-7z M9.5 10.5h.01 M14.5 10.5h.01');
     const alien = names.find(nm => isLibA(nm, 'Alien') && !isOut(nm));
     if (alien && alive.length === 3) push('alien-' + round, 'Alien · ' + alien, 'The Alien wins!', 'Exactly three players are left and ' + alien + ' is one of them — the Alien wins alone. Keep playing for everyone else.', '143,211,232', '#8fd3e8', roleOf(alien).icon);
     names.filter(isOut).forEach(nm => {
@@ -1529,7 +1530,7 @@ export class HostView extends React.Component<any, any> {
     // a finished game is written to the Hall of Fame once (componentDidUpdate); the first player out gets the Ivory Tower
     const firstOutEv = log.find(e => e.t === 'out' && e.how !== 'removed');
     // The Spirit Council (server-run): a dead spirit's original team no longer counts — its secret new faction decides
-    // (good wins with the village, evil with the werewolves, neutral if the player it whispered to is alive). Its role never
+    // (good wins with the village, evil with the werewolves, neutral if the player it chose is alive). Its role never
     // changes; personal goals (Angel, Survivor…) still count.
     const spiritsNet = (this.props.net && this.props.net.spirits) || null, councilNet = spiritsNet && spiritsNet.council;
     const spiritFac = (nm) => (councilNet && councilNet.spirits && councilNet.spirits[nm] && isOut(nm) ? councilNet.spirits[nm].faction : null);
@@ -1553,10 +1554,11 @@ export class HostView extends React.Component<any, any> {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
         // bluff cards — deal by priority: 1. every wolf-side card, 2. every solo-win role, 3. village cards.
         // The extras are left out at random among village cards only (never a Mason, or a card a fixed player needs).
-        const extraN = atheistIn ? deck.filter(r => r.team !== 'Village').length : Math.max(0, deck.length - n);
+        const extraN = Math.max(0, deck.length - n);
         const keep = deck.map(() => true), needFixed = {}; Object.values(fixed).forEach(k => { needFixed[k] = (needFixed[k] || 0) + 1; });
-        const canDrop = atheistIn ? deck.map((r, i) => i).filter(i => deck[i].team !== 'Village') // Atheist game: every evil card stays out
-          : deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason').sort(() => Math.random() - 0.5);
+        // Atheist game: every evil card stays out, then spare village cards at random (never the Atheist itself)
+        const villageDrop = deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason' && deck[i].lib !== 'Atheist').sort(() => Math.random() - 0.5);
+        const canDrop = atheistIn ? deck.map((r, i) => i).filter(i => deck[i].team !== 'Village').concat(villageDrop) : villageDrop;
         let dropped = 0;
         for (const i of canDrop) {
           if (dropped >= extraN) break;
@@ -1830,6 +1832,9 @@ export class HostView extends React.Component<any, any> {
           head: c ? 'The Spirit Council has gathered' : sn.dead + ' spirit' + (sn.dead === 1 ? '' : 's') + ' · call the Council whenever you like (suggested at ' + sn.need + ')',
           canCall: !c && sn.dead > 0, confirm: !!s.councilAsk,
           call: () => { if (!s.councilAsk) { this.setState({ councilAsk: true }); clearTimeout(this._ca); this._ca = setTimeout(() => this.setState({ councilAsk: false }), 4000); return; } this.setState({ councilAsk: false }); this.props.onCouncil && this.props.onCouncil(); },
+          // undo the Council (tap twice): factions and choices are forgotten, and it can be called again
+          canUndo: !!c, undoAsk: !!s.councilUndoAsk,
+          undo: () => { if (!s.councilUndoAsk) { this.setState({ councilUndoAsk: true }); clearTimeout(this._cu); this._cu = setTimeout(() => this.setState({ councilUndoAsk: false }), 4000); return; } this.setState({ councilUndoAsk: false, dismissed: (s.dismissed || []).filter(d => d !== 'council') }); this.props.onCouncilUndo && this.props.onCouncilUndo(); },
           rows: c ? Object.keys(c.spirits).map(nm => { const x = c.spirits[nm], r = (this.props.net.assign || {})[nm]; return { name: nm, fac: x.faction, color: col[x.faction], to: x.to || '', text: x.text || '', won: sn.won ? sn.won[nm] : null }; }) : [],
           chat: (sn.chat || []).slice(-60), chatN: (sn.chat || []).length, chatOpen: !!s.spChat, toggleChat: () => this.setState({ spChat: !s.spChat }),
         };
@@ -2743,10 +2748,15 @@ export class HostView extends React.Component<any, any> {
                   <section aria-label="Spirit Realm" style={{ padding: '14px', borderRadius: '20px', background: 'linear-gradient(160deg, rgba(40,60,100,.55), rgba(14,10,28,.85))', border: '1px solid rgba(184,212,255,.35)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#b8d4ff' }}>👻 Spirit Realm · only you see this</span>
                     <span style={{ fontSize: '15px', fontWeight: '700', color: '#eef4ff' }}>{v.spiritHost.head}</span>
-                    {!v.spiritHost.triggered ? <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#9fb2d4' }}>Dead players chat on their phones. When you call the Council, every spirit at that moment secretly gets a new faction and whispers once to a living player. Once per game.</span> : null}
+                    {!v.spiritHost.triggered ? <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#9fb2d4' }}>Dead players chat on their phones. When you call the Council, every spirit at that moment secretly gets a new faction and secretly chooses one living player. Once per game.</span> : null}
                     {(v.spiritHost.canCall) ? (
                       <button className="press" onClick={v.spiritHost.call} style={{ height: '46px', borderRadius: '14px', border: `1px solid ${v.spiritHost.confirm ? '#d9ffec' : 'rgba(184,212,255,.5)'}`, background: v.spiritHost.confirm ? 'rgba(170,255,210,.2)' : 'rgba(184,212,255,.12)', color: '#e6f0ff', fontSize: '15px', fontWeight: '800' }}>
                         {v.spiritHost.confirm ? 'Tap again to call it now' : '👻 Call the Spirit Council'}
+                      </button>
+                    ) : null}
+                    {(v.spiritHost.canUndo) ? (
+                      <button className="press" onClick={v.spiritHost.undo} style={{ alignSelf: 'flex-start', height: '36px', padding: '0 14px', borderRadius: '12px', border: `1px solid ${v.spiritHost.undoAsk ? '#ffb4c0' : 'rgba(184,212,255,.4)'}`, background: v.spiritHost.undoAsk ? 'rgba(255,138,155,.18)' : 'none', color: '#e6f0ff', fontSize: '13px', fontWeight: '800' }}>
+                        {v.spiritHost.undoAsk ? 'Tap again to undo the Council' : '↺ Undo the Spirit Council'}
                       </button>
                     ) : null}
                     {v.spiritHost.rows.map((r: any) => (
@@ -2756,7 +2766,7 @@ export class HostView extends React.Component<any, any> {
                           <span style={{ padding: '1px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: '800', color: '#10131c', background: r.color, textTransform: 'capitalize' }}>{r.fac}</span>
                           {r.won === true ? <span style={{ fontSize: '12px', color: '#8fe0b8' }}>wins</span> : r.won === false ? <span style={{ fontSize: '12px', color: '#ff8a9b' }}>loses</span> : null}
                         </span>
-                        <span style={{ fontSize: '12.5px', color: '#c4d2ea' }}>{r.to ? 'Whispered to ' + r.to + ': “' + r.text + '”' : 'Choosing whom to whisper to…'}</span>
+                        <span style={{ fontSize: '12.5px', color: '#c4d2ea' }}>{r.to ? 'Chose ' + r.to : 'Choosing a living player…'}</span>
                       </span>
                     ))}
                     {(v.spiritHost.chatN) ? (

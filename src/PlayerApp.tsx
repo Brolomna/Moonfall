@@ -98,7 +98,7 @@ export function PlayerApp() {
             spirit={view?.spirit || null}
             spiritWhispers={view?.spiritWhispers || []}
             onSpiritSay={(text: string) => socket.emit('spirit:say', text)}
-            onSpiritWhisper={(to: string, text: string) => socket.emit('spirit:whisper', { to, text })}
+            onSpiritWhisper={(to: string) => socket.emit('spirit:whisper', { to })}
             sponsor={view ? view.sponsor || null : preSponsor}
             installMode={inst.mode}
             onInstall={inst.install}

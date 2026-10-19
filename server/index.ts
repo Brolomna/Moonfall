@@ -204,8 +204,8 @@ function playerView(p: Player) {
   const poolCounts: Record<string, number> = {};
   if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
   const deck0 = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
-  // the Atheist never shows in the players' role list (it would give the twist away): it's listed as a Villager
-  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
+  // the Atheist and the Drunk never show in the players' role list (they'd give the twist away): each is listed as a Villager
+  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist' || c.lib === 'Drunk').map((c: any) => c.key);
   const hiddenN = deck0.filter(([k]) => atheistKeys.includes(k)).reduce((a, [, c]) => a + Number(c), 0);
   const deck = hiddenN ? deck0.filter(([k]) => !atheistKeys.includes(k)).map(([k, c]) => [k, k === 'villager' ? Number(c) + hiddenN : c] as [string, number]).concat(deck0.some(([k]) => k === 'villager') ? [] : [['villager', hiddenN] as [string, number]]) : deck0;
 
@@ -228,8 +228,6 @@ function playerView(p: Player) {
     sponsor: sponsorView(),
     theme: room.shared.theme || null, // the host's look (e.g. 'halloween')
     spirit: spiritView(p.name), // only when this player is dead
-    // whispers spirits sent to this living player (anonymous)
-    spiritWhispers: room.council && !isSpirit(p.name) ? Object.values(room.council.spirits).filter(x => x.to === p.name && x.text).map(x => ({ id: 'sw' + x.at, text: x.text })) : [],
     note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
@@ -274,22 +272,28 @@ function spectatorView(sp: Player) {
 // ---------- the Spirit Realm ----------
 // Dead players are spirits: they chat with each other on their phones. When the host calls it (suggested once
 // ceil(30% of the starting players) are dead), the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
-// neutral — which replaces their old team for winning (their role itself never changes), and may whisper one message
-// to one living player. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
+// neutral — which replaces their old team for winning (their role itself never changes), and secretly chooses one
+// living player (no message is sent — the choice only matters for a neutral spirit's win). In an Atheist game there
+// are no evil players, so every spirit becomes good. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
 const startCount = () => Object.keys(room.assign).length;
 const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
 const isSpirit = (name: string) => { const m = (room.shared.status || {})[name]; return room.dealt && !!m && m.how !== 'removed'; };
 const livingNames = () => room.players.filter(p => room.assign[p.name] && !(room.shared.status || {})[p.name]).map(p => p.name);
+/** An Atheist was dealt (no evil players this game). */
+const atheistGame = () => {
+  const keys = (room.shared.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
+  return keys.length > 0 && Object.values(room.assign).some(k => keys.includes(k));
+};
 function callCouncil() {
   if (!room.dealt || room.council || !startCount()) return;
   const dead = room.players.map(p => p.name).filter(isSpirit);
   if (!dead.length) return; // needs at least one spirit
-  const order: Faction[] = shuffle(['good', 'evil', 'neutral'] as Faction[]);
+  const order: Faction[] = atheistGame() ? ['good'] : shuffle(['good', 'evil', 'neutral'] as Faction[]);
   const spirits: Council['spirits'] = {};
-  shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % 3] }; }); // a fair spread of the three
+  shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % order.length] }; }); // a fair spread of the three
   room.council = { at: Date.now(), round: room.shared.round || 1, phase: room.shared.phase || 'night', start: startCount(), spirits };
 }
-/** Did this spirit win? good → with the village, evil → with the werewolves, neutral → the player they whispered to is alive. */
+/** Did this spirit win? good → with the village, evil → with the werewolves, neutral → the player they chose is alive. */
 function spiritWon(name: string): boolean | null {
   const s = room.council && room.council.spirits[name]; const w = room.shared.winner;
   if (!s || !w || !isSpirit(name)) return null;
@@ -302,7 +306,7 @@ function spiritView(name: string) {
   const c = room.council, mine = c && c.spirits[name];
   return {
     chat: room.spiritChat.slice(-80),
-    council: c ? (mine ? { faction: mine.faction, to: mine.to || null, text: mine.text || null, living: livingNames(), won: spiritWon(name) } : { late: true }) : null,
+    council: c ? (mine ? { at: c.at, faction: mine.faction, to: mine.to || null, living: livingNames(), won: spiritWon(name) } : { late: true }) : null,
     need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
   };
 }
@@ -412,6 +416,8 @@ io.on('connection', (socket: Socket) => {
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
     // the host calls the Spirit Council when the game is ready for it (once per game)
     socket.on('host:council', () => { callCouncil(); pushAll(); });
+    // …and can undo it (called by mistake): factions and choices are forgotten, it can be called again
+    socket.on('host:council:undo', () => { room.council = null; pushAll(); });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll();
@@ -494,13 +500,13 @@ io.on('connection', (socket: Socket) => {
     if (room.spiritChat.length > 300) room.spiritChat = room.spiritChat.slice(-300);
     pushAll();
   });
-  // …and at the Spirit Council each one whispers once to one living player
-  socket.on('spirit:whisper', (msg: { to: string; text: string }) => {
+  // …and at the Spirit Council each one secretly chooses one living player (no message — nothing reaches that phone)
+  socket.on('spirit:whisper', (msg: { to: string }) => {
     const s = me && room.council && room.council.spirits[me.name];
     if (!me || !s || s.to || !isSpirit(me.name)) return;
-    const to = String(msg && msg.to || ''), t = String(msg && msg.text || '').trim().slice(0, 160);
-    if (!t || livingNames().indexOf(to) < 0) return;
-    s.to = to; s.text = t; s.at = Date.now();
+    const to = String(msg && msg.to || '');
+    if (livingNames().indexOf(to) < 0) return;
+    s.to = to; s.at = Date.now();
     pushAll();
   });
 
