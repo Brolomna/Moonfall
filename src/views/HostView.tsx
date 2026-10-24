@@ -160,6 +160,8 @@ export class HostView extends React.Component<any, any> {
   }
 
   static store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } return null; }
+  // how often each library role was dealt on this phone (the "Most played" preset)
+  static roleUse() { try { return JSON.parse(localStorage.getItem('moonfall.roleUse') || '{}') || {}; } catch { return {}; } }
   static fame() { try { return JSON.parse(localStorage.getItem('moonfall.fame') || '{}') || {}; } catch { return {}; } }
 
   setState(patch, cb) {
@@ -447,10 +449,10 @@ export class HostView extends React.Component<any, any> {
     const wolfSlots = wolfCards + wolfPicks;
     const bluffable = Math.max(0, total - wolfCards - picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length - (counts.mason || 0));
     const extraOk = diff < 0 && -diff <= bluffable; // as many bluff cards as the host likes — as long as enough village cards can stay out
-    // The Atheist (Blood on the Clocktower): with it in the deck there are no evil players — every non-village card is
-    // shown in the role list but never dealt, so the deck holds exactly one card per player plus those evil cards.
+    // The Atheist (Blood on the Clocktower): with it in the deck there are no evil players — every wolf-side card is
+    // shown in the role list but never dealt (bluffs). Village, special and neutral cards are dealt as usual.
     const atheistIn = picked.some(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].lib === 'Atheist');
-    const evilCards = wolfCards + picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team !== 'Village').length;
+    const evilCards = wolfCards + picked.filter(k => byKey[k] && hidden.indexOf(k) < 0 && byKey[k].kind === 'unique' && byKey[k].team === 'Werewolves').length;
     let deckHint = 'Ready — ' + total + ' cards for ' + n + ' players', deckColor = '#8fe0b8';
     if (false) { /* the werewolf count never blocks the deal */ }
     else if (diff > 0) { deckHint = 'Add ' + diff + ' more card' + (diff > 1 ? 's' : '') + ' — one for each player'; deckColor = '#f2a65a'; }
@@ -458,10 +460,10 @@ export class HostView extends React.Component<any, any> {
     else if (diff < 0) { deckHint = 'Remove ' + (-diff - bluffable) + ' card' + (-diff - bluffable > 1 ? 's' : '') + ' — only village cards can be left out as bluffs (' + bluffable + ' here)'; deckColor = '#f2a65a'; }
     let ready = diff === 0 || extraOk;
     if (atheistIn) {
-      // Atheist game: every evil card is a bluff (shown, never dealt); extra village cards are left out at random too
-      const villageN = total - evilCards, spare = villageN - n;
-      ready = villageN >= n;
-      deckHint = ready ? 'Atheist game — ' + n + ' village cards dealt; ' + (evilCards + spare) + ' bluff card' + (evilCards + spare === 1 ? '' : 's') + ' (' + evilCards + ' evil' + (spare ? ', ' + spare + ' village' : '') + ') only show in the role list' : 'Atheist game: add ' + (n - villageN) + ' village card' + (n - villageN > 1 ? 's' : '') + ' — every player gets a village card';
+      // Atheist game: every wolf-side card is a bluff (shown, never dealt); extra village cards are left out at random too
+      const goodN = total - evilCards, spare = goodN - n;
+      ready = goodN >= n;
+      deckHint = ready ? 'Atheist game — ' + n + ' cards dealt, no werewolves; ' + (evilCards + spare) + ' bluff card' + (evilCards + spare === 1 ? '' : 's') + ' (' + evilCards + ' wolf-side' + (spare ? ', ' + spare + ' village' : '') + ') only show in the role list' : 'Atheist game: add ' + (n - goodN) + ' village, special or neutral card' + (n - goodN > 1 ? 's' : '') + ' — werewolf cards are never dealt';
       deckColor = ready ? '#b8c4ff' : '#f2a65a';
     }
 
@@ -597,11 +599,23 @@ export class HostView extends React.Component<any, any> {
     const libTabs = LIB_CATS.map(c => ({ label: c, count: ROLE_LIBRARY.filter(e => e.cat === c).length, on: !libQ && c === libCat, pick: () => this.setState({ libCat: c, libQ: '' }) }));
 
     // ---------- presets (balanced for the current player count) ----------
+    // Most played: the roles dealt most often on this phone (before any were counted: the roles people won with)
+    const useCounts = (() => {
+      const u = HostView.roleUse(); if (Object.keys(u).length) return u;
+      const out = {}; Object.values(HostView.fame()).forEach((p: any) => Object.keys(p.roles || {}).forEach(nm => { out[nm] = (out[nm] || 0) + p.roles[nm]; }));
+      return out;
+    })();
+    const favAll = Object.keys(useCounts).filter(nm => ROLE_LIBRARY.find(e => e.name === nm) && ['Villager', 'Werewolf', 'Mason', 'Atheist'].indexOf(nm) < 0).sort((a, b) => useCounts[b] - useCounts[a]);
+    const favIsWolf = (nm) => { const e = ROLE_LIBRARY.find(x => x.name === nm); return e.team === 'Werewolves' && e.wolf !== false && e.builtin !== 'minion' && e.builtin !== 'sorceress'; };
+    const favWolves = favAll.filter(favIsWolf), favOthers = favAll.filter(nm => !favIsWolf(nm));
     const PRESETS = [
       { id: 'beginner', label: 'Beginner', sub: 'Seer & Healer', special: () => 2, roles: ['Seer', 'Healer'] },
       { id: 'classic', label: 'Classic', sub: 'The well-known roles', special: (k) => Math.max(2, Math.round(k * 0.5)), roles: ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard', 'Prince', 'Apprentice Seer'] },
       { id: 'intermediate', label: 'Intermediate', sub: 'New twists every tap', random: true },
       { id: 'advanced', label: 'Advanced', sub: 'A wild new mix every tap', random: true },
+      { id: 'atheist', label: 'Atheist', sub: 'No werewolves · new mix every tap', random: true },
+      { id: 'favorites', label: 'Most played', sub: favOthers.length ? favOthers.slice(0, 3).join(', ') + '…' : 'Your favourites, after a game or two',
+        special: (k) => Math.max(2, Math.round(k * 0.6)), roles: favOthers.length ? favOthers : ['Seer', 'Healer', 'Hunter', 'Witch', 'Mayor', 'Bodyguard'], wolfRoles: (W) => favWolves.slice(0, W >= 2 ? 1 : 0) },
     ];
     const libEntry = (nm) => ROLE_LIBRARY.find(e => e.name === nm);
     const strengthOf = (nm) => { const e = libEntry(nm); return e.builtin && byKey[e.builtin] ? byKey[e.builtin].strength : e.s; };
@@ -659,9 +673,30 @@ export class HostView extends React.Component<any, any> {
       }
       return best;
     };
+    // Atheist: the Atheist plus village, special and neutral roles only — never a werewolf (the host may add wolf cards
+    // afterwards; in an Atheist game they're only bluffs). A new mix on every tap, preferring roles not played recently.
+    const atheistDeck = (N) => {
+      const recent = s.presetRecent || [];
+      const NEEDS = { 'Hunter Apprentice': 'Hunter', 'Vampire Hunter': 'Vampire' };
+      const slots = N - 1 - (LOCK.hand.length - handWolves); // one card is the Atheist
+      const picks = uniq(LOCK.others.filter(nm => nm !== 'Atheist'));
+      const want = Math.min(slots, Math.max(picks.length, Math.round(slots * (0.55 + Math.random() * 0.3))));
+      const lonerCap = N >= 8 ? 2 : 1;
+      let loners = 0;
+      const pool = ROLE_LIBRARY.filter(e => e.team !== 'Werewolves' && e.name !== 'Atheist' && ['villager', 'werewolf', 'mason'].indexOf(e.builtin) < 0 && picks.indexOf(e.name) < 0)
+        .map(e => [(recent.indexOf(e.name) >= 0 ? 1 : 0) + Math.random() * 0.9, e]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+      for (const e of pool) {
+        if (picks.length >= want) break;
+        if (e.team === 'Loner' && loners >= lonerCap) continue;
+        if (NEEDS[e.name] && picks.indexOf(NEEDS[e.name]) < 0) continue;
+        if (e.team === 'Loner') loners++;
+        picks.push(e.name);
+      }
+      return { wolfRoles: LOCK.wolves.slice(), specials: ['Atheist'].concat(picks), villagers: Math.max(0, slots - picks.length) };
+    };
     const applyPreset = (p) => {
       const N = Math.max(5, n), W = Math.max(1, Math.round(N / 4));
-      const gen = p.random ? randomDeck(p.id, N, W) : null;
+      const gen = p.id === 'atheist' ? atheistDeck(N) : p.random ? randomDeck(p.id, N, W) : null;
       // locked roles first, then the preset's own picks
       const wolfRoles = gen ? gen.wolfRoles : uniq(LOCK.wolves.concat(p.wolfRoles ? p.wolfRoles(W) : [])).slice(0, Math.max(LOCK.wolves.length, W - handWolves));
       const slots = N - W - (LOCK.hand.length - handWolves);
@@ -694,7 +729,7 @@ export class HostView extends React.Component<any, any> {
         return role.key;
       });
       const used = wolfRoles.concat(specials);
-      this.setState({ counts: { werewolf: Math.max(0, W - wolfRoles.length - handWolves), villager: villagers, mason: 0 }, picked: keys.concat(LOCK.hand), custom: nextCustom, hidden: nextHidden, preset: p.id,
+      this.setState({ counts: { werewolf: p.id === 'atheist' ? 0 : Math.max(0, W - wolfRoles.length - handWolves), villager: villagers, mason: 0 }, picked: keys.concat(LOCK.hand), custom: nextCustom, hidden: nextHidden, preset: p.id,
         ...(gen ? { presetRecent: used.concat((s.presetRecent || []).filter(nm => used.indexOf(nm) < 0)).slice(0, 30) } : {}) });
     };
     const presets = PRESETS.map(p => ({ label: p.label, sub: p.sub, on: s.preset === p.id, apply: () => applyPreset(p) }));
@@ -738,7 +773,9 @@ export class HostView extends React.Component<any, any> {
 
     const baseRole = {}; names.forEach((nm, i) => { baseRole[nm] = byKey[((this.props.net && this.props.net.assign) || {})[nm]] || shuffled[i] || byKey.villager; /* NET: server deals the cards */ });
     const roleOf = (nm) => (override[nm] && byKey[override[nm]]) || baseRole[nm];
-    const atheistGame = names.some(nm => baseRole[nm] && baseRole[nm].lib === 'Atheist'); // an Atheist was dealt: no evil players
+    // an Atheist is in play (dealt, given with the master controls, or among the round's cards): no evil players
+    const atheistGame = names.some(nm => (baseRole[nm] && baseRole[nm].lib === 'Atheist') || (roleOf(nm) && roleOf(nm).lib === 'Atheist'))
+      || (!!(this.props.net && this.props.net.dealt) && (s.pool || []).some(k => byKey[k] && byKey[k].lib === 'Atheist'));
     const isOut = (nm) => !!status[nm];
     const alive = names.filter(nm => !isOut(nm));
     const aliveWith = (key) => alive.filter(nm => roleOf(nm).key === key);
@@ -1312,11 +1349,13 @@ export class HostView extends React.Component<any, any> {
     // secret phone vote (house rule): the server keeps who voted for whom; the host sees only the counts
     const ballot = (this.props.net && this.props.net.ballot) || null;
     // a phone vote is about one nominee at a time: while it's open, that nominee's count is the live "eliminate" votes
-    const countOf = (n) => (ballot && ballot.nominee === n.name ? ballot.kill : n.count);
+    // master controls can force a nominee's count (it beats the hands and the secret phone vote)
+    const forcedVotes = vote.forced || {};
+    const countOf = (n) => (forcedVotes[n.name] != null ? forcedVotes[n.name] : ballot && ballot.nominee === n.name ? ballot.kill : n.count);
     let frozenNoms = null; // the phone counts, kept on the panel once the phone vote closes
-    const freeze = () => { if (ballot) { frozenNoms = vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: ballot.kill } : x)); this.props.onBallot && this.props.onBallot(null); } };
+    const freeze = () => { if (ballot) { frozenNoms = vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: countOf(x) } : x)); this.props.onBallot && this.props.onBallot(null); } };
     // closing a nominee's phone vote keeps their "eliminate" count on the panel
-    const closeBallot = () => { if (!ballot) return; setVote({ noms: vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: ballot.kill } : x)) }); this.props.onBallot && this.props.onBallot(null); };
+    const closeBallot = () => { if (!ballot) return; setVote({ noms: vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: countOf(x) } : x)) }); this.props.onBallot && this.props.onBallot(null); };
     const tallyOf = () => vote.noms.map(n => ({ ...n, count: countOf(n) })).filter(n => n.count > 0).sort((a, b) => b.count - a.count).map(n => [n.name, n.count]);
     const noOneOut = (why) => setVote({ ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: null, why, tally: tallyOf() } }, { log: log.concat([ev('vote', { tally: tallyOf(), out: null, why })]), nominating: false });
     const endVote = () => {
@@ -1470,11 +1509,14 @@ export class HostView extends React.Component<any, any> {
     if (!solo && anyOut && leader && alive.length > 1 && alive.every(nm => nm === leader || inCult.indexOf(nm) >= 0)) solo = { lib: 'Cult', names: [leader].concat(alive.filter(nm => nm !== leader)) };
     // the Lone Wolf wins only as the last wolf standing
     if (!solo && wolvesWin && wolvesNow.length && wolvesNow.every(nm => libA(nm) === 'Lone Wolf')) solo = { lib: 'Lone Wolf', names: wolvesNow };
-    // The Atheist: voting out the host wins it for the village when an Atheist was dealt — and for the wolves when not.
-    // In an Atheist game the (imaginary) wolves win once only two players are left.
+    // The Atheist: an Atheist game never ends just because nobody evil is left (there were none to begin with).
+    // Voting out the host ends it: the village wins if nobody evil is in play, the evil team wins if someone is
+    // (a player turned to the wolves, or no Atheist at all). Without a host vote, real wolves (turned players) still win
+    // by numbers, and the imaginary wolves win once only two players are left. Solo roles still win on their own.
     const hostOut = !!mech.hostOut;
-    if (atheistGame) { solo = null; villageWins = hostOut; wolvesWin = !hostOut && anyOut && alive.length <= 2; }
-    else if (hostOut) { solo = null; villageWins = false; wolvesWin = true; }
+    const evilAlive = wolvesAlive + alliesAlive;
+    if (hostOut) { solo = null; villageWins = atheistGame && evilAlive === 0; wolvesWin = !villageWins; }
+    else if (atheistGame) { villageWins = false; wolvesWin = evilAlive > 0 ? wolvesWin : anyOut && alive.length <= 2; }
     // master controls: the host forced an ending (to test the end cards, or just for fun)
     const forced = screen === 'play' && n > 0 ? s.forced || null : null;
     if (forced) {
@@ -1484,11 +1526,14 @@ export class HostView extends React.Component<any, any> {
       else if (forced === 'Cult') solo = { lib: 'Cult', names: holders('Cult Leader') };
       else if (['village', 'wolves', 'Tanner'].indexOf(forced) < 0) solo = { lib: forced, names: holders(forced) };
     }
+    // master controls: endings switched off — no win screen of any kind until the host turns them back on
+    const noEnd = !!mech.noEnd && !forced;
+    if (noEnd) { villageWins = false; wolvesWin = false; solo = null; }
     const soloWins = !!solo;
     const killerLib = solo ? solo.lib : null;
     // the Tanner voted out wins, and everyone else loses — the game ends there
     const tannerWin = forced ? (forced === 'Tanner' ? names.find(nm => roleOf(nm).key === 'tanner') || names[0] : undefined)
-      : names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
+      : noEnd ? undefined : names.find(nm => roleOf(nm).key === 'tanner' && status[nm] && status[nm].how === 'voted');
     const gameOver = villageWins || wolvesWin || soloWins || !!tannerWin;
     const soloTitle = tannerWin ? 'The Tanner wins!' : soloWins ? (solo.names.length > 1 ? 'The ' + killerLib + 's win!' : (killerLib === 'Death' ? '' : 'The ') + killerLib + ' wins!') : '';
     const soloTitle2 = !soloWins ? '' : killerLib === 'Lovers' ? 'The lovers win!' : killerLib === 'Cult' ? 'The cult wins!' : '';
@@ -1556,9 +1601,9 @@ export class HostView extends React.Component<any, any> {
         // The extras are left out at random among village cards only (never a Mason, or a card a fixed player needs).
         const extraN = Math.max(0, deck.length - n);
         const keep = deck.map(() => true), needFixed = {}; Object.values(fixed).forEach(k => { needFixed[k] = (needFixed[k] || 0) + 1; });
-        // Atheist game: every evil card stays out, then spare village cards at random (never the Atheist itself)
+        // Atheist game: every wolf-side card stays out, then spare village cards at random (never the Atheist itself)
         const villageDrop = deck.map((r, i) => i).filter(i => deck[i].team === 'Village' && deck[i].key !== 'mason' && deck[i].lib !== 'Atheist').sort(() => Math.random() - 0.5);
-        const canDrop = atheistIn ? deck.map((r, i) => i).filter(i => deck[i].team !== 'Village').concat(villageDrop) : villageDrop;
+        const canDrop = atheistIn ? deck.map((r, i) => i).filter(i => deck[i].team === 'Werewolves').concat(villageDrop) : villageDrop;
         let dropped = 0;
         for (const i of canDrop) {
           if (dropped >= extraN) break;
@@ -1567,6 +1612,9 @@ export class HostView extends React.Component<any, any> {
           keep[i] = false; dropped++;
         }
         const dealtKeys = deck.filter((r, i) => keep[i]).map(r => r.key);
+        // count every dealt role for the "Most played" preset
+        const use = HostView.roleUse(); dealtKeys.forEach(k => { const nm = libNameOfKey(k); if (nm) use[nm] = (use[nm] || 0) + 1; });
+        HostView.store('moonfall.roleUse', JSON.stringify(use));
         const unused = deck.filter((r, i) => !keep[i]).map(r => r.key);
         const start = { t: 'start', round: 1, phase: 'night', players: n, text: tally.map(x => (x.n > 1 ? x.n + '× ' : '') + x.name).join(', ') + (unused.length ? ' — not dealt (secret bluffs): ' + unused.map(k => byKey[k].name).join(', ') : '') };
         this.props.onDeal && this.props.onDeal(dealtKeys, fixed); // NET: fixed players get their card, the rest are shuffled
@@ -1785,6 +1833,15 @@ export class HostView extends React.Component<any, any> {
       simAll: () => { this.setState({ master: false }); this.simAll(); },
       simBusy: !!s.simBusy,
       round, roundDown: () => this.setState({ round: Math.max(1, round - 1) }), roundUp: () => this.setState({ round: round + 1 }),
+      // force the number of votes any nominee gets (shown on the vote panel and used when the vote ends)
+      voteOpen: !night && !vote.closed && vote.noms.length > 0,
+      voteRows: vote.closed ? [] : vote.noms.map(x => {
+        const setF = (c) => { const f = { ...forcedVotes }; if (c === null) delete f[x.name]; else f[x.name] = Math.max(0, Math.min(voters, c)); setVote({ forced: f }); };
+        return { name: x.name === HOST ? '👑 The host' : x.name, count: countOf(x), forced: forcedVotes[x.name] != null,
+          dec: () => setF(countOf(x) - 1), inc: () => setF(countOf(x) + 1), clear: () => setF(null) };
+      }),
+      // switch every ending off (no win screen of any kind) or back on
+      noEnd: !!mech.noEnd, toggleNoEnd: () => this.setState({ mech: { ...mech, noEnd: !mech.noEnd } }),
     };
     const tapAlive = () => {
       const now = Date.now(); this._taps = (this._taps || []).filter(t => now - t < 1500).concat([now]);
@@ -1826,7 +1883,7 @@ export class HostView extends React.Component<any, any> {
       spiritHost: (() => {
         const sn = (this.props.net && this.props.net.spirits) || null;
         if (!sn || screen !== 'play') return null;
-        const c = sn.council, col = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' };
+        const c = sn.council, col = { good: '#8fe0b8', evil: '#ff8a9b', neutral: '#f2c38a' }; // (neutral: games from before it was dropped)
         return {
           show: sn.dead > 0 || !!c, need: sn.need, dead: sn.dead, triggered: !!c,
           head: c ? (c.revealed ? 'The Spirit Council is over · factions revealed' : 'The Spirit Council has gathered · factions still hidden on phones') : sn.dead + ' spirit' + (sn.dead === 1 ? '' : 's') + ' · call the Council whenever you like (suggested at ' + sn.need + ')',
@@ -1834,8 +1891,8 @@ export class HostView extends React.Component<any, any> {
           call: () => { if (!s.councilAsk) { this.setState({ councilAsk: true }); clearTimeout(this._ca); this._ca = setTimeout(() => this.setState({ councilAsk: false }), 4000); return; } this.setState({ councilAsk: false }); this.props.onCouncil && this.props.onCouncil(); },
           // undo the Council (tap twice): factions and choices are forgotten, and it can be called again
           canUndo: !!c, undoAsk: !!s.councilUndoAsk,
-          // after the Council: show each spirit its faction on its phone (tap twice)
-          canReveal: !!c && !c.revealed, revealAsk: !!s.councilRevealAsk,
+          // show each spirit its faction on its phone (tap twice) — always there: before the Council it calls it too
+          canReveal: !c || !c.revealed, revealAsk: !!s.councilRevealAsk, revealLabel: c ? '👁 Reveal factions' : '👁 Reveal factions (calls the Council now)',
           reveal: () => { if (!s.councilRevealAsk) { this.setState({ councilRevealAsk: true }); clearTimeout(this._cr); this._cr = setTimeout(() => this.setState({ councilRevealAsk: false }), 4000); return; } this.setState({ councilRevealAsk: false }); this.props.onCouncilReveal && this.props.onCouncilReveal(); },
           undo: () => { if (!s.councilUndoAsk) { this.setState({ councilUndoAsk: true }); clearTimeout(this._cu); this._cu = setTimeout(() => this.setState({ councilUndoAsk: false }), 4000); return; } this.setState({ councilUndoAsk: false, dismissed: (s.dismissed || []).filter(d => d !== 'council') }); this.props.onCouncilUndo && this.props.onCouncilUndo(); },
           rows: c ? Object.keys(c.spirits).map(nm => { const x = c.spirits[nm], r = (this.props.net.assign || {})[nm]; return { name: nm, fac: x.faction, color: col[x.faction], to: x.to || '', text: x.text || '', won: sn.won ? sn.won[nm] : null }; }) : [],
@@ -2007,7 +2064,7 @@ export class HostView extends React.Component<any, any> {
       noteInput: s.noteDraft || '', setNote: e => this.setState({ noteDraft: e.target.value }),
       addNote: e => { e.preventDefault(); const t = (s.noteDraft || '').trim(); if (t) this.setState({ log: log.concat([ev('note', { text: t })]), noteDraft: '' }); },
       endTitle: (soloWins || tannerWin) ? (soloTitle2 || soloTitle) : villageWins ? 'The village wins!' : 'The werewolves win!',
-      endText: atheistGame && villageWins ? 'The Atheist was right: there were never any werewolves. Voting out the host won it for the village.' : atheistGame && wolvesWin ? 'There were never any werewolves — but nobody voted out the host. The imaginary wolves win.' : hostOut && wolvesWin ? 'The village voted out the host — but there was no Atheist. The werewolves win.' : (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : ((wolfNames.join(' and ') || 'The werewolves') + ' now equal the rest of the village. Nobody can outvote them.'),
+      endText: atheistGame && villageWins ? 'The Atheist was right: there were never any werewolves. Voting out the host won it for the village.' : atheistGame && hostOut && wolvesWin ? 'The village voted out the host — but evil was in play. The evil team wins.' : atheistGame && wolvesWin && !wolfNames.length ? 'There were never any werewolves — but nobody voted out the host. The imaginary wolves win.' : hostOut && wolvesWin ? 'The village voted out the host — but there was no Atheist. The werewolves win.' : (soloWins || tannerWin) ? soloText : villageWins ? 'Every werewolf has been found and eliminated.' : ((wolfNames.join(' and ') || 'The werewolves') + ' now equal the rest of the village. Nobody can outvote them.'),
       endTips,
       endColor: (soloWins || tannerWin) ? '#f2a65a' : villageWins ? '#8fe0b8' : '#ff8a9b',
       endBorder: (soloWins || tannerWin) ? 'rgba(242,166,90,.55)' : villageWins ? 'rgba(98,212,166,.5)' : 'rgba(224,71,95,.55)',
@@ -2759,7 +2816,7 @@ export class HostView extends React.Component<any, any> {
                     ) : null}
                     {(v.spiritHost.canReveal) ? (
                       <button className="press" onClick={v.spiritHost.reveal} style={{ height: '46px', borderRadius: '14px', border: `1px solid ${v.spiritHost.revealAsk ? '#d9ffec' : 'rgba(184,212,255,.5)'}`, background: v.spiritHost.revealAsk ? 'rgba(170,255,210,.2)' : 'rgba(184,212,255,.12)', color: '#e6f0ff', fontSize: '15px', fontWeight: '800' }}>
-                        {v.spiritHost.revealAsk ? 'Tap again to reveal them now' : '👁 Reveal factions'}
+                        {v.spiritHost.revealAsk ? 'Tap again to reveal them now' : v.spiritHost.revealLabel}
                       </button>
                     ) : null}
                     {(v.spiritHost.canUndo) ? (
@@ -3966,6 +4023,24 @@ export class HostView extends React.Component<any, any> {
                   {(v.masterView.forced) ? (
                     <button className="press" onClick={v.masterView.realEnd} style={{ ...{ height: '42px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '13.5px', fontWeight: '700' }, alignSelf: 'flex-start', borderColor: 'rgba(242,166,90,.6)', color: '#f2c38a' }}>↩ Back to the real game</button>
                   ) : null}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Endings</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Switch every ending off — no win screen of any kind (village, wolves, solo roles, Tanner) until you switch them back on. Forced endings above still work.</span>
+                  <button className="press" onClick={v.masterView.toggleNoEnd} aria-pressed={v.masterView.noEnd} style={{ height: '42px', padding: '0 14px', alignSelf: 'flex-start', borderRadius: '12px', border: `1px solid ${v.masterView.noEnd ? '#ff8a9b' : 'rgba(242,166,90,.6)'}`, background: v.masterView.noEnd ? 'rgba(255,138,155,.18)' : 'rgba(0,0,0,.2)', color: v.masterView.noEnd ? '#ffb4c0' : '#f2c38a', fontSize: '13.5px', fontWeight: '800' }}>{v.masterView.noEnd ? '⛔ Endings are OFF — tap to turn them on' : 'Turn every ending off'}</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Force the votes</span>
+                  <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Set how many votes any nominee gets — it replaces the raised hands and the secret phone vote, and counts when you end the vote. Nobody sees the real phone votes.</span>
+                  {(v.masterView.voteOpen) ? v.masterView.voteRows.map((r: any) => (
+                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ flex: '1', minWidth: '0', fontSize: '14px', fontWeight: '700', color: '#ece6f6' }}>{r.name}{r.forced ? <span style={{ marginLeft: '6px', fontSize: '11px', color: '#f2c38a' }}>forced</span> : null}</span>
+                      <button className="press" onClick={r.dec} aria-label={'One vote less for ' + r.name} style={{ height: '36px', minWidth: '36px', padding: '0 10px', borderRadius: '10px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontWeight: '800' }}>−</button>
+                      <span style={{ width: '28px', textAlign: 'center', fontSize: '16px', fontWeight: '800', color: r.forced ? '#f2c38a' : '#ece6f6' }}>{r.count}</span>
+                      <button className="press" onClick={r.inc} aria-label={'One vote more for ' + r.name} style={{ height: '36px', minWidth: '36px', padding: '0 10px', borderRadius: '10px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontWeight: '800' }}>+</button>
+                      {(r.forced) ? <button className="press" onClick={r.clear} style={{ ...{ height: '36px', minWidth: '36px', padding: '0 10px', borderRadius: '10px', border: '1px solid rgba(236,230,246,.16)', background: 'rgba(255,255,255,.05)', color: '#ece6f6', fontSize: '15px', fontWeight: '800' }, fontSize: '12px' }}>Real</button> : null}
+                    </div>
+                  )) : <span style={{ fontSize: '12.5px', color: '#8f82a8', fontStyle: 'italic' }}>Open a vote and nominate someone first (day phase).</span>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#f2c38a' }}>Scenario builder</span>

@@ -137,6 +137,11 @@ function isDrunk(k: string) {
   const c = (room.shared.custom || []).find((x: any) => x.key === k);
   return !!(c && c.lib === 'Drunk');
 }
+/** A role key that is the library's Atheist. */
+function isAtheist(k: string) {
+  const c = (room.shared.custom || []).find((x: any) => x.key === k);
+  return !!(c && c.lib === 'Atheist');
+}
 
 // night deaths with their own death card on the phone (see src/deathCauses.ts)
 const FATES = ['slain', 'knife', 'burned', 'betrayed', 'staked', 'revealed', 'misfire', 'vengeance', 'deathcurse', 'kingshot', 'starved', 'ghost', 'sacrifice'];
@@ -190,6 +195,8 @@ function playerView(p: Player) {
   let role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
   // the Drunk believes they're a plain Villager until the host hands them their real role on night 3
   if (role && !(sh.override || {})[p.name] && isDrunk(role)) role = 'villager';
+  // the Atheist never shows on a phone — its holder sees a Villager card until the game is over
+  if (role && isAtheist(role) && !sh.winner) role = 'villager';
 
   const counts: Record<string, number> = {};
   Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
@@ -204,8 +211,8 @@ function playerView(p: Player) {
   const poolCounts: Record<string, number> = {};
   if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
   const deck0 = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
-  // the Atheist and the Drunk never show in the players' role list (they'd give the twist away): each is listed as a Villager
-  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist' || c.lib === 'Drunk').map((c: any) => c.key);
+  // the Atheist never shows in the players' role list (it would give the twist away): it's listed as a Villager
+  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
   const hiddenN = deck0.filter(([k]) => atheistKeys.includes(k)).reduce((a, [, c]) => a + Number(c), 0);
   const deck = hiddenN ? deck0.filter(([k]) => !atheistKeys.includes(k)).map(([k, c]) => [k, k === 'villager' ? Number(c) + hiddenN : c] as [string, number]).concat(deck0.some(([k]) => k === 'villager') ? [] : [['villager', hiddenN] as [string, number]]) : deck0;
 
@@ -271,10 +278,10 @@ function spectatorView(sp: Player) {
 
 // ---------- the Spirit Realm ----------
 // Dead players are spirits: they chat with each other on their phones. When the host calls it (suggested once
-// ceil(30% of the starting players) are dead), the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good, evil or
-// neutral — which replaces their old team for winning (their role itself never changes), and secretly chooses one
-// living player (no message is sent — the choice only matters for a neutral spirit's win). Phones see their faction
-// only once the host reveals the factions (`host:council:reveal`), after the Council. In an Atheist game there
+// ceil(30% of the starting players) are dead), the Spirit Council happens (once per game): every spirit at that moment secretly gets a new faction — good or
+// evil — which replaces their old team for winning (their role itself never changes), and secretly chooses one
+// living player (no message is sent). Phones see their faction only once the host reveals the factions
+// (`host:council:reveal` — tapped before the Council, it calls the Council and reveals at once). In an Atheist game there
 // are no evil players, so every spirit becomes good. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
 const startCount = () => Object.keys(room.assign).length;
 const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
@@ -289,9 +296,9 @@ function callCouncil() {
   if (!room.dealt || room.council || !startCount()) return;
   const dead = room.players.map(p => p.name).filter(isSpirit);
   if (!dead.length) return; // needs at least one spirit
-  const order: Faction[] = atheistGame() ? ['good'] : shuffle(['good', 'evil', 'neutral'] as Faction[]);
+  const order: Faction[] = atheistGame() ? ['good'] : shuffle(['good', 'evil'] as Faction[]);
   const spirits: Council['spirits'] = {};
-  shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % order.length] }; }); // a fair spread of the three
+  shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % order.length] }; }); // a fair spread of the two
   room.council = { at: Date.now(), round: room.shared.round || 1, phase: room.shared.phase || 'night', start: startCount(), spirits };
 }
 /** Did this spirit win? good → with the village, evil → with the werewolves, neutral → the player they chose is alive. */
@@ -419,8 +426,8 @@ io.on('connection', (socket: Socket) => {
     socket.on('host:council', () => { callCouncil(); pushAll(); });
     // …and can undo it (called by mistake): factions and choices are forgotten, it can be called again
     socket.on('host:council:undo', () => { room.council = null; pushAll(); });
-    // …and reveals the factions on the spirits' phones once the Council is over
-    socket.on('host:council:reveal', () => { if (room.council) { room.council.revealed = true; pushAll(); } });
+    // …and reveals the factions on the spirits' phones (whenever the host likes: without a Council yet, it calls it first)
+    socket.on('host:council:reveal', () => { if (!room.council) callCouncil(); if (room.council) { room.council.revealed = true; pushAll(); } });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll();
