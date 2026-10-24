@@ -74,6 +74,10 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
 - Bluff cards: the deck may hold up to one extra card per werewolf card. `dealNow` deals by priority (wolf side, then solo roles,
   then village) and leaves the extras out at random among village cards (never a Mason); shared `pool` = every selected card (what phones list as the round's roles), `unused` = not dealt (host only).
   The wake-up order still calls roles nobody holds (not dealt, or the player was turned) as "fake it" steps, so it never gives anything away.
+- Host-only helpers on the Play screen (`HostView.renderVals` view object): **Bluff cards** (`bluffView`, from `unused`; collapsible, never sent to phones),
+  the **lover popup** (`loverPop`: the moment a lover is out, however it happened, and again at dawn if it happened at night; seen keys in shared `loverSeen`),
+  the **📖 game guide** sheet in the header (`HostView.hostGuide()`), and the **Atheist story** card + sheet in an Atheist game (`HostView.atheistStory()`,
+  steps n1/d1/n2/d2/nX/dX/end; the host picks follow / own way, kept in `mech.athPlan`).
 - Master controls (secret: tap the "N alive" counter 5 times on the Play screen): force any ending (`state.forced`, never saved
   to the Hall of Fame), give anyone any library role (via `override`), set any fate/death card, shuffle roles, revive, change round,
   scenario presets + a simulator (`simNight`/`simDay`/`simAll` drive the real host screens through `this._v`), and secret messages

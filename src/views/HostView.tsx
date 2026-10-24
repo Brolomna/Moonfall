@@ -15,7 +15,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme', 'loverSeen'];
 
   constructor(props) {
     super(props);
@@ -162,6 +162,56 @@ export class HostView extends React.Component<any, any> {
   static store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } return null; }
   // how often each library role was dealt on this phone (the "Most played" preset)
   static roleUse() { try { return JSON.parse(localStorage.getItem('moonfall.roleUse') || '{}') || {}; } catch { return {}; } }
+  // the host's game guide (📖 in the header): how to run a game, in short steps
+  static hostGuide() {
+    return [
+      { title: 'Before the game', items: [
+        'Everyone joins from their own phone (Players screen → QR code or the room link). Drag the seats into the order people sit.',
+        'Roles screen: pick a Quick preset or build the deck yourself. The deck hint says when there is one card per player (plus any bluff cards).',
+        'House rules (Roles screen) set the first night, how the wolves choose, what the Seer learns, ties and reveals. Agree on them out loud.',
+        'Tap Deal: every phone shows its own card. Ask everyone to check their card privately, then put the phones face down.',
+      ] },
+      { title: 'At night', items: [
+        'Read the opening, then “Everyone, close your eyes.” Follow the wake-up order on the Play screen from top to bottom.',
+        'Call every step, even for roles nobody holds (“fake it” steps): wait a few seconds as if someone were acting, so nobody learns what is in play.',
+        'Record each night action with its button (who the wolves chose, who the Healer saved, the Witch’s potions…). Information roles can read their answer on their own phone.',
+        'When the steps are done, tap Day.',
+      ] },
+      { title: 'At day', items: [
+        'Wake everyone and announce who died in the night (Mark players). With “Reveal their card” on, say their role too.',
+        'Let the village talk. Use the timer if you like, then open the vote, nominate, and count the hands (or the secret phone vote).',
+        'Mark the player voted out, read the reminders that pop up (Hunter, Prince, Tanner, lovers…), then go back to Night.',
+      ] },
+      { title: 'Special cases', items: [
+        'Lovers: when one lover dies, the other dies of a broken heart at once. A popup reminds you the moment it happens, and again at dawn if it happened at night, so you can announce it.',
+        'Bluff cards: the deck may hold extra cards that were never dealt. Only you see them (Play screen → Bluff cards). Keep calling their night steps as if they were in play.',
+        'The Atheist: with it in the deck there are no real werewolves. You fake the Werewolves step and may lie. If the village votes you, the host, out while nobody evil is alive, the village wins. The Atheist story card on the Play screen walks you through it.',
+        'Spirits: dead players chat in the Spirit Realm. Once about a third of the players are dead, call the Spirit Council: each spirit secretly gets a faction (good or evil) and chooses a living player. Reveal factions shows each spirit theirs.',
+        'People who join after the deal are spectators: they see every role and your log, and join as players next game.',
+      ] },
+      { title: 'Who wins', items: [
+        'The village wins when every werewolf (and wolf ally) is out.',
+        'The werewolves win when they are as many as everyone else.',
+        'Solo roles (Tanner, lovers, cult…) win on their own terms. The app checks every ending and shows the win screen; the Hall of Fame (🏆) keeps the score.',
+        'Not sure? The reminders on the Play screen and the role cards (tap a role on the Roles screen) explain each role’s rule.',
+      ] },
+    ];
+  }
+  // the Atheist story: a recommended way to run an Atheist game (there are no werewolves — only the host knows)
+  static atheistStory() {
+    return {
+      intro: 'Nobody is a werewolf this game — the Atheist is in play. Your job is to keep the wolves alive in everyone’s mind, then let the village find the truth: voting out the host. Follow these steps, or play your own way.',
+      steps: [
+        { id: 'n1', title: 'Night 1 · Set the fear', text: 'Call the Werewolves as usual and wait a long moment, as if they were choosing. Let the first night be quiet (or pick a victim yourself if your rules need one). Wake the other roles normally.' },
+        { id: 'd1', title: 'Day 1 · Plant suspicion', text: 'Announce the night calmly. During the talk, hint that “the wolves were busy” and that someone seems nervous. Let the vote run normally — the secret phone vote helps you nudge the count.' },
+        { id: 'n2', title: 'Night 2 · The first kill', text: 'Fake the Werewolves step again, then kill someone the village suspects least, so it looks like a real pack hunting. Answer the Seer and others truthfully: every check says “not a werewolf”.' },
+        { id: 'd2', title: 'Day 2 · Let the cracks show', text: 'Announce the death with drama. If the Seer says everyone is clean, act surprised but don’t confirm anything. Use the forced vote count (master controls) only if the vote stalls.' },
+        { id: 'nX', title: 'Later nights · Keep the hunt going', text: 'Keep faking the Werewolves step and kill one player each night, choosing the loudest wolf hunters. The fewer players left, the more the village should wonder who is really killing.' },
+        { id: 'dX', title: 'Later days · Point at the host', text: 'Let the village reason it out: “nobody is a wolf… so who kills?” If someone suggests the host, don’t stop them — offer the host as a nominee (👑 in the vote). Voting you out wins it for the village.' },
+        { id: 'end', title: 'The end · The reveal', text: 'Four or fewer players are left. Give the village one last clear chance to vote out the host. If they don’t, the imaginary wolves win at two players left. Either way, reveal the Atheist at the end — there never were any werewolves.' },
+      ],
+    };
+  }
   static fame() { try { return JSON.parse(localStorage.getItem('moonfall.fame') || '{}') || {}; } catch { return {}; } }
 
   setState(patch, cb) {
@@ -1633,7 +1683,7 @@ export class HostView extends React.Component<any, any> {
           : drunkLib.builtin && byKey[drunkLib.builtin] ? drunkLib.builtin
           : (custom.find(c => c.lib === drunkLib.name) || (drunkCustom = libRole(drunkLib))).key;
         const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: drunkCustom ? drunkCustom.name : byKey[drunkAs].name }] : [];
-        this.setState({ /* NET */ ...(drunkCustom ? { custom: custom.concat([drunkCustom]) } : {}), pool: deck.map(r => r.key), unused, screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, forced: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ ...(drunkCustom ? { custom: custom.concat([drunkCustom]) } : {}), pool: deck.map(r => r.key), unused, loverSeen: [], screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, forced: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       };
 
     // ---------- history view ----------
@@ -1880,6 +1930,51 @@ export class HostView extends React.Component<any, any> {
       qrSrc: (this.props.info && this.props.info.qr) || '', joinHost: (this.props.info && this.props.info.host) || '…', // NET
       players, playerCount: n, tooFew: n < 5,
       // Test players (added by the server, no phone) — handy for trying the game alone
+      // the bluff cards: selected but not dealt (only the host knows which)
+      bluffView: (() => {
+        const un = screen === 'play' ? st('unused', []).filter(k => byKey[k]) : [];
+        if (!un.length) return null;
+        const t = []; un.forEach(k => { const x = t.find(y => y.k === k); if (x) x.n++; else t.push({ k, n: 1 }); });
+        return { rows: t.map(x => ({ name: (x.n > 1 ? x.n + '× ' : '') + byKey[x.k].name, color: byKey[x.k].color, team: byKey[x.k].team })), n: un.length,
+          open: !!s.bluffOpen, toggle: () => this.setState({ bluffOpen: !s.bluffOpen }) };
+      })(),
+      // Cupid's lovers: a popup the moment one of them is out (however it happened), and again at day to announce it
+      loverPop: (() => {
+        const lv = st('lovers', null), seen = st('loverSeen', []);
+        if (screen !== 'play' || !lv) return null;
+        const gone = lv.filter(nm => isOut(nm));
+        if (!gone.length) return null;
+        const id = gone.slice().sort().join('+'), nowKey = 'now:' + id, dayKey = 'day:' + id;
+        const atNight = gone.some(nm => status[nm].phase === 'night');
+        const key = !night && atNight && seen.indexOf(dayKey) < 0 ? dayKey : seen.indexOf(nowKey) < 0 ? nowKey : null;
+        if (!key) return null;
+        const how = (m) => m.how === 'voted' ? 'was voted out' : m.how === 'removed' ? 'left the game' : m.cause === 'heartbreak' ? 'died of a broken heart' : m.cause === 'poison' ? 'was poisoned' : m.cause === 'hunter' ? 'was shot by the Hunter' : m.cause && CAUSES[m.cause] ? 'is out (' + CAUSES[m.cause].label + ')' : 'was killed in the night';
+        const still = lv.filter(nm => !isOut(nm));
+        return {
+          day: key === dayKey || !night,
+          title: key === dayKey ? 'Announce it now: a lover is gone' : 'A lover is gone',
+          lines: gone.map(nm => ({ name: nm, text: how(status[nm]) })),
+          note: (still.length ? still.join(' and ') + ' is still alive (their partner is gone). ' : gone.length === 2 ? lv.join(' and ') + ' were lovers — both are out. ' : '')
+            + (key === dayKey || !night ? 'Tell the village now.' : 'Remember to announce it when day comes — this will pop up again at dawn.'),
+          ok: () => this.setState({ loverSeen: seen.concat(key === dayKey ? [dayKey, nowKey] : [nowKey]) }),
+        };
+      })(),
+      // the host's game guide (header 📖)
+      guideOpen: !!s.guideOpen, openGuide: () => this.setState({ guideOpen: true }), closeGuide: () => this.setState({ guideOpen: false }),
+      guideSections: HostView.hostGuide(),
+      // the Atheist story: a recommended way to run an Atheist game — follow it, or play your own way
+      athStory: (() => {
+        if (screen !== 'play' || !atheistGame || gameOver) return null;
+        const plan = mech.athPlan || null, S = HostView.atheistStory();
+        const stepId = alive.length <= 4 ? 'end' : round === 1 ? (night ? 'n1' : 'd1') : round === 2 ? (night ? 'n2' : 'd2') : night ? 'nX' : 'dX';
+        const setPlan = (p) => this.setState({ mech: { ...mech, athPlan: p } });
+        return {
+          ask: !plan, follow: plan === 'story', own: plan === 'own',
+          pickStory: () => setPlan('story'), pickOwn: () => setPlan('own'), change: () => setPlan(null),
+          step: S.steps.find(x => x.id === stepId), intro: S.intro, steps: S.steps.map(x => ({ ...x, now: x.id === stepId })),
+          sheetOpen: !!s.athOpen, open: () => this.setState({ athOpen: true }), close: () => this.setState({ athOpen: false }),
+        };
+      })(),
       spiritHost: (() => {
         const sn = (this.props.net && this.props.net.spirits) || null;
         if (!sn || screen !== 'play') return null;
@@ -2220,6 +2315,7 @@ export class HostView extends React.Component<any, any> {
               {(this.props.onLock) ? (
                 <>
                 <button className="press" onClick={() => this.setState({ theme: this.state.theme === 'halloween' ? null : 'halloween' })} aria-label={this.state.theme === 'halloween' ? 'Turn the Halloween theme off' : 'Turn the Halloween theme on'} aria-pressed={this.state.theme === 'halloween'} title="Halloween theme (every phone follows)" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: `1px solid ${this.state.theme === 'halloween' ? 'rgba(255,140,40,.9)' : 'rgba(255,140,40,.35)'}`, background: this.state.theme === 'halloween' ? 'rgba(255,120,20,.3)' : 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', filter: this.state.theme === 'halloween' ? 'none' : 'grayscale(.7)' }}>🎃</button>
+                <button className="press" onClick={v.openGuide} aria-label="Game guide" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '13px', display: 'flex', alignItems: 'center' }}>📖</button>
                 <button className="press" onClick={v.openFame} aria-label="Hall of Fame" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(242,208,107,.4)', background: 'rgba(20,12,34,.6)', color: '#f2d06b', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🏆</button>
                 <button className="press" onClick={this.props.onLock} aria-label="Lock the host screen (asks for the PIN again)" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" /></svg>
@@ -2748,6 +2844,53 @@ export class HostView extends React.Component<any, any> {
                     {' '}Mark players
                   </button>
                 </div>
+                {(v.athStory) ? (
+                  <section aria-label="Atheist story (host only)" style={{ padding: '14px 16px', borderRadius: '18px', background: 'rgba(143,224,184,.07)', border: '1px solid rgba(143,224,184,.32)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#8fe0b8' }}>Atheist game · only you see this</span>
+                    {(v.athStory.ask) ? (
+                      <>
+                        <span style={{ fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>{v.athStory.intro}</span>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button className="press" onClick={v.athStory.pickStory} style={{ ...{ height: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700' }, border: 'none', background: '#8fe0b8', color: '#10241b' }}>Follow the Atheist story</button>
+                          <button className="press" onClick={v.athStory.pickOwn} style={{ ...{ height: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700' }, border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#d9cfe9' }}>Play my own way</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {(v.athStory.follow && v.athStory.step) ? (
+                          <>
+                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#ece6f6' }}>{v.athStory.step.title}</span>
+                            <span style={{ fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>{v.athStory.step.text}</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>Playing your own way. Fake the Werewolves step; voting out the host wins it for the village while nobody evil is alive.</span>
+                        )}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button className="press" onClick={v.athStory.open} style={{ ...{ height: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700' }, border: '1px solid rgba(143,224,184,.45)', background: 'rgba(143,224,184,.1)', color: '#8fe0b8' }}>{v.athStory.follow ? 'The whole story' : 'Read the story'}</button>
+                          <button className="press" onClick={v.athStory.change} style={{ ...{ height: '40px', padding: '0 14px', borderRadius: '12px', fontSize: '13px', fontWeight: '700' }, border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#a99bc2' }}>Change</button>
+                        </div>
+                      </>
+                    )}
+                  </section>
+                ) : null}
+                {(v.bluffView) ? (
+                  <section aria-label="Bluff cards (host only)" style={{ borderRadius: '18px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(242,195,138,.3)' }}>
+                    <button className="press" onClick={v.bluffView.toggle} aria-expanded={v.bluffView.open} style={{ width: '100%', minHeight: '48px', padding: '0 16px', border: 'none', background: 'none', color: '#f2c38a', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700', textAlign: 'left' }}>
+                      <span style={{ flex: '1' }}>🃏 Bluff cards · {v.bluffView.n} not dealt</span>
+                      <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.12em', color: '#a99bc2' }}>HOST ONLY {v.bluffView.open ? '▲' : '▼'}</span>
+                    </button>
+                    {(v.bluffView.open) ? (
+                      <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>In the deck but nobody holds them. Keep calling their night steps as if they were in play.</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {v.bluffView.rows.map((r: any) => (
+                            <span key={r.name} style={{ padding: '5px 10px', borderRadius: '999px', fontSize: '13px', fontWeight: '700', color: r.color, background: 'rgba(0,0,0,.25)', border: `1px solid ${r.color}` }}>{r.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
                 {(v.gameOver) ? (
                   <>
                     <section className="rise" aria-label="Game over" style={{ padding: '22px 20px', borderRadius: '24px', background: v.endBg, border: `1px solid ${v.endBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', boxShadow: `0 0 60px ${v.endGlow}` }}>
@@ -4284,6 +4427,66 @@ export class HostView extends React.Component<any, any> {
               </div>
             </section>
           </>
+        ) : null}
+        {(v.guideOpen) ? (
+          <>
+            <div className="fade" onClick={v.closeGuide} style={{ position: 'absolute', inset: '0', zIndex: 110, background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="Game guide" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1f1236 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.4)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px 20px 8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ flex: '1', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px', color: '#f1e9d2' }}>📖 Game guide</span>
+                <button className="press" onClick={v.closeGuide} aria-label="Close the game guide" style={{ height: '40px', padding: '0 14px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#d9cfe9', fontSize: '13px', fontWeight: '700' }}>Close</button>
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {v.guideSections.map((g: any) => (
+                  <div key={g.title} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#c7a8ff' }}>{g.title}</span>
+                    {g.items.map((t: string, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>
+                        <span style={{ flex: 'none', width: '20px', color: '#8f82a8', fontWeight: '700' }}>{i + 1}.</span>
+                        <span>{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.athStory && v.athStory.sheetOpen) ? (
+          <>
+            <div className="fade" onClick={v.athStory.close} style={{ position: 'absolute', inset: '0', zIndex: 110, background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
+            <section className="sheet" aria-label="The Atheist story" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #10241b 0%, #120a20 70%)', borderTop: '1px solid rgba(143,224,184,.45)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ flex: '1', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '22px', color: '#e3f7ec' }}>The Atheist story</span>
+                  <button className="press" onClick={v.athStory.close} aria-label="Close the Atheist story" style={{ height: '40px', padding: '0 14px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#d9cfe9', fontSize: '13px', fontWeight: '700' }}>Close</button>
+                </div>
+                <span style={{ fontSize: '13px', color: '#b9d8c8', lineHeight: '1.45' }}>{v.athStory.intro} Only you see this.</span>
+              </div>
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {v.athStory.steps.map((x: any) => (
+                  <div key={x.id} style={{ padding: '12px 14px', borderRadius: '14px', background: x.now ? 'rgba(143,224,184,.12)' : 'rgba(20,12,34,.7)', border: `1px solid ${x.now ? 'rgba(143,224,184,.5)' : 'rgba(236,230,246,.08)'}`, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: x.now ? '#8fe0b8' : '#ece6f6' }}>{x.title}{x.now ? ' · now' : ''}</span>
+                    <span style={{ fontSize: '13px', color: '#d9cfe9', lineHeight: '1.45' }}>{x.text}</span>
+                  </div>
+                ))}
+                {(v.athStory.own) ? <button className="press" onClick={v.athStory.pickStory} style={{ height: '46px', marginTop: '6px', borderRadius: '14px', border: 'none', background: '#8fe0b8', color: '#10241b', fontSize: '14px', fontWeight: '800' }}>Follow the story from here</button> : null}
+              </div>
+            </section>
+          </>
+        ) : null}
+        {(v.loverPop) ? (
+          <div className="fade" role="alertdialog" aria-label={v.loverPop.title} style={{ position: 'absolute', inset: '0', zIndex: 130, background: 'rgba(5,3,10,.78)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <section style={{ width: '100%', padding: '24px 22px', borderRadius: '24px', background: 'linear-gradient(180deg, #3a1428 0%, #1a0b18 100%)', border: '1px solid rgba(240,143,184,.55)', display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'center' }}>
+              <span style={{ fontSize: '40px' }}>💔</span>
+              <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '21px', color: '#ffd6e8' }}>{v.loverPop.title}</span>
+              {v.loverPop.lines.map((l: any) => (
+                <span key={l.name} style={{ fontSize: '15px', color: '#f4e6ee' }}><b>{l.name}</b> {l.text}.</span>
+              ))}
+              <span style={{ fontSize: '13.5px', color: '#d8b9c8', lineHeight: '1.45' }}>{v.loverPop.note}</span>
+              <button className="press" onClick={v.loverPop.ok} style={{ height: '50px', marginTop: '4px', borderRadius: '16px', border: 'none', background: '#f08fb8', color: '#2a0d1c', fontSize: '15px', fontWeight: '800' }}>OK</button>
+            </section>
+          </div>
         ) : null}
         {(v.fameOpen) ? (
           <>
