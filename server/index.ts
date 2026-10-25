@@ -1,5 +1,5 @@
-// Moonfall room server — one room per server, meant to run on the host's laptop / phone hotspot
-// on the same Wi-Fi as everyone else. Holds the game state in memory and pushes each phone
+// Moonfall room server — runs on the host's laptop / phone hotspot (same Wi-Fi as everyone else) or on Render.
+// Holds any number of independent rooms in memory, each with its own host password, and pushes each phone
 // only what it is allowed to see (players never receive other players' roles).
 import express from 'express';
 import http from 'node:http';
@@ -13,8 +13,6 @@ import { Server, type Socket } from 'socket.io';
 import QRCode from 'qrcode';
 
 const PORT = Number(process.env.PORT || 3000);
-// The host screen asks for this PIN (set HOST_PIN in the environment to change it).
-const HOST_PIN = String(process.env.HOST_PIN || '6969');
 const PROD = process.env.NODE_ENV === 'production';
 // In dev the phones load the Vite dev server (5173), which proxies /socket.io + /api here.
 const WEB_PORT = PROD ? PORT : Number(process.env.WEB_PORT || 5173);
@@ -29,7 +27,10 @@ const FAKE_NAMES = ['Luna', 'Felix', 'Iris', 'Oscar', 'Hazel', 'Milo', 'Nora', '
 const PALETTE = ['#c9a7ff', '#ff9fb0', '#9fd0ff', '#8fe0b8', '#ffc98a', '#f2b6e6', '#b8c4ff', '#e8d3a0', '#a6eedd', '#ffb38a',
   '#d8e08a', '#f29a7a', '#8fd3e8', '#c48aa0', '#f2d06b', '#b45cc7', '#9fd6b8', '#f08fb8', '#a58ad6', '#ffd3a8'];
 
-const room = {
+const newRoom = (code: string, password: string) => ({
+  code,
+  password, // the host's room password (chosen when the room is created)
+  touched: Date.now(), // last activity, for clearing out abandoned rooms
   players: [] as Player[],
   spectators: [] as Player[], // joined while a game was running; they watch, and join the next game
   shared: {} as Shared, // everything the host screen owns (deck, rules, phase, marks…)
@@ -39,9 +40,21 @@ const room = {
   // the Spirit Realm (dead players): their own chat, and the one Spirit Council per game — kept on the server only
   spiritChat: [] as { from: string; text: string; at: number }[],
   council: null as null | Council,
-};
+});
+type Room = ReturnType<typeof newRoom>;
 type Faction = 'good' | 'evil' | 'neutral';
 type Council = { at: number; round: number; phase: string; start: number; revealed?: boolean; spirits: Record<string, { faction: Faction; to?: string; text?: string; at?: number }> };
+
+// ---------- rooms ----------
+// Every room is separate: its own players, deck, game and host. A host opens a room with its name and password
+// (a new name creates it); players join with the room name (the QR code carries it).
+const rooms = new Map<string, Room>();
+/** A room name as typed → its code: lower case letters, digits and dashes (2–24). '' if it can't be one. */
+const roomCode = (raw: unknown) => { const c = String(raw || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 24); return c.length >= 2 ? c : ''; };
+// rooms nobody has used for 12 hours are forgotten (the host's phone still keeps its copy of the game)
+setInterval(() => {
+  for (const [code, r] of rooms) if (Date.now() - r.touched > 12 * 3600 * 1000 && ![...(io.sockets.adapter.rooms.get(code + ':all') || [])].length) rooms.delete(code);
+}, 3600 * 1000).unref();
 
 // ---------- helpers ----------
 // Public deployments (Render sets RENDER_EXTERNAL_URL; PUBLIC_URL works anywhere) join via that URL instead of the LAN IP.
@@ -77,14 +90,14 @@ function routeAddress(): Promise<string | undefined> {
   });
 }
 
-function uniqueName(raw: string, selfId?: string): string {
+function uniqueName(room: Room, raw: string, selfId?: string): string {
   const base = raw.trim().slice(0, 18) || 'Player';
   const taken = (n: string) => room.players.concat(room.spectators).some(p => p.id !== selfId && p.name.toLowerCase() === n.toLowerCase());
   if (!taken(base)) return base;
   for (let i = 2; ; i++) if (!taken(`${base} ${i}`)) return `${base} ${i}`;
 }
 
-function nextColor(): string {
+function nextColor(room: Room): string {
   const used = new Set(room.players.map(p => p.color));
   return PALETTE.find(c => !used.has(c)) || PALETTE[room.players.length % PALETTE.length];
 }
@@ -99,7 +112,7 @@ function shuffle<T>(a: T[]): T[] {
 }
 
 /** Custom roles + host edits for the given role keys (what a phone needs to draw those cards). */
-function roleDefsFor(list: string[]) {
+function roleDefsFor(room: Room, list: string[]) {
   const sh = room.shared;
   const keys = new Set(list);
   const roleDefs: Record<string, any> = {};
@@ -127,18 +140,18 @@ function roleDefsFor(list: string[]) {
 
 
 /** How many players died during the current round's night (picks the morning sound: none / one / more). */
-function dawnDeaths() {
+function dawnDeaths(room: Room) {
   const sh = room.shared;
   return Object.values((sh.status || {}) as Record<string, any>).filter(m => m && m.phase === 'night' && m.round === (sh.round || 1) && m.how !== 'removed').length;
 }
 
 /** A role key that is the library's Drunk. */
-function isDrunk(k: string) {
+function isDrunk(room: Room, k: string) {
   const c = (room.shared.custom || []).find((x: any) => x.key === k);
   return !!(c && c.lib === 'Drunk');
 }
 /** A role key that is the library's Atheist. */
-function isAtheist(k: string) {
+function isAtheist(room: Room, k: string) {
   const c = (room.shared.custom || []).find((x: any) => x.key === k);
   return !!(c && c.lib === 'Atheist');
 }
@@ -175,15 +188,15 @@ const fileSponsor = () => { if (Date.now() - fileSponsorCache.at > 30000) fileSp
 const webLink = (l: string) => { const x = String(l || '').trim(); if (!x) return ''; const u = /^https?:\/\//i.test(x) ? x : 'https://' + x; return /^https?:\/\/[^\s]+\.[^\s]+/i.test(u) ? u : ''; };
 
 /** The sponsor for players' phones: name, offer, link, logo, banner (images are plain URLs). */
-function sponsorView() {
+function sponsorView(room: Room) {
   const sp = room.shared.sponsor;
   if (sp && sp.on && String(sp.name || '').trim())
-    return { name: String(sp.name).slice(0, 60), offer: String(sp.offer || '').slice(0, 140), link: webLink(sp.link), logo: room.shared.sponsorLogo ? '/api/sponsor/logo?v=' + (sp.logoV || 0) : '', banner: '' };
+    return { name: String(sp.name).slice(0, 60), offer: String(sp.offer || '').slice(0, 140), link: webLink(sp.link), logo: room.shared.sponsorLogo ? '/api/sponsor/logo?room=' + room.code + '&v=' + (sp.logoV || 0) : '', banner: '' };
   const f = fileSponsor();
   return f ? { ...f, name: f.name.slice(0, 60), offer: f.offer.slice(0, 140), link: webLink(f.link) } : null;
 }
 
-function playerView(p: Player) {
+function playerView(room: Room, p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
   // which death card the phone shows
@@ -194,9 +207,9 @@ function playerView(p: Player) {
   const lover = lovers && lovers.includes(p.name) && room.dealt ? lovers.find(n => n !== p.name) || null : null;
   let role: string | null = (sh.override || {})[p.name] || room.assign[p.name] || null;
   // the Drunk believes they're a plain Villager until the host hands them their real role on night 3
-  if (role && !(sh.override || {})[p.name] && isDrunk(role)) role = 'villager';
+  if (role && !(sh.override || {})[p.name] && isDrunk(room, role)) role = 'villager';
   // the Atheist never shows on a phone — its holder sees a Villager card until the game is over
-  if (role && isAtheist(role) && !sh.winner) role = 'villager';
+  if (role && isAtheist(room, role) && !sh.winner) role = 'villager';
 
   const counts: Record<string, number> = {};
   Object.values(room.assign).forEach(k => { counts[k] = (counts[k] || 0) + 1; });
@@ -218,7 +231,7 @@ function playerView(p: Player) {
 
   // roles named in this player's night answer too (e.g. the Drunk's real role, which was never dealt)
   const wh = (sh.whispers || {})[p.name] || {};
-  const roleDefs = roleDefsFor([...deck.map(([k]) => k), ...(role ? [role] : []), ...(wh.role ? [wh.role] : []), ...(Array.isArray(wh.roles) ? wh.roles : [])]);
+  const roleDefs = roleDefsFor(room, [...deck.map(([k]) => k), ...(role ? [role] : []), ...(wh.role ? [wh.role] : []), ...(Array.isArray(wh.roles) ? wh.roles : [])]);
 
   return {
     joined: true,
@@ -229,12 +242,12 @@ function playerView(p: Player) {
     fate,
     roomLang: sh.roomLang || 'en',
     showRoles,
-    dawnDeaths: dawnDeaths(),
+    dawnDeaths: dawnDeaths(room),
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
-    sponsor: sponsorView(),
+    sponsor: sponsorView(room),
     theme: room.shared.theme || null, // the host's look (e.g. 'halloween')
-    spirit: spiritView(p.name), // only when this player is dead
+    spirit: spiritView(room, p.name), // only when this player is dead
     note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
     whisper: room.dealt && sh.whispers && sh.whispers[p.name] && sh.whispers[p.name].round === (sh.round || 1) && (!sh.whispers[p.name].key || sh.whispers[p.name].key === sh.awake) && (sh.phase || 'night') === 'night' ? sh.whispers[p.name] : null,
     timer: room.dealt && sh.timer ? sh.timer : null,
@@ -249,16 +262,16 @@ function playerView(p: Player) {
 }
 
 /** A spectator sees everything: every player's role, who is out, and the host's timeline. */
-function spectatorView(sp: Player) {
+function spectatorView(room: Room, sp: Player) {
   const sh = room.shared;
   const roleOf = (name: string) => (sh.override || {})[name] || room.assign[name] || null;
   const players = room.players.map(p => ({ name: p.name, color: p.color, role: roleOf(p.name), status: (sh.status || {})[p.name] || null }));
   const keys = players.map(p => p.role).filter(Boolean) as string[];
   return {
     spectator: true,
-    sponsor: sponsorView(),
+    sponsor: sponsorView(room),
     theme: room.shared.theme || null,
-    dawnDeaths: dawnDeaths(),
+    dawnDeaths: dawnDeaths(room),
     name: sp.name,
     dealt: room.dealt,
     phase: sh.phase || 'night',
@@ -269,7 +282,7 @@ function spectatorView(sp: Player) {
     roomLang: sh.roomLang || 'en',
     players,
     log: sh.log || [],
-    roleDefs: roleDefsFor(keys),
+    roleDefs: roleDefsFor(room, keys),
     deck: Object.entries(keys.reduce((c: Record<string, number>, k) => ((c[k] = (c[k] || 0) + 1), c), {})), // for the game guide
     showRoles: true,
     playerCount: room.players.length,
@@ -283,43 +296,43 @@ function spectatorView(sp: Player) {
 // living player (no message is sent). Phones see their faction only once the host reveals the factions
 // (`host:council:reveal` — tapped before the Council, it calls the Council and reveals at once). In an Atheist game there
 // are no evil players, so every spirit becomes good. Factions, the chat and who whispered stay on the server: a phone only ever gets its own part.
-const startCount = () => Object.keys(room.assign).length;
-const councilNeed = () => Math.max(1, Math.ceil(startCount() * 0.3));
-const isSpirit = (name: string) => { const m = (room.shared.status || {})[name]; return room.dealt && !!m && m.how !== 'removed'; };
-const livingNames = () => room.players.filter(p => room.assign[p.name] && !(room.shared.status || {})[p.name]).map(p => p.name);
+const startCount = (room: Room) => Object.keys(room.assign).length;
+const councilNeed = (room: Room) => Math.max(1, Math.ceil(startCount(room) * 0.3));
+const isSpirit = (room: Room, name: string) => { const m = (room.shared.status || {})[name]; return room.dealt && !!m && m.how !== 'removed'; };
+const livingNames = (room: Room) => room.players.filter(p => room.assign[p.name] && !(room.shared.status || {})[p.name]).map(p => p.name);
 /** An Atheist was dealt (no evil players this game). */
-const atheistGame = () => {
+const atheistGame = (room: Room) => {
   const keys = (room.shared.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
   return keys.length > 0 && Object.values(room.assign).some(k => keys.includes(k));
 };
-function callCouncil() {
-  if (!room.dealt || room.council || !startCount()) return;
-  const dead = room.players.map(p => p.name).filter(isSpirit);
+function callCouncil(room: Room) {
+  if (!room.dealt || room.council || !startCount(room)) return;
+  const dead = room.players.map(p => p.name).filter(nm => isSpirit(room, nm));
   if (!dead.length) return; // needs at least one spirit
-  const order: Faction[] = atheistGame() ? ['good'] : shuffle(['good', 'evil'] as Faction[]);
+  const order: Faction[] = atheistGame(room) ? ['good'] : shuffle(['good', 'evil'] as Faction[]);
   const spirits: Council['spirits'] = {};
   shuffle(dead).forEach((nm, i) => { spirits[nm] = { faction: order[i % order.length] }; }); // a fair spread of the two
-  room.council = { at: Date.now(), round: room.shared.round || 1, phase: room.shared.phase || 'night', start: startCount(), spirits };
+  room.council = { at: Date.now(), round: room.shared.round || 1, phase: room.shared.phase || 'night', start: startCount(room), spirits };
 }
 /** Did this spirit win? good → with the village, evil → with the werewolves, neutral → the player they chose is alive. */
-function spiritWon(name: string): boolean | null {
+function spiritWon(room: Room, name: string): boolean | null {
   const s = room.council && room.council.spirits[name]; const w = room.shared.winner;
-  if (!s || !w || !isSpirit(name)) return null;
+  if (!s || !w || !isSpirit(room, name)) return null;
   if (s.faction === 'good') return w.side === 'village';
   if (s.faction === 'evil') return w.side === 'wolves';
   return !!s.to && !(room.shared.status || {})[s.to];
 }
-function spiritView(name: string) {
-  if (!isSpirit(name)) return null;
+function spiritView(room: Room, name: string) {
+  if (!isSpirit(room, name)) return null;
   const c = room.council, mine = c && c.spirits[name];
   return {
     chat: room.spiritChat.slice(-80),
-    council: c ? (mine ? { at: c.at, faction: c.revealed ? mine.faction : null, to: mine.to || null, living: livingNames(), won: c.revealed ? spiritWon(name) : null } : { late: true }) : null,
-    need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
+    council: c ? (mine ? { at: c.at, faction: c.revealed ? mine.faction : null, to: mine.to || null, living: livingNames(room), won: c.revealed ? spiritWon(room, name) : null } : { late: true }) : null,
+    need: councilNeed(room), dead: room.players.map(p => p.name).filter(nm => isSpirit(room, nm)).length,
   };
 }
 
-function hostView() {
+function hostView(room: Room) {
   return {
     spectators: room.spectators.filter(p => p.connected).length,
     players: room.players.map(({ name, color, connected, fake }) => ({ name, color, connected, fake: !!fake })),
@@ -333,8 +346,8 @@ function hostView() {
       voters: room.players.filter(p => !(room.shared.status || {})[p.name] && p.name !== room.ballot!.nominee).length, // the nominee doesn't vote on themselves
     } : null,
     // the host sees the whole Spirit Realm (it runs the game); players never get this
-    spirits: room.dealt ? { chat: room.spiritChat, council: room.council, need: councilNeed(), dead: room.players.map(p => p.name).filter(isSpirit).length,
-      won: room.council ? Object.fromEntries(Object.keys(room.council.spirits).map(nm => [nm, spiritWon(nm)])) : {} } : null,
+    spirits: room.dealt ? { chat: room.spiritChat, council: room.council, need: councilNeed(room), dead: room.players.map(p => p.name).filter(nm => isSpirit(room, nm)).length,
+      won: room.council ? Object.fromEntries(Object.keys(room.council.spirits).map(nm => [nm, spiritWon(room, nm)])) : {} } : null,
   };
 }
 
@@ -344,11 +357,16 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use('/sponsor', express.static(SPONSOR_DIR, { maxAge: '1h' })); // the sponsor folder's pictures
+/** The room a request asks about (?room=…), if it exists. */
+const roomOf = (req: express.Request) => rooms.get(roomCode(req.query.room));
 // the sponsor before a phone has joined (splash + join screen), and its logo as a plain image
-app.get('/api/sponsor', (_req, res) => res.json(sponsorView()));
-app.get('/api/theme', (_req, res) => res.json({ theme: room.shared.theme || null }));
-app.get('/api/sponsor/logo', (_req, res) => {
-  const m = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/.exec(String(room.shared.sponsorLogo || ''));
+app.get('/api/sponsor', (req, res) => { const room = roomOf(req); res.json(room ? sponsorView(room) : null); });
+app.get('/api/theme', (req, res) => res.json({ theme: roomOf(req)?.shared.theme || null }));
+// does this room exist (the join screen checks the name before asking for the player's)
+app.get('/api/room', (req, res) => res.json({ exists: !!roomOf(req) }));
+app.get('/api/sponsor/logo', (req, res) => {
+  const room = roomOf(req);
+  const m = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/.exec(String(room?.shared.sponsorLogo || ''));
   if (!m) return res.status(404).end();
   res.type(m[1]).set('Cache-Control', 'public, max-age=86400').send(Buffer.from(m[2], 'base64'));
 });
@@ -356,10 +374,11 @@ app.get('/api/sponsor/logo', (_req, res) => {
 // which commit is running (Render sets RENDER_GIT_COMMIT) — handy to check a deploy went out
 app.get('/api/version', (_req, res) => res.json({ commit: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7) }));
 
-app.get('/api/info', async (_req, res) => {
+app.get('/api/info', async (req, res) => {
+  const code = roomCode(req.query.room);
   const base = await joinBase();
-  const host = base.replace(/^https?:\/\//, '');
-  const url = `${base}/player`; // QR → player screen (any path except /host renders it)
+  const host = base.replace(/^https?:\/\//, ''); // players who type it in are asked for the room name
+  const url = `${base}/player${code ? '?room=' + encodeURIComponent(code) : ''}`; // QR → this room's player screen (any path except /host renders it)
   const qr = await QRCode.toDataURL(url, { margin: 1, width: 320, color: { dark: '#140b22', light: '#ede6f7' } });
   res.json({ host, url, qr });
 });
@@ -374,35 +393,44 @@ if (PROD) {
 
 /** Everything needed to rebuild the room. The host's phone keeps a copy, so a server restart
  *  (redeploy, crash, free-plan sleep) doesn't end the game: the host sends it back when it reconnects. */
-function snapshot() {
+function snapshot(room: Room) {
   return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt, spiritChat: room.spiritChat, council: room.council };
 }
-const isFresh = () => !room.players.length && !room.dealt && !Object.keys(room.shared).length;
+const isFresh = (room: Room) => !room.players.length && !room.dealt && !Object.keys(room.shared).length;
 
-function pushAll() {
-  io.to('host').emit('room', hostView());
-  io.to('host').emit('host:snapshot', snapshot());
-  for (const p of room.players) io.to(`p:${p.id}`).emit('player:view', playerView(p));
-  for (const sp of room.spectators) io.to(`p:${sp.id}`).emit('player:view', spectatorView(sp));
+// Socket.IO channels are per room: `<code>:host`, `<code>:p:<playerId>`, and `<code>:all` (every phone that opened the room)
+function pushAll(room: Room) {
+  room.touched = Date.now();
+  const c = room.code;
+  io.to(c + ':host').emit('room', hostView(room));
+  io.to(c + ':host').emit('host:snapshot', snapshot(room));
+  for (const p of room.players) io.to(`${c}:p:${p.id}`).emit('player:view', playerView(room, p));
+  for (const sp of room.spectators) io.to(`${c}:p:${sp.id}`).emit('player:view', spectatorView(room, sp));
 }
 
 io.on('connection', (socket: Socket) => {
   const auth = socket.handshake.auth || {};
+  const code = roomCode(auth.room);
 
   if (auth.role === 'host') {
-    if (String(auth.pin || '') !== HOST_PIN) {
-      socket.emit('host:denied');
-      setTimeout(() => socket.disconnect(true), 100);
-      return;
-    }
-    socket.join('host');
-    socket.emit('host:init', { shared: room.shared, room: hostView(), fresh: isFresh() });
-    socket.emit('host:snapshot', snapshot());
+    // the host opens a room with its name and password; a name nobody uses yet creates the room with that password
+    const password = String(auth.password || '');
+    const deny = (reason: string) => { socket.emit('host:denied', reason); setTimeout(() => socket.disconnect(true), 100); };
+    if (!code) return deny('name');
+    if (password.length < 4) return deny('short');
+    let room = rooms.get(code);
+    const created = !room;
+    if (!room) { room = newRoom(code, password); rooms.set(code, room); }
+    else if (room.password !== password) return deny('password');
+    const c = code;
+    socket.join([c + ':host', c + ':all']);
+    socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: isFresh(room), created, code });
+    socket.emit('host:snapshot', snapshot(room));
 
     // after a restart the room is empty: the host's phone sends back its last copy of the game
     socket.on('host:restore', (snap: ReturnType<typeof snapshot>) => {
-      if (!isFresh() || !snap || !Array.isArray(snap.players)) return;
-      const seat = (p: Player): Player => ({ id: String(p.id), name: String(p.name), color: String(p.color || nextColor()), connected: !!p.fake, ...(p.fake ? { fake: true } : {}) });
+      if (!isFresh(room) || !snap || !Array.isArray(snap.players)) return;
+      const seat = (p: Player): Player => ({ id: String(p.id), name: String(p.name), color: String(p.color || nextColor(room)), connected: !!p.fake, ...(p.fake ? { fake: true } : {}) });
       room.players = snap.players.map(seat);
       room.spectators = (snap.spectators || []).map(seat);
       room.shared = snap.shared || {};
@@ -410,48 +438,48 @@ io.on('connection', (socket: Socket) => {
       room.dealt = !!snap.dealt;
       room.spiritChat = Array.isArray(snap.spiritChat) ? snap.spiritChat : [];
       room.council = snap.council || null;
-      socket.emit('host:init', { shared: room.shared, room: hostView(), fresh: false, restored: true });
-      io.emit('room:restored'); // phones reconnect and find their seat (and card) again
-      pushAll();
+      socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: false, restored: true });
+      io.to(c + ':all').emit('room:restored'); // phones reconnect and find their seat (and card) again
+      pushAll(room);
     });
 
     socket.on('host:patch', (patch: Shared) => {
       if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       Object.assign(room.shared, patch);
-      if ('theme' in patch) io.emit('room:theme', room.shared.theme || null); // every phone, joined or not, follows the host's theme
-      pushAll();
+      if ('theme' in patch) io.to(c + ':all').emit('room:theme', room.shared.theme || null); // every phone, joined or not, follows the host's theme
+      pushAll(room);
     });
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
     // the host calls the Spirit Council when the game is ready for it (once per game)
-    socket.on('host:council', () => { callCouncil(); pushAll(); });
+    socket.on('host:council', () => { callCouncil(room); pushAll(room); });
     // …and can undo it (called by mistake): factions and choices are forgotten, it can be called again
-    socket.on('host:council:undo', () => { room.council = null; pushAll(); });
+    socket.on('host:council:undo', () => { room.council = null; pushAll(room); });
     // …and reveals the factions on the spirits' phones (whenever the host likes: without a Council yet, it calls it first)
-    socket.on('host:council:reveal', () => { if (!room.council) callCouncil(); if (room.council) { room.council.revealed = true; pushAll(); } });
+    socket.on('host:council:reveal', () => { if (!room.council) callCouncil(room); if (room.council) { room.council.revealed = true; pushAll(room); } });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
-      pushAll();
+      pushAll(room);
     });
     socket.on('host:kick', (name: string) => {
       const p = room.players.find(x => x.name === name);
       if (!p) return;
       room.players = room.players.filter(x => x !== p);
       delete room.assign[p.name];
-      io.to(`p:${p.id}`).emit('player:kicked');
-      pushAll();
+      io.to(`${c}:p:${p.id}`).emit('player:kicked');
+      pushAll(room);
     });
     socket.on('host:fake', (count: number) => {
       const n = Math.max(0, Math.min(20, Math.floor(Number(count)) || 0));
       for (let i = 0; i < n; i++) {
-        const name = uniqueName(FAKE_NAMES[room.players.filter(p => p.fake).length % FAKE_NAMES.length]);
-        room.players.push({ id: `fake-${randomUUID()}`, name, color: nextColor(), connected: true, fake: true });
+        const name = uniqueName(room, FAKE_NAMES[room.players.filter(p => p.fake).length % FAKE_NAMES.length]);
+        room.players.push({ id: `fake-${randomUUID()}`, name, color: nextColor(room), connected: true, fake: true });
       }
-      pushAll();
+      pushAll(room);
     });
     socket.on('host:unfake', () => {
       room.players.filter(p => p.fake).forEach(p => delete room.assign[p.name]);
       room.players = room.players.filter(p => !p.fake);
-      pushAll();
+      pushAll(room);
     });
     socket.on('host:deal', (keys: string[], fixed?: Record<string, string>) => {
       // Roles the host fixed to players are handed out first (each takes one card of that role from the deck);
@@ -467,28 +495,39 @@ io.on('connection', (socket: Socket) => {
       shuffle(room.players.filter(p => !room.assign[p.name])).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
       room.dealt = true;
       room.spiritChat = []; room.council = null;
-      pushAll();
+      pushAll(room);
     });
     socket.on('host:end', () => {
       room.ballot = null;
       room.assign = {};
       room.dealt = false;
       room.spiritChat = []; room.council = null;
-      for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor() }); // they join the next game
+      for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor(room) }); // they join the next game
       room.spectators = [];
-      pushAll();
+      pushAll(room);
     });
     return;
   }
 
   // ----- players -----
+  // a phone belongs to one room (from the QR link or the room name typed on the join screen)
+  if (code) socket.join(code + ':all'); // hears room:restored / room:theme even before the room exists again
+  const room = code ? rooms.get(code) : undefined;
+  if (!room) {
+    // no such room (wrong name, or the server restarted and the host hasn't come back yet)
+    socket.emit('player:view', null);
+    socket.emit('room:none', code || null);
+    socket.on('player:join', (_msg: unknown, ack?: (r: { error: string }) => void) => ack?.({ error: 'no-room' }));
+    return;
+  }
+  const c = code;
   let me: Player | undefined = room.players.find(p => p.id === auth.playerId) || room.spectators.find(p => p.id === auth.playerId);
   const attach = (p: Player) => {
     me = p;
     p.connected = true;
-    socket.join(`p:${p.id}`);
-    socket.emit('player:view', room.spectators.includes(p) ? spectatorView(p) : playerView(p));
-    pushAll();
+    socket.join(`${c}:p:${p.id}`);
+    socket.emit('player:view', room.spectators.includes(p) ? spectatorView(room, p) : playerView(room, p));
+    pushAll(room);
   };
   if (me) attach(me);
   else socket.emit('player:view', null);
@@ -499,25 +538,25 @@ io.on('connection', (socket: Socket) => {
     if (choice !== 'kill' && choice !== 'spare') return;
     if (me.name === room.ballot.nominee) return; // no voting on yourself
     room.ballot.votes[me.name] = choice;
-    pushAll();
+    pushAll(room);
   });
 
   // the Spirit Realm: dead players talk among themselves…
   socket.on('spirit:say', (text: string) => {
-    if (!me || !room.players.includes(me) || !isSpirit(me.name)) return;
+    if (!me || !room.players.includes(me) || !isSpirit(room, me.name)) return;
     const t = String(text || '').trim().slice(0, 200); if (!t) return;
     room.spiritChat.push({ from: me.name, text: t, at: Date.now() });
     if (room.spiritChat.length > 300) room.spiritChat = room.spiritChat.slice(-300);
-    pushAll();
+    pushAll(room);
   });
   // …and at the Spirit Council each one secretly chooses one living player (no message — nothing reaches that phone)
   socket.on('spirit:whisper', (msg: { to: string }) => {
     const s = me && room.council && room.council.spirits[me.name];
-    if (!me || !s || s.to || !isSpirit(me.name)) return;
+    if (!me || !s || s.to || !isSpirit(room, me.name)) return;
     const to = String(msg && msg.to || '');
-    if (livingNames().indexOf(to) < 0) return;
+    if (livingNames(room).indexOf(to) < 0) return;
     s.to = to; s.at = Date.now();
-    pushAll();
+    pushAll(room);
   });
 
   socket.on('player:join', ({ name }: { name: string }, ack?: (r: { playerId: string; name: string }) => void) => {
@@ -526,13 +565,13 @@ io.on('connection', (socket: Socket) => {
     if (seat) {
       me = seat;
     } else if (me) {
-      me.name = room.dealt ? me.name : uniqueName(name, me.id); // names are locked once cards are dealt
+      me.name = room.dealt ? me.name : uniqueName(room, name, me.id); // names are locked once cards are dealt
     } else if (room.dealt) {
       // the game is already running: watch it, and play in the next one
-      me = { id: randomUUID(), name: uniqueName(name), color: '#c7a8ff', connected: true };
+      me = { id: randomUUID(), name: uniqueName(room, name), color: '#c7a8ff', connected: true };
       room.spectators.push(me);
     } else {
-      me = { id: randomUUID(), name: uniqueName(name), color: nextColor(), connected: true };
+      me = { id: randomUUID(), name: uniqueName(room, name), color: nextColor(room), connected: true };
       room.players.push(me);
     }
     ack?.({ playerId: me.id, name: me.name });
@@ -541,10 +580,10 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('disconnect', () => {
     if (!me) return;
-    const stillHere = [...(io.sockets.adapter.rooms.get(`p:${me.id}`) || [])].length > 0;
+    const stillHere = [...(io.sockets.adapter.rooms.get(`${c}:p:${me.id}`) || [])].length > 0;
     if (!stillHere) {
       me.connected = false;
-      pushAll();
+      pushAll(room);
     }
   });
 });
@@ -552,6 +591,6 @@ io.on('connection', (socket: Socket) => {
 server.listen(PORT, '0.0.0.0', async () => {
   const base = await joinBase();
   console.log(`\n  🌕 Moonfall is running\n`);
-  console.log(`  Host (open on your phone):  ${base}/host`);
-  console.log(`  Players join at:            ${base}/player\n`);
+  console.log(`  Host (open on your phone):  ${base}/host   (pick a room name and password)`);
+  console.log(`  Players join at:            ${base}/player?room=<room name>  (or scan the host's QR code)\n`);
 });

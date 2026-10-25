@@ -4,7 +4,7 @@
 let ctx: AudioContext | null = null;
 let verb: ConvolverNode | null = null;
 
-function audio(): AudioContext | null {
+export function audio(): AudioContext | null {
   if (!ctx) {
     const AC = window.AudioContext || (window as any).webkitAudioContext;
     if (!AC) return null;
@@ -30,7 +30,7 @@ export function installAudioUnlock() {
 }
 
 /** A long, dark reverb tail shared by all sounds. */
-function reverb(c: AudioContext): ConvolverNode {
+export function reverb(c: AudioContext): ConvolverNode {
   if (verb) return verb;
   const len = Math.floor(c.sampleRate * 3.2), buf = c.createBuffer(2, len, c.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
@@ -43,7 +43,7 @@ function reverb(c: AudioContext): ConvolverNode {
   return verb;
 }
 
-function noiseBuffer(c: AudioContext, seconds: number) {
+export function noiseBuffer(c: AudioContext, seconds: number) {
   const len = Math.floor(c.sampleRate * seconds), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   return buf;
@@ -58,9 +58,10 @@ function bus(c: AudioContext, level: number, wet: number, pan = 0) {
   return g;
 }
 
-/** One wolf: a rising, wavering, falling howl. */
-function wolf(c: AudioContext, t0: number, base: number, level: number, pan: number) {
-  const out = bus(c, level, 0.9, pan);
+/** One wolf: a rising, wavering, falling howl (into `to` instead of its own output, for the role themes). */
+export function wolf(c: AudioContext, t0: number, base: number, level: number, pan: number, to?: AudioNode) {
+  const out = to ? c.createGain() : bus(c, level, 0.9, pan);
+  if (to) { (out as GainNode).gain.value = level; out.connect(to); }
   const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600; lp.Q.value = 0.7; lp.connect(out);
   const formant = c.createBiquadFilter(); formant.type = 'bandpass'; formant.frequency.value = 950; formant.Q.value = 1.4;
   const fg = c.createGain(); fg.gain.value = 0.6; formant.connect(fg); fg.connect(lp);
@@ -133,7 +134,7 @@ export function playSunrise() {
 }
 
 /** A low funeral bell. */
-function bell(c: AudioContext, t: number, f: number, level: number, out: AudioNode, decay = 6) {
+export function bell(c: AudioContext, t: number, f: number, level: number, out: AudioNode, decay = 6) {
   [[1, 1], [2.0, 0.5], [2.4, 0.35], [3.9, 0.18], [5.4, 0.08]].forEach(([m, a]) => {
     const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f * m;
     const g = c.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(level * a, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0004, t + decay / m ** 0.3);

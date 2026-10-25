@@ -8,6 +8,7 @@ import { ROLE_PAIRS } from './rolePairs';
 import { CAUSES } from '../deathCauses';
 import { endArt } from '../endArt';
 import { playTick, playTimeUp } from '../sound';
+import { playRoleTheme } from '../roleSounds';
 import { DONATE_URL } from '../brand';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
@@ -162,41 +163,6 @@ export class HostView extends React.Component<any, any> {
   static store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } return null; }
   // how often each library role was dealt on this phone (the "Most played" preset)
   static roleUse() { try { return JSON.parse(localStorage.getItem('moonfall.roleUse') || '{}') || {}; } catch { return {}; } }
-  // the host's game guide (📖 in the header): how to run a game, in short steps
-  static hostGuide() {
-    return [
-      { title: 'Before the game', items: [
-        'Everyone joins from their own phone (Players screen → QR code or the room link). Drag the seats into the order people sit.',
-        'Roles screen: pick a Quick preset or build the deck yourself. The deck hint says when there is one card per player (plus any bluff cards).',
-        'House rules (Roles screen) set the first night, how the wolves choose, what the Seer learns, ties and reveals. Agree on them out loud.',
-        'Tap Deal: every phone shows its own card. Ask everyone to check their card privately, then put the phones face down.',
-      ] },
-      { title: 'At night', items: [
-        'Read the opening, then “Everyone, close your eyes.” Follow the wake-up order on the Play screen from top to bottom.',
-        'Call every step, even for roles nobody holds (“fake it” steps): wait a few seconds as if someone were acting, so nobody learns what is in play.',
-        'Record each night action with its button (who the wolves chose, who the Healer saved, the Witch’s potions…). Information roles can read their answer on their own phone.',
-        'When the steps are done, tap Day.',
-      ] },
-      { title: 'At day', items: [
-        'Wake everyone and announce who died in the night (Mark players). With “Reveal their card” on, say their role too.',
-        'Let the village talk. Use the timer if you like, then open the vote, nominate, and count the hands (or the secret phone vote).',
-        'Mark the player voted out, read the reminders that pop up (Hunter, Prince, Tanner, lovers…), then go back to Night.',
-      ] },
-      { title: 'Special cases', items: [
-        'Lovers: when one lover dies, the other dies of a broken heart at once. A popup reminds you the moment it happens, and again at dawn if it happened at night, so you can announce it.',
-        'Bluff cards: the deck may hold extra cards that were never dealt. Only you see them (Play screen → Bluff cards). Keep calling their night steps as if they were in play.',
-        'The Atheist: with it in the deck there are no real werewolves. You fake the Werewolves step and may lie. If the village votes you, the host, out while nobody evil is alive, the village wins. The Atheist story card on the Play screen walks you through it.',
-        'Spirits: dead players chat in the Spirit Realm. Once about a third of the players are dead, call the Spirit Council: each spirit secretly gets a faction (good or evil) and chooses a living player. Reveal factions shows each spirit theirs.',
-        'People who join after the deal are spectators: they see every role and your log, and join as players next game.',
-      ] },
-      { title: 'Who wins', items: [
-        'The village wins when every werewolf (and wolf ally) is out.',
-        'The werewolves win when they are as many as everyone else.',
-        'Solo roles (Tanner, lovers, cult…) win on their own terms. The app checks every ending and shows the win screen; the Hall of Fame (🏆) keeps the score.',
-        'Not sure? The reminders on the Play screen and the role cards (tap a role on the Roles screen) explain each role’s rule.',
-      ] },
-    ];
-  }
   // the Atheist story: a recommended way to run an Atheist game (there are no werewolves — only the host knows)
   static atheistStory() {
     return {
@@ -1178,6 +1144,8 @@ export class HostView extends React.Component<any, any> {
         bg: x.rage ? 'rgba(255,111,97,.1)' : 'rgba(10,6,18,.45)', opacity: done ? 0.6 : 1, strike: done ? 'line-through' : 'none',
         // steps with a choice open the picker; the rest just tick as before
         tick: () => {
+          // each night role has its own theme on the host's phone (not when un-ticking a step)
+          if (this.props.soundOn && !this.state.simBusy && (actSpec(x) || !done)) playRoleTheme(libOf(x.key) || r.name);
           if (actSpec(x)) return openAct(x);
           this.setState({ awake: x.key, checks: done ? checks.filter(c => c !== ck(x.key)) : checks.concat([ck(x.key)]) });
         },
@@ -1959,9 +1927,26 @@ export class HostView extends React.Component<any, any> {
           ok: () => this.setState({ loverSeen: seen.concat(key === dayKey ? [dayKey, nowKey] : [nowKey]) }),
         };
       })(),
-      // the host's game guide (header 📖)
+      // Roles in play (header 🃏): every card of this round with its description, for explaining to the players
       guideOpen: !!s.guideOpen, openGuide: () => this.setState({ guideOpen: true }), closeGuide: () => this.setState({ guideOpen: false }),
-      guideSections: HostView.hostGuide(),
+      rolesInPlay: (() => {
+        const keys = screen === 'play' && st('pool', []).length ? st('pool', []) : deck.map(r => r.key);
+        const n0 = {}; keys.forEach(k => { n0[k] = (n0[k] || 0) + 1; });
+        const TEAM = { Village: ['Village', '#8fe0b8'], Werewolves: ['Wolf side', '#ff8a9b'], Loner: ['On their own', '#e3c7a5'] };
+        const rank = { Werewolves: 0, Loner: 1, Village: 2 };
+        return Object.keys(n0).filter(k => byKey[k]).map(k => {
+          const r = byKey[k];
+          const lib = r.lib ? findLib(r.lib) : ROLE_LIBRARY.find(e => e.builtin === k);
+          // the host's own text wins, then the library's full description, then the card's short line
+          const desc = (edits[k] && edits[k].blurb) || (r.custom && !r.lib ? r.blurb : '') || (lib && lib.desc) || r.blurb || '';
+          const libName = r.lib || (lib && lib.name);
+          const m = libName ? MECH[libName] : null;
+          const wakes = k === 'werewolf' ? 'Wakes every night' : (lib && lib.night === 'wolves') || (r.team === 'Werewolves' && r.wolf !== false && k !== 'minion' && k !== 'sorceress' && !m) ? 'Wakes with the werewolves' : m && m.kind !== 'none' ? (m.when === 'first' ? 'Wakes on the first night' : m.when === 'third' ? 'Wakes on night 3' : m.when === 'dead' ? 'Wakes after dying' : m.when === 'even' ? 'Wakes every other night' : 'Wakes every night') : lib && lib.night === 'first' ? 'Wakes on the first night' : '';
+          const t = TEAM[r.team] || TEAM.Village;
+          return { key: k, name: n0[k] > 1 ? n0[k] + ' × ' + (r.plural || r.name) : r.name, desc, icon: r.icon, color: r.color, soft: 'rgba(' + r.rgb + ',.16)', team: t[0], teamColor: t[1], wakes,
+            secret: libName === 'Atheist' ? 'Only you know — phones show it as a Villager. Don’t read this one out.' : '', sort: (rank[r.team] ?? 2) * 100 + (k === 'werewolf' ? 0 : k === 'villager' ? 99 : 1) };
+        }).sort((x, y) => x.sort - y.sort);
+      })(),
       // the Atheist story: a recommended way to run an Atheist game — follow it, or play your own way
       athStory: (() => {
         if (screen !== 'play' || !atheistGame || gameOver) return null;
@@ -2315,9 +2300,9 @@ export class HostView extends React.Component<any, any> {
               {(this.props.onLock) ? (
                 <>
                 <button className="press" onClick={() => this.setState({ theme: this.state.theme === 'halloween' ? null : 'halloween' })} aria-label={this.state.theme === 'halloween' ? 'Turn the Halloween theme off' : 'Turn the Halloween theme on'} aria-pressed={this.state.theme === 'halloween'} title="Halloween theme (every phone follows)" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: `1px solid ${this.state.theme === 'halloween' ? 'rgba(255,140,40,.9)' : 'rgba(255,140,40,.35)'}`, background: this.state.theme === 'halloween' ? 'rgba(255,120,20,.3)' : 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', filter: this.state.theme === 'halloween' ? 'none' : 'grayscale(.7)' }}>🎃</button>
-                <button className="press" onClick={v.openGuide} aria-label="Game guide" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '13px', display: 'flex', alignItems: 'center' }}>📖</button>
+                <button className="press" onClick={v.openGuide} aria-label="Roles in play" title="Roles in play" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🃏</button>
                 <button className="press" onClick={v.openFame} aria-label="Hall of Fame" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(242,208,107,.4)', background: 'rgba(20,12,34,.6)', color: '#f2d06b', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🏆</button>
-                <button className="press" onClick={this.props.onLock} aria-label="Lock the host screen (asks for the PIN again)" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                <button className="press" onClick={this.props.onLock} aria-label="Leave this room (asks for the room password again)" title="Leave this room" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" /></svg>
                 </button>
                 </>
@@ -2365,8 +2350,8 @@ export class HostView extends React.Component<any, any> {
                     <span style={{ fontSize: '12px', fontWeight: '700', letterSpacing: '.14em', textTransform: 'uppercase', color: '#a99bc2' }}>
                       Room code
                     </span>
-                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '34px', letterSpacing: '.2em' }}>
-                      HOWL
+                    <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: (this.props.roomCode || '').length > 6 ? '22px' : '34px', letterSpacing: (this.props.roomCode || '').length > 6 ? '.06em' : '.2em', overflowWrap: 'anywhere' }}>
+                      {(this.props.roomCode || 'HOWL').toUpperCase() /* NET: this host's room */}
                     </span>
                     <span style={{ fontSize: '12.5px', lineHeight: '1.4', color: '#a99bc2' }}>
                       No camera? Open{' '}
@@ -4431,21 +4416,29 @@ export class HostView extends React.Component<any, any> {
         {(v.guideOpen) ? (
           <>
             <div className="fade" onClick={v.closeGuide} style={{ position: 'absolute', inset: '0', zIndex: 110, background: 'rgba(5,3,10,.7)', backdropFilter: 'blur(3px)' }} />
-            <section className="sheet" aria-label="Game guide" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1f1236 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.4)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '20px 20px 8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ flex: '1', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px', color: '#f1e9d2' }}>📖 Game guide</span>
-                <button className="press" onClick={v.closeGuide} aria-label="Close the game guide" style={{ height: '40px', padding: '0 14px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#d9cfe9', fontSize: '13px', fontWeight: '700' }}>Close</button>
+            <section className="sheet" aria-label="Roles in play" style={{ position: 'absolute', left: '0', right: '0', bottom: '0', zIndex: 111, maxHeight: '780px', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #1f1236 0%, #120a20 70%)', borderTop: '1px solid rgba(199,168,255,.4)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ flex: '1', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '24px', color: '#f1e9d2' }}>Roles in play</span>
+                  <button className="press" onClick={v.closeGuide} aria-label="Close roles in play" style={{ height: '40px', padding: '0 14px', borderRadius: '12px', border: '1px solid rgba(236,230,246,.2)', background: 'none', color: '#d9cfe9', fontSize: '13px', fontWeight: '700' }}>Close</button>
+                </div>
+                <span style={{ fontSize: '12.5px', color: '#a99cc0' }}>Every card in this round, to read out to the players.</span>
               </div>
-              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {v.guideSections.map((g: any) => (
-                  <div key={g.title} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '11.5px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#c7a8ff' }}>{g.title}</span>
-                    {g.items.map((t: string, i: number) => (
-                      <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>
-                        <span style={{ flex: 'none', width: '20px', color: '#8f82a8', fontWeight: '700' }}>{i + 1}.</span>
-                        <span>{t}</span>
-                      </div>
-                    ))}
+              <div className="scroll" style={{ flex: '1', minHeight: '0', padding: '6px 20px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(v.rolesInPlay.length === 0) ? (
+                  <span style={{ fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>No roles yet. Build the deck on the Roles screen.</span>
+                ) : null}
+                {v.rolesInPlay.map((r: any) => (
+                  <div key={r.key} style={{ padding: '12px 14px', borderRadius: '14px', background: 'rgba(20,12,34,.7)', border: '1px solid rgba(236,230,246,.08)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <span style={{ flex: 'none', width: '38px', height: '38px', borderRadius: '12px', background: r.soft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={r.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={r.icon} /></svg>
+                    </span>
+                    <div style={{ flex: '1', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span style={{ fontSize: '15px', fontWeight: '800', color: r.color }}>{r.name}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '.08em', textTransform: 'uppercase', color: r.teamColor }}>{r.team}{r.wakes ? ' · ' + r.wakes : ''}</span>
+                      <span style={{ fontSize: '13.5px', color: '#d9cfe9', lineHeight: '1.45' }}>{r.desc}</span>
+                      {(r.secret) ? (<span style={{ fontSize: '12px', color: '#f2d06b', lineHeight: '1.4' }}>{r.secret}</span>) : null}
+                    </div>
                   </div>
                 ))}
               </div>

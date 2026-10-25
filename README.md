@@ -62,7 +62,7 @@ Player Interface
 Project Structure
 
 Path| Description
-"server/index.ts"| Socket.IO room server (in-memory state, single room)
+"server/index.ts"| Socket.IO room server (in-memory state, many independent rooms, each with its own host password)
 "src/views/"| UI screens converted from design mockups ("HostView" / "PlayerView")
 "src/HostApp.tsx", "src/PlayerApp.tsx"| Server connection and integration
 "design/"| Original design canvas files (".dc.html")

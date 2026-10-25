@@ -1,6 +1,6 @@
 # Moonfall — notes for Claude Code
 
-Werewolf party game for one room on local Wi-Fi. The host runs the game from a phone (`/host`);
+Werewolf party game on local Wi-Fi or a public server (Render), with any number of independent rooms. The host runs the game from a phone (`/host`);
 players join from their own phones (`/`). Night actions, discussion and votes happen in person —
 the app only deals cards, shows each player their card, switches night/day backgrounds, and gives
 the host a guide (wake-up order, special-case reminders, win check).
@@ -12,15 +12,22 @@ the host a guide (wake-up order, special-case reminders, win check).
 - `npm run typecheck`
 
 ## Layout
-- `server/index.ts` — Express + Socket.IO room server, in-memory state. One room per server.
+- `server/index.ts` — Express + Socket.IO room server, in-memory state. Many rooms per server (`rooms` map, keyed by room code):
+  every helper takes the `room` it works on, Socket.IO channels are `<code>:host`, `<code>:p:<playerId>` and `<code>:all`, and the
+  HTTP endpoints take `?room=<code>` (`/api/info`, `/api/theme`, `/api/sponsor`, `/api/sponsor/logo`, `/api/room` = does it exist). Rooms idle 12 h are dropped.
   - host events: `host:patch` (mirror of host-owned state), `host:kick`, `host:deal` (role keys → shuffled & assigned by name), `host:end`
   - player events: `player:join` ({name}) → ack {playerId}; server pushes `player:view` (only that player's own role)
 - `src/HostApp.tsx`, `src/PlayerApp.tsx` — socket wiring; render the views inside `PhoneFrame`
-  - `/host` is behind a PIN (`HOST_PIN` env, default 6969), checked by the server on the host socket; the phone remembers it
-  - the host's phone keeps a copy of the whole room (`host:snapshot` → localStorage); if the server comes back empty
+  - `/host` asks for a room name + password (`HostRoom`): a new name creates that room with that password, an existing one needs its
+    password (checked by the server on the host socket). The phone remembers it (`moonfall.hostRoom`); the 🔒 button leaves the room.
+  - players join a room from the QR link (`/player?room=<code>`) or by typing its name (`RoomPick`); their seat is kept per room (`moonfall.playerId.<code>`)
+  - the host's phone keeps a copy of the whole room (`host:snapshot` → localStorage `moonfall.room.<code>`); if the server comes back empty
     (restart / redeploy / sleep) it sends it back with `host:restore` and players' phones reconnect (`room:restored`)
 - `src/main.tsx` — lazy-loads HostApp or PlayerApp (separate chunks), adds the app manifest (`public/manifest*.webmanifest`, icons in `public/icons`) and `public/sw.js` (installable; caches nothing)
 - `src/wakeLock.ts` — keeps phones' screens on during a game
+- `src/sound.ts` — synthesized sounds (Web Audio, no files): howl, dawn, timer. `src/roleSounds.ts` — a theme per night role, played on
+  the host's phone when a wake-up step is tapped (`playRoleTheme(libraryName)`): hand-made themes for the main roles, a motif generated
+  from the name for every other role. All synthesized in code, so there are no audio licences to track.
 - `src/halloween.tsx` (+ `html.halloween` rules in `src/global.css`) — the Halloween theme: the host's 🎃 header button sets shared `theme`;
   the server sends it to every phone (`theme` in views, `/api/theme`, live `room:theme`). A decoration layer (no taps) + card frame touches.
 - `src/brand.ts` — `DONATE_URL` (Ko-fi / PayPal.me; empty hides every "Support Moonfall" button) and the sponsor/support lines in 7 languages.
@@ -76,7 +83,7 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   The wake-up order still calls roles nobody holds (not dealt, or the player was turned) as "fake it" steps, so it never gives anything away.
 - Host-only helpers on the Play screen (`HostView.renderVals` view object): **Bluff cards** (`bluffView`, from `unused`; collapsible, never sent to phones),
   the **lover popup** (`loverPop`: the moment a lover is out, however it happened, and again at dawn if it happened at night; seen keys in shared `loverSeen`),
-  the **📖 game guide** sheet in the header (`HostView.hostGuide()`), and the **Atheist story** card + sheet in an Atheist game (`HostView.atheistStory()`,
+  the **🃏 Roles in play** sheet in the header (`rolesInPlay` view value: every card of the round with its full description, to read out), and the **Atheist story** card + sheet in an Atheist game (`HostView.atheistStory()`,
   steps n1/d1/n2/d2/nX/dX/end; the host picks follow / own way, kept in `mech.athPlan`).
 - Master controls (secret: tap the "N alive" counter 5 times on the Play screen): force any ending (`state.forced`, never saved
   to the Hall of Fame), give anyone any library role (via `override`), set any fate/death card, shuffle roles, revive, change round,

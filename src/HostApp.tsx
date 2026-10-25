@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { connect } from './net';
+import { connect, roomCode } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HalloweenLayer } from './halloween';
 import { HostView } from './views/HostView';
@@ -11,52 +11,58 @@ const SOUND_KEY = 'moonfall.hostSound';
 
 type RoomInfo = { spectators?: number; players: { name: string; color: string; connected: boolean; fake?: boolean }[]; assign: Record<string, string>; dealt: boolean };
 
-const PIN_KEY = 'moonfall.hostPin';
-const SNAP_KEY = 'moonfall.room'; // last copy of the whole room, to put the game back after a server restart
+const ROOM_KEY = 'moonfall.hostRoom'; // { room, password } of the room this phone hosts
+const SNAP_KEY = (room: string) => 'moonfall.room.' + room; // last copy of that room, to put the game back after a server restart
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode / full */ } },
   del: (k: string) => { try { localStorage.removeItem(k); } catch { /* ignore */ } },
 };
+type Creds = { room: string; password: string };
+const savedCreds = (): Creds | null => { try { const c = JSON.parse(store.get(ROOM_KEY) || 'null'); return c && c.room && c.password ? c : null; } catch { return null; } };
 
-/** The host screen is behind a PIN (checked by the server). It's asked once per phone and remembered. */
+/** The host opens a room by name and password (checked by the server); a new name creates that room.
+ *  Each room is its own game, so several hosts can run games on the same server at once. Remembered on this phone. */
 export function HostApp() {
-  const [pin, setPin] = useState(() => store.get(PIN_KEY));
-  const [wrong, setWrong] = useState(false);
-  if (!pin) return <HostPin wrong={wrong} onEnter={p => { setWrong(false); store.set(PIN_KEY, p); setPin(p); }} />;
-  return <HostGame key={pin} pin={pin} onDenied={() => { store.del(PIN_KEY); setWrong(true); setPin(null); }} onLock={() => { store.del(PIN_KEY); setWrong(false); setPin(null); }} />;
+  const [creds, setCreds] = useState<Creds | null>(savedCreds);
+  const [denied, setDenied] = useState<string | null>(null);
+  if (!creds) return <HostRoom denied={denied} last={(() => { try { return store.get(ROOM_KEY + '.last') || ''; } catch { return ''; } })()}
+    onEnter={c => { setDenied(null); store.set(ROOM_KEY, JSON.stringify(c)); store.set(ROOM_KEY + '.last', c.room); setCreds(c); }} />;
+  return <HostGame key={creds.room + '/' + creds.password} room={creds.room} password={creds.password}
+    onDenied={(why: string) => { store.del(ROOM_KEY); setDenied(why || 'password'); setCreds(null); }}
+    onLock={() => { store.del(ROOM_KEY); setDenied(null); setCreds(null); }} />;
 }
 
-function HostPin({ wrong, onEnter }: { wrong: boolean; onEnter: (pin: string) => void }) {
-  const [digits, setDigits] = useState('');
-  const press = (d: string) => setDigits(x => (x.length < 8 ? x + d : x));
-  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
+function HostRoom({ denied, last, onEnter }: { denied: string | null; last: string; onEnter: (c: Creds) => void }) {
+  const [name, setName] = useState(last);
+  const [pw, setPw] = useState('');
+  const code = roomCode(name);
+  const ok = code.length >= 2 && pw.length >= 4;
+  const msg = denied === 'password' ? 'That password isn’t right for this room. Try again, or pick another room name.'
+    : denied === 'short' ? 'The password needs at least 4 characters.'
+      : denied ? 'Pick a room name (letters and numbers).'
+        : 'Open your room, or type a new name to create one. Players join with the room name; only you need the password.';
+  const field: React.CSSProperties = { width: 270, height: 50, borderRadius: 14, border: '1px solid rgba(199,168,255,.3)', background: 'rgba(20,12,34,.7)', color: '#f1e9ff', font: "600 17px 'Manrope', sans-serif", padding: '0 14px', boxSizing: 'border-box' };
   return (
     <PhoneFrame>
       {frameH => (
-        <div className="sky pin-screen" style={{ height: frameH }}>
+        <form className="sky pin-screen" style={{ height: frameH }} onSubmit={e => { e.preventDefault(); if (ok) onEnter({ room: code, password: pw }); }}>
           <img src="/moon.svg" alt="" className="pin-moon" />
           <div className="pin-title">Host</div>
-          <p className="pin-sub">{wrong ? 'That PIN isn’t right. Try again.' : 'Enter the host PIN to run the game.'}</p>
-          <div className={'pin-dots' + (wrong ? ' pin-shake' : '')} aria-label={`${digits.length} digits entered`}>
-            {Array.from({ length: Math.max(4, digits.length) }, (_, i) => <span key={i} className={i < digits.length ? 'on' : ''} />)}
-          </div>
-          <div className="pin-pad">
-            {keys.map((k, i) => k === '' ? <span key={i} /> : (
-              <button key={i} className="press" aria-label={k === '⌫' ? 'Delete' : k}
-                onClick={() => (k === '⌫' ? setDigits(x => x.slice(0, -1)) : press(k))}>{k}</button>
-            ))}
-          </div>
-          <button className="press pin-go" disabled={digits.length < 4} onClick={() => onEnter(digits)}>Enter</button>
-        </div>
+          <p className={'pin-sub' + (denied ? ' pin-shake' : '')} style={{ maxWidth: 290, textAlign: 'center', lineHeight: 1.45 }}>{msg}</p>
+          <input style={field} value={name} onChange={e => setName(e.target.value)} placeholder="Room name" aria-label="Room name" autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={24} />
+          <input style={field} value={pw} onChange={e => setPw(e.target.value)} placeholder="Room password" aria-label="Room password" type="password" autoComplete="current-password" maxLength={40} />
+          {code && code !== name.trim() ? <p className="pin-sub" style={{ fontSize: 12.5, opacity: .8 }}>Room name: {code}</p> : null}
+          <button className="press pin-go" type="submit" disabled={!ok}>Open room</button>
+        </form>
       )}
     </PhoneFrame>
   );
 }
 
-function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void; onLock: () => void }) {
+function HostGame({ room, password, onDenied, onLock }: { room: string; password: string; onDenied: (why: string) => void; onLock: () => void }) {
   const inst = useInstall();
-  const socket = useMemo(() => connect('host', pin), [pin]);
+  const socket = useMemo(() => connect('host', room, password), [room, password]);
   const [init, setInit] = useState<Record<string, unknown> | null>(null);
   const [initKey, setInitKey] = useState(0);
   const [net, setNet] = useState<RoomInfo>({ players: [], assign: {}, dealt: false });
@@ -100,17 +106,17 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
     socket.on('host:denied', onDenied);
     // keep a copy of the room on this phone
     socket.on('host:snapshot', (snap: { players?: unknown[]; shared?: Record<string, unknown> }) => {
-      if ((snap.players && snap.players.length) || (snap.shared && Object.keys(snap.shared).length)) store.set(SNAP_KEY, JSON.stringify(snap));
+      if ((snap.players && snap.players.length) || (snap.shared && Object.keys(snap.shared).length)) store.set(SNAP_KEY(room), JSON.stringify(snap));
     });
-    socket.on('host:init', ({ shared, room, fresh, restored }) => {
+    socket.on('host:init', ({ shared, room: roomInfo, fresh, restored }) => {
       // the server came back empty (restart): put the last game back instead of starting over
       if (fresh) {
         let snap: { at?: number; players?: unknown[] } | null = null;
-        try { snap = JSON.parse(store.get(SNAP_KEY) || 'null'); } catch { snap = null; }
+        try { snap = JSON.parse(store.get(SNAP_KEY(room)) || 'null'); } catch { snap = null; }
         if (snap && snap.players && snap.players.length && Date.now() - (snap.at || 0) < 24 * 3600 * 1000) { socket.emit('host:restore', snap); return; }
       }
       if (restored) setInitKey(k => k + 1); // rebuild the screen from the restored game
-      setInit(shared || {}); setNet(room); setTheme((shared && shared.theme) || null);
+      setInit(shared || {}); setNet(roomInfo); setTheme((shared && shared.theme) || null);
       phaseRef.current = (shared && shared.phase) || 'night';
       statusRef.current = (shared && shared.status) || {};
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
@@ -118,7 +124,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
     socket.on('room', setNet);
     socket.on('connect', () => setOnline(true));
     socket.on('disconnect', () => setOnline(false));
-    fetch('/api/info').then(r => r.json()).then(setInfo).catch(() => setInfo(null));
+    fetch('/api/info?room=' + encodeURIComponent(room)).then(r => r.json()).then(setInfo).catch(() => setInfo(null));
     return () => { socket.disconnect(); };
   }, [socket]);
 
@@ -131,9 +137,9 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
         <div className="sky pin-screen" style={{ height: frameH }}>
           <img src="/moon.svg" alt="" className="pin-moon pin-wait" />
           <div className="pin-title">Moonfall</div>
-          <p className="pin-sub">Connecting to the room…</p>
+          <p className="pin-sub">Connecting to room {room}…</p>
           <p className="pin-sub" style={{ maxWidth: 280, textAlign: 'center', fontSize: 13, opacity: .75 }}>If the server was asleep, waking it can take up to a minute.</p>
-          <button className="press pin-change" onClick={onLock}>Use a different PIN</button>
+          <button className="press pin-change" onClick={onLock}>Open a different room</button>
         </div>
       )}
     </PhoneFrame>
@@ -145,6 +151,7 @@ function HostGame({ pin, onDenied, onLock }: { pin: string; onDenied: () => void
           <>
           <HostView
             key={initKey}
+            roomCode={room}
             frameH={frameH}
             sharedInit={init}
             net={net}

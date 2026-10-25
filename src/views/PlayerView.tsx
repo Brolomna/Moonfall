@@ -718,8 +718,11 @@ export class PlayerView extends React.Component<any, any> {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 12.5l4.5 4.5L19 7.5" />
                     </svg>
-                    {' '}{v.T.connected}
+                    {' '}{v.T.connected.replace('HOWL', this.props.room || 'HOWL') /* NET: the room this phone joins */}
                   </span>
+                  {(this.props.onChangeRoom) ? (
+                    <button type="button" className="press" onClick={this.props.onChangeRoom} style={{ alignSelf: 'flex-start', marginTop: '-8px', padding: '0', border: 'none', background: 'none', color: '#a99bc2', fontSize: '12.5px', fontWeight: '600', textDecoration: 'underline' }}>{({ zh: '换一个房间', ko: '다른 방', ja: '別のルーム', fr: 'Autre salon', th: 'เปลี่ยนห้อง', es: 'Otra sala' })[v.lang] || 'Different room'}</button>
+                  ) : null}
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <span style={{ fontFamily: v.fD, fontWeight: '600', fontSize: '22px' }}>
                       {v.T.whatsName}
@@ -1543,7 +1546,7 @@ export class PlayerView extends React.Component<any, any> {
                   </span>
                   <span style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.16em', textTransform: 'uppercase', color: '#c7a8ff' }}>
-                      Moonfall · HOWL
+                      Moonfall{this.props.room ? ' · ' + this.props.room : ''}
                     </span>
                     <h2 style={{ margin: '0', fontFamily: v.fD, fontWeight: '600', fontSize: '22px' }}>
                       {v.T.guideTitle}
