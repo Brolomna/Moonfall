@@ -9,6 +9,19 @@ export const playerId = {
   clear: (room: string) => { try { localStorage.removeItem(key(room)); } catch { /* ignore */ } },
 };
 
+/** This phone's own id (made once, kept in localStorage) and the name last used on it, to fill in the join screen. */
+export const device = {
+  id: () => {
+    try {
+      let id = localStorage.getItem('moonfall.device');
+      if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); localStorage.setItem('moonfall.device', id); }
+      return id;
+    } catch { return ''; }
+  },
+  lastName: () => { try { const id = device.id(); return (id && localStorage.getItem('moonfall.name.' + id)) || localStorage.getItem('moonfall.name') || ''; } catch { return ''; } },
+  saveName: (name: string) => { try { const id = device.id(); const n = name.trim().slice(0, 18); if (!n) return; if (id) localStorage.setItem('moonfall.name.' + id, n); localStorage.setItem('moonfall.name', n); } catch { /* private mode */ } },
+};
+
 /** Room names as the server keeps them: lower case letters, digits and dashes. */
 export const roomCode = (raw: string) => raw.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 24);
 

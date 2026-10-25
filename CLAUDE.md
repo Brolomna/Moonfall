@@ -85,7 +85,22 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   the **lover popup** (`loverPop`: the moment a lover is out, however it happened, and again at dawn if it happened at night; seen keys in shared `loverSeen`),
   the **🃏 Roles in play** sheet in the header (`rolesInPlay` view value: every card of the round with its full description, to read out), and the **Atheist story** card + sheet in an Atheist game (`HostView.atheistStory()`,
   steps n1/d1/n2/d2/nX/dX/end; the host picks follow / own way, kept in `mech.athPlan`).
-- Master controls (secret: tap the "N alive" counter 5 times on the Play screen): force any ending (`state.forced`, never saved
+- Death notices: on every `host:patch` that changes `status`, the server (`noteDeaths`) works out who newly died and emits `room:death`
+  {id, names} to `:all` (night deaths wait until the day phase). Phones and the host show `DeathNotice` ("<name> died", never the cause or killer).
+- Player role card: shown only while held (`holdCard` pointer handlers in PlayerView); game UI has `user-select: none` (inputs excepted).
+- Lobby chat: players before the deal (`lobby:say` → `room.lobbyChat`, last 100, in `playerView` until dealt).
+- Votes: the host taps who nominated each nominee (`vote.noms[].by`, logged with each vote as `noms`); phones get anonymous totals
+  (`voteResultView`: counts per nominee, never who voted). Log `out` events carry `byWho`, `act` events carry `who` (+ `found` for checks),
+  so the History reads "Seer (Alex)".
+- Match recap: `src/recap.ts` `buildRecap()` (rule-based, only from the recorded log: votes, nominations, eliminations, saves, spirits) runs
+  on the host when there is a winner and is shared as `recap`; the server only sends it to phones once `winner` is set (`recapView`).
+  Shown by `src/views/RecapView.tsx` (auto-opens once on phones). English only for now.
+- Interactive tutorial: `src/Tutorial.tsx`, after the splash for a new phone (`moonfall.tutorialSeen`), again from the guide / join screen.
+- Remembered name: `device` in `src/net.ts` (localStorage device id + last name) pre-fills the join field.
+- Custom role pictures: the role editor's "Picture" (only roles you create) stores a resized data URL on the custom role (`img`);
+  phones load it from `/api/role-img?room=&key=` (fitted with `object-fit: contain` over a blurred copy).
+- Newer player-phone strings (7 languages): `src/views/i18n/extra.ts`.
+- Master controls (secret: press and hold the "N alive" counter on the Play screen for about a second): force any ending (`state.forced`, never saved
   to the Hall of Fame), give anyone any library role (via `override`), set any fate/death card, shuffle roles, revive, change round,
   scenario presets + a simulator (`simNight`/`simDay`/`simAll` drive the real host screens through `this._v`), and secret messages
   (shared `notes[name] = {id, text}` → that player's `note` only).

@@ -9,6 +9,9 @@ import { FATE_LOOK, FateArt } from './fateCards';
 import { endArt } from '../endArt';
 import { brandText, DONATE_URL } from '../brand';
 import { spiritText } from './i18n/spirit';
+import { extraText } from './i18n/extra';
+import { RecapView } from './RecapView';
+import { DeathNotice } from './DeathNotice';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
 const IG_INVITE = 'https://ig.me/j/RFB9VVRkOs0ztvFr/';
@@ -24,9 +27,18 @@ export class PlayerView extends React.Component<any, any> {
     if (revealed && !was) {
       this.setState({ peeks: ((this.state && this.state.peeks) || 0) + 1 }); // next tip on every peek
       clearTimeout(this._hide);
-      if (fate === 'none') this._hide = setTimeout(() => this.setState({ revealed: false }), 5000);
+      // the card is held to peek and hides on release; this only catches a release the phone never reported
+      if (fate === 'none') this._hide = setTimeout(() => this.setState({ revealed: false }), 15000);
     }
     if (!revealed && was) clearTimeout(this._hide);
+    // NET: the post-game recap opens by itself a few seconds after the end card (once per game on this phone)
+    const rc = this.props.recap;
+    if (rc && rc.id && (!prev.recap || prev.recap.id !== rc.id)) {
+      let seen = null; try { seen = localStorage.getItem('moonfall.recapSeen'); } catch { /* private mode */ }
+      clearTimeout(this._recap);
+      if (seen !== rc.id) this._recap = setTimeout(() => { try { localStorage.setItem('moonfall.recapSeen', rc.id); } catch { /* private mode */ } this.setState({ recapOpen: true }); }, 4000);
+    }
+    if (!rc && this.state && this.state.recapOpen) this.setState({ recapOpen: false });
   }
 
   // a dead player's card: the death side first, then it turns to the spirit by itself after 10 s
@@ -37,6 +49,7 @@ export class PlayerView extends React.Component<any, any> {
 
   componentDidMount() {
     this.spiritTimer();
+    if (this.props.recap) this.componentDidUpdate({ ...this.props, recap: null }, this.state);
     // NET: the host's discussion timer counts down on this phone
     this._tick = setInterval(() => { const t = this.props.timer; if (t && t.running) this.forceUpdate(); }, 500);
   }
@@ -45,6 +58,7 @@ export class PlayerView extends React.Component<any, any> {
     clearTimeout(this._hide);
     clearTimeout(this._spirit);
     clearInterval(this._tick);
+    clearTimeout(this._recap);
   }
 
   roles() {
@@ -366,6 +380,7 @@ export class PlayerView extends React.Component<any, any> {
     const UI = this.ui();
     const LT = LIB_I18N[lang]; // translations for library roles + the newer UI lines
     const T = { ...UI.en, ...(UI[lang] || {}), ...((LT && LT.ui) || {}) };
+    const XT = extraText(lang); // newer lines: hold to peek, death notices, lobby chat, vote results
     const fmt = (str, v) => str.replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m));
     const RT = (this.roleText()[lang]) || {};
     const NF = { ko: ['Noto Serif KR', 'Noto Sans KR'], zh: ['Noto Serif SC', 'Noto Sans SC'], ja: ['Noto Serif JP', 'Noto Sans JP'], th: ['Noto Serif Thai', 'Noto Sans Thai'] };
@@ -403,7 +418,7 @@ export class PlayerView extends React.Component<any, any> {
     const fate = s.fate || this.props.fate || 'none';
     // killed in the night by someone other than the wolves (Serial Killer, Arsonist, …): the wolves' card, other words
     if (fate === 'slain') Object.assign(T, { whenKilled: T.whenSlain, killedT1: T.slainT1, killedT2: T.slainT2, killedLine: T.slainLine });
-    const name = s.name !== undefined ? s.name : (this.props.name || ''); // NET
+    const name = s.name !== undefined ? s.name : (this.props.name || this.props.lastName || ''); // NET: the name last used on this phone is filled in
     const displayName = (this.props.name || name).trim() || '…'; // NET
     const cjk = lang === 'zh' || lang === 'ja' || lang === 'ko';
     const len = R.name.length * (cjk ? 2 : 1);
@@ -415,7 +430,8 @@ export class PlayerView extends React.Component<any, any> {
       teamLabel: R.team === 'Loner' ? T.onYourOwn : (R.team === 'Werewolves' ? T.teamWolves : T.teamVillage),
       edge: 'rgba(' + R.rgb + ',.55)', frame: 'rgba(' + R.rgb + ',.28)', halo: 'rgba(' + R.rgb + ',.22)',
       isWolf: motif === 'wolf', isSeer: motif === 'seer', isHealer: motif === 'healer',
-      isWitch: motif === 'witch', isHunter: motif === 'hunter', isVillager: motif === 'village', isCustom: motif === 'generic'
+      isWitch: motif === 'witch', isHunter: motif === 'hunter', isVillager: motif === 'village', isCustom: motif === 'generic',
+      img: (defs[key] && defs[key].custom && defs[key].img) || '' // NET: the host's picture for a hand-made role
     };
 
     // roles the host chose for this round (mock — sent by the host in the real app)
@@ -477,7 +493,7 @@ export class PlayerView extends React.Component<any, any> {
           return;
         }
         if (!chapters.length) chapters.push({ title: phaseN('night', 1), night: true, sub: '', items: [] });
-        const actRole = (k) => (k && all[k] ? loc(k).name : e.by || '');
+        const actRole = (k) => (k && all[k] ? loc(k).name : e.by || '') + (Array.isArray(e.who) && e.who.length ? ' (' + e.who.join(', ') + ')' : ''); // "Seer (Alex)"
         const text = e.t === 'act' ? (e.kind === 'witch'
             ? actRole(e.key) + ' → ' + ([e.save ? '💧 ' + e.save : '', e.poison ? '☠ ' + e.poison : ''].filter(Boolean).join(' · ') || '—')
             : actRole(e.key) + ' → ' + ((e.targets || []).join(' & ') || '—'))
@@ -594,10 +610,25 @@ export class PlayerView extends React.Component<any, any> {
       vigBg: fate === 'heartbreak' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,30,80,.5) 100%)' : fate === 'shot' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(120,70,20,.5) 100%)' : fate === 'poisoned' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(40,120,30,.5) 100%)' : fate === 'voted' ? 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(150,62,14,.5) 100%)' : 'radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 45%, rgba(130,10,30,.55) 100%)',
 
       cardTransform: revealed ? 'rotateY(180deg)' : 'rotateY(0deg)',
-      cardAria: revealed ? T.hintHide : T.tapToSee,
-      cardHint: fate !== 'none' ? (revealed ? spiritText(lang).hintDeath : spiritText(lang).hintSpirit) : (revealed ? T.hintHide : T.hintPeek),
+      cardAria: fate === 'none' ? XT.holdToSee : (revealed ? T.hintHide : T.tapToSee),
+      cardHint: fate !== 'none' ? (revealed ? spiritText(lang).hintDeath : spiritText(lang).hintSpirit) : (revealed ? XT.letGo : T.hintPeek),
+      holdLabel: XT.holdToSee,
       hintIcon: revealed ? 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4 M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6' : 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z',
       flip: () => this.setState({ revealed: !revealed }),
+      // alive: the role shows only while the card is held, and hides the moment the finger lets go
+      holdCard: fate === 'none',
+      cardHold: (() => {
+        const show = () => { if (!this.state || !this.state.revealed) this.setState({ revealed: true }); };
+        const hide = () => { if (this.state && this.state.revealed) this.setState({ revealed: false }); };
+        return {
+          onPointerDown: (e) => { if (e.button > 0) return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not supported */ } show(); },
+          onPointerUp: hide, onPointerCancel: hide, onLostPointerCapture: hide,
+          onKeyDown: (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); show(); } },
+          onKeyUp: (e) => { if (e.key === ' ' || e.key === 'Enter') hide(); },
+          onBlur: hide,
+          onContextMenu: (e) => e.preventDefault(),
+        };
+      })(),
       ...(() => {
         // NET: the private night answer, the host's timer, the secret phone vote, the Ivory Tower
         const inCard = screen === 'card';
@@ -657,6 +688,43 @@ export class PlayerView extends React.Component<any, any> {
           endBg: 'linear-gradient(170deg, ' + tone.bg + ', rgba(18,10,31,.94))',
         };
       })(),
+      XT,
+      ...(() => {
+        // NET: the waiting screen's chat (players only, closes when the cards are dealt)
+        const lc = this.props.lobbyChat;
+        const on = !!lc && screen === 'waiting' && !!this.props.onLobbySay;
+        const read = s.lobbyRead || 0, msgs = lc || [];
+        return {
+          lobbyOn: on, lobbyOpen: on && !!s.lobbyOpen,
+          lobbyBadge: on && !s.lobbyOpen && msgs.length > read ? String(Math.min(99, msgs.length - read)) : '',
+          openLobby: () => this.setState({ lobbyOpen: true, lobbyRead: msgs.length }),
+          closeLobby: () => this.setState({ lobbyOpen: false, lobbyRead: msgs.length }),
+          lobbyRows: msgs.map(m => ({ from: m.from === this.props.name ? XT.you : m.from, mine: m.from === this.props.name, text: m.text })),
+          lobbyMsg: s.lobbyMsg || '', setLobbyMsg: (e) => this.setState({ lobbyMsg: e.target.value }),
+          sayLobby: (e) => { e && e.preventDefault && e.preventDefault(); const t = (s.lobbyMsg || '').trim(); if (!t) return; this.props.onLobbySay(t); this.setState({ lobbyMsg: '', lobbyRead: msgs.length + 1 }); },
+        };
+      })(),
+      ...(() => {
+        // NET: the vote's totals, once the host has closed it — never who voted for whom
+        const r = this.props.voteResult;
+        const seen = s.voteSeen || (() => { try { return localStorage.getItem('moonfall.voteSeen'); } catch { return null; } })();
+        if (!r || (screen !== 'card' && screen !== 'spectate') || seen === r.id) return { vrShow: false };
+        const label = (nm) => (nm === '__host__' ? XT.vrHost : nm);
+        const max = Math.max(1, ...r.noms.map(n => n.count));
+        return {
+          vrShow: true,
+          vrRows: r.noms.map(n => ({ name: label(n.name), count: n.count, votes: n.count === 1 ? XT.vrVote : fmt(XT.vrVotes, { n: n.count }), pct: Math.round((n.count / max) * 100) + '%', out: n.name === r.out })),
+          vrResult: r.out ? fmt(XT.vrOut, { name: label(r.out) }) : r.tie ? XT.vrTie + ' · ' + r.tie.map(label).join(XT.and) : XT.vrNone,
+          vrOut: !!r.out,
+          vrOk: () => { try { localStorage.setItem('moonfall.voteSeen', r.id); } catch { /* private mode */ } this.setState({ voteSeen: r.id }); },
+        };
+      })(),
+      // NET: the post-game recap (opens by itself after the end card; this button opens it again)
+      recap: this.props.recap || null, recapOpen: !!this.props.recap && !!s.recapOpen,
+      openRecap: () => this.setState({ recapOpen: true }), closeRecap: () => this.setState({ recapOpen: false }),
+      // NET: "<name> died" — on every phone, never who did it
+      deathText: this.props.deathNotice ? fmt(XT.died, { name: this.props.deathNotice.names.join(XT.and) }) : '',
+      openTutorial: () => { this.setState({ guide: false }); this.props.onTutorial && this.props.onTutorial(); },
       demo: !!this.props.demo, // NET: prototype-only buttons stay hidden in the real app
       showRoleList: this.props.showRoles !== false && deck.length > 0
     };
@@ -738,6 +806,7 @@ export class PlayerView extends React.Component<any, any> {
                   <span style={{ alignSelf: 'center', display: 'flex', gap: '14px', fontSize: '12.5px' }}>
                     <a href={v.lang === 'en' ? '/how-to-play' : '/' + v.lang + '/how-to-play'} target="_blank" rel="noopener" style={{ color: '#8f82a8', textDecoration: 'underline' }}>{v.T.guideTitle}</a>
                     <a href="/privacy" target="_blank" rel="noopener" style={{ color: '#8f82a8', textDecoration: 'underline' }}>{v.T.privacy}</a>
+                    {(this.props.onTutorial) ? <button type="button" onClick={v.openTutorial} style={{ padding: '0', border: 'none', background: 'none', color: '#8f82a8', fontSize: '12.5px', textDecoration: 'underline' }}>{v.XT.tutorial}</button> : null}
                   </span>
                 </form>
               </div>
@@ -829,6 +898,16 @@ export class PlayerView extends React.Component<any, any> {
                   </div>
                 ) : null}
                 <div style={{ flex: '1' }} />
+                {(v.lobbyOn) ? (
+                  // NET: the waiting screen's chat
+                  <button className="press" onClick={v.openLobby} style={{ height: '48px', padding: '0 20px 0 16px', borderRadius: '999px', border: '1px solid rgba(143,224,184,.5)', background: 'rgba(14,40,32,.85)', backdropFilter: 'blur(10px)', color: '#d8fbe9', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 5h16v11H9l-5 4z M8 9.5h8 M8 12.5h5" />
+                    </svg>
+                    {v.XT.chat}
+                    {v.lobbyBadge ? <span style={{ minWidth: '20px', height: '20px', padding: '0 5px', borderRadius: '999px', background: '#8fe0b8', color: '#0b2219', fontSize: '12px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{v.lobbyBadge}</span> : null}
+                  </button>
+                ) : null}
                 <button className="press guidebtn" onClick={v.openGuide} style={{ height: '48px', padding: '0 22px 0 16px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(30,18,52,.88)', backdropFilter: 'blur(10px)', color: '#f1e9ff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7 M8 11h7" />
@@ -943,7 +1022,7 @@ export class PlayerView extends React.Component<any, any> {
             <>
               <div className="rise" style={{ flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <div aria-hidden="true" style={{ width: '100%', height: '36px', flex: 'none' }} />
-                <button onClick={v.flip} aria-label={v.cardAria} style={{ position: 'relative', marginTop: '8px', width: '326px', height: '520px', flex: 'none', padding: '0', border: 'none', background: 'transparent', color: 'inherit', perspective: '1400px', textAlign: 'center', fontFamily: 'inherit' }}>
+                <button {...(v.holdCard ? v.cardHold : { onClick: v.flip })} className={v.holdCard ? 'holdcard' : undefined} aria-label={v.cardAria} style={{ position: 'relative', marginTop: '8px', width: '326px', height: '520px', flex: 'none', padding: '0', border: 'none', background: 'transparent', color: 'inherit', perspective: '1400px', textAlign: 'center', fontFamily: 'inherit' }}>
                   <div className="flip" style={{ position: 'absolute', inset: '0', transformStyle: 'preserve-3d', transform: v.cardTransform }}>
                     {(v.isAlive) ? (
                       <>
@@ -956,7 +1035,7 @@ export class PlayerView extends React.Component<any, any> {
                               <svg className="tap" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11 M12 10.5V9a1.5 1.5 0 0 1 3 0v2 M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.5a6 6 0 0 1-4.6-2.2L4.5 15.6a1.5 1.5 0 0 1 2.3-1.9L9 16" />
                               </svg>
-                              {' '}{v.T.tapToSee}
+                              {' '}{v.holdLabel}
                             </span>
                           </div>
                         </div>
@@ -1362,11 +1441,19 @@ export class PlayerView extends React.Component<any, any> {
                             {v.T.yourRole}
                           </span>
                         </div>
-                        <div className="shimmer" style={{ marginTop: '18px', width: '116px', height: '116px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${v.rc.edge}`, background: `radial-gradient(circle, ${v.rc.halo} 0%, rgba(0,0,0,0) 70%)`, boxShadow: `0 0 60px ${v.rc.halo}, inset 0 0 30px ${v.rc.halo}` }}>
-                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
-                            <path d={v.rc.icon} />
-                          </svg>
-                        </div>
+                        {(v.rc.img) ? (
+                          // NET: the host's own picture for a hand-made role — fitted whole (never stretched) on a soft blurred copy of itself
+                          <div style={{ position: 'relative', marginTop: '16px', width: '200px', height: '132px', flex: 'none', borderRadius: '20px', overflow: 'hidden', border: `1px solid ${v.rc.edge}`, boxShadow: `0 0 50px ${v.rc.halo}`, background: '#0e0819' }}>
+                            <img src={v.rc.img} alt="" aria-hidden="true" draggable={false} style={{ position: 'absolute', inset: '-12px', width: 'calc(100% + 24px)', height: 'calc(100% + 24px)', objectFit: 'cover', filter: 'blur(14px)', opacity: 0.55 }} />
+                            <img src={v.rc.img} alt={v.rc.name} draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'contain' }} />
+                          </div>
+                        ) : (
+                          <div className="shimmer" style={{ marginTop: '18px', width: '116px', height: '116px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${v.rc.edge}`, background: `radial-gradient(circle, ${v.rc.halo} 0%, rgba(0,0,0,0) 70%)`, boxShadow: `0 0 60px ${v.rc.halo}, inset 0 0 30px ${v.rc.halo}` }}>
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
+                              <path d={v.rc.icon} />
+                            </svg>
+                          </div>
+                        )}
                         <span style={{ marginTop: '16px', fontFamily: v.fD, fontWeight: '700', fontSize: v.rc.nameSize, lineHeight: '1.15', letterSpacing: '.06em', marginRight: '-.06em', color: '#f6f1ff' }}>
                           {v.rc.upper}
                         </span>
@@ -1698,6 +1785,11 @@ export class PlayerView extends React.Component<any, any> {
                   ))}
                 </section>
               </div>
+              {(this.props.onTutorial) ? (
+                <div style={{ padding: '10px 20px 0' }}>
+                  <button className="press" onClick={v.openTutorial} style={{ width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(199,168,255,.45)', background: 'rgba(167,127,240,.14)', color: '#e9dcff', fontSize: '15px', fontWeight: '700' }}>▶ {v.XT.tutorial}</button>
+                </div>
+              ) : null}
               <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)', display: 'flex', gap: '10px' }}>
                 <button className="press" onClick={v.openLang} style={{ height: '54px', padding: '0 16px', flex: 'none', borderRadius: '16px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(255,255,255,.05)', color: '#e9dcff', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -1922,6 +2014,9 @@ export class PlayerView extends React.Component<any, any> {
               {(v.endAlso) ? <span style={{ fontSize: '13.5px', lineHeight: '1.45', color: v.endColor, maxWidth: '300px' }}>{v.T.endAlso}: {v.endAlso}</span> : null}
               <span style={{ fontSize: '14px', lineHeight: '1.5', color: '#e4d9f0', maxWidth: '300px' }}>{v.endSub}</span>
               {(v.spiritEnd) ? <span style={{ fontSize: '14px', fontWeight: '800', color: '#b8d4ff' }}>👻 {v.spiritEnd}</span> : null}
+              {(v.recap) ? (
+                <button className="press" onClick={v.openRecap} style={{ width: '100%', height: '48px', borderRadius: '14px', border: `1px solid ${v.endColor}`, background: 'rgba(0,0,0,.25)', color: v.endColor, fontSize: '15px', fontWeight: '800' }}>✨ {v.XT.recap}</button>
+              ) : null}
               {(v.sp && !v.sp.name && !v.sp.offer && v.sp.banner) ? (
                 <img src={v.sp.banner} alt="" style={{ width: '80%', aspectRatio: '3 / 1', objectFit: 'cover', borderRadius: '12px', border: '1px solid rgba(242,195,138,.35)' }} />
               ) : null}
@@ -1944,6 +2039,54 @@ export class PlayerView extends React.Component<any, any> {
             </section>
           </div>
         ) : null}
+        {/* NET: the waiting screen's chat */}
+        {(v.lobbyOpen) ? (
+          <div style={{ position: 'absolute', inset: '0', zIndex: 85, background: 'linear-gradient(180deg, rgba(12,26,22,.97), rgba(8,6,16,.98))', display: 'flex', flexDirection: 'column', fontFamily: v.fB, color: '#eefcf5' }}>
+            <div style={{ padding: '22px 20px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '24px', color: '#d8fbe9' }}>💬 {v.XT.chatTitle}</span>
+              <span style={{ fontSize: '13px', lineHeight: '1.45', color: '#9fc9b6' }}>{v.XT.chatSub}</span>
+            </div>
+            <div className="scroll" ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }} style={{ flex: '1', minHeight: '0', padding: '4px 20px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {v.lobbyRows.length ? v.lobbyRows.map((m: any, i: number) => (
+                <span key={i} style={{ alignSelf: m.mine ? 'flex-end' : 'flex-start', maxWidth: '82%', padding: '8px 11px', borderRadius: m.mine ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: m.mine ? 'rgba(143,224,184,.22)' : 'rgba(255,255,255,.07)', fontSize: '14px', lineHeight: '1.4', overflowWrap: 'anywhere', userSelect: 'text', WebkitUserSelect: 'text' }}>
+                  <b style={{ display: 'block', fontSize: '11.5px', color: '#9fc9b6' }}>{m.from}</b>{m.text}
+                </span>
+              )) : <span style={{ fontSize: '13px', color: '#7fa596', textAlign: 'center', padding: '10px 0' }}>{v.XT.chatEmpty}</span>}
+            </div>
+            <form onSubmit={v.sayLobby} style={{ padding: '10px 20px 8px', display: 'flex', gap: '8px', margin: '0' }}>
+              <input type="text" value={v.lobbyMsg} onChange={v.setLobbyMsg} maxLength={200} enterKeyHint="send" placeholder={v.XT.chatPh} aria-label={v.XT.chatPh} style={{ flex: '1', minWidth: '0', height: '44px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(143,224,184,.3)', background: 'rgba(255,255,255,.06)', color: '#eefcf5', fontSize: '15px', fontFamily: 'inherit', outline: 'none' }} />
+              <button type="submit" className="press" disabled={!v.lobbyMsg.trim()} style={{ height: '44px', padding: '0 16px', flex: 'none', borderRadius: '12px', border: 'none', background: '#8fe0b8', color: '#0b2219', fontSize: '14px', fontWeight: '800', opacity: v.lobbyMsg.trim() ? 1 : 0.45 }}>{v.XT.chatSend}</button>
+            </form>
+            <div style={{ padding: '4px 20px 26px' }}>
+              <button className="press" onClick={v.closeLobby} style={{ width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(143,224,184,.3)', background: 'none', color: '#d8fbe9', fontSize: '15px', fontWeight: '700' }}>{v.T.close}</button>
+            </div>
+          </div>
+        ) : null}
+        {/* NET: the vote's totals for everyone — anonymous, no names of voters */}
+        {(v.vrShow && !v.ballotShow && !v.endShow) ? (
+          <div className="fade" style={{ position: 'absolute', inset: '0', zIndex: 78, background: 'rgba(5,3,10,.72)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'flex-end', fontFamily: v.fB }}>
+            <section className="sheet" aria-label={v.XT.vrTitle} style={{ width: '100%', padding: '20px 20px 28px', boxSizing: 'border-box', borderRadius: '28px 28px 0 0', background: 'linear-gradient(180deg, #2c1a2e 0%, #120a20 75%)', borderTop: '1px solid rgba(242,197,138,.45)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <span style={{ fontFamily: v.fD, fontWeight: '700', fontSize: '22px', color: '#ffe7c7' }}>🗳 {v.XT.vrTitle}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {v.vrRows.map((r: any, i: number) => (
+                  <div key={i} style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: 'rgba(20,12,34,.75)', border: `1px solid ${r.out ? 'rgba(242,166,90,.6)' : 'rgba(236,230,246,.1)'}` }}>
+                    <span className="vr-bar" style={{ position: 'absolute', left: '0', top: '0', bottom: '0', width: r.pct, background: r.out ? 'rgba(242,166,90,.24)' : 'rgba(199,168,255,.14)', animationDelay: (i * 0.12) + 's' }} />
+                    <span style={{ position: 'relative', flex: '1', minWidth: '0', fontSize: '15.5px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                    <span style={{ position: 'relative', fontFamily: v.fD, fontWeight: '700', fontSize: '22px', color: r.out ? '#ffd3a8' : '#ece6f6' }}>{r.count}</span>
+                    <span style={{ position: 'relative', width: '58px', fontSize: '12px', color: '#c4b8da' }}>{r.votes}</span>
+                  </div>
+                ))}
+              </div>
+              <span style={{ textAlign: 'center', fontFamily: v.fD, fontWeight: '700', fontSize: '18px', color: v.vrOut ? '#ffb27a' : '#e4d9f0' }}>{v.vrResult}</span>
+              <span style={{ textAlign: 'center', fontSize: '12.5px', color: '#a99bc2' }}>{v.XT.vrAnon}</span>
+              <button className="press" onClick={v.vrOk} style={{ height: '50px', borderRadius: '16px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '16px', fontWeight: '800' }}>{v.XT.ok}</button>
+            </section>
+          </div>
+        ) : null}
+        {/* NET: "<name> died" on every phone */}
+        {(v.deathText) ? <DeathNotice id={this.props.deathNotice.id} kicker={v.XT.diedKicker} text={v.deathText} /> : null}
+        {/* NET: the post-game recap */}
+        {(v.recapOpen) ? <RecapView recap={v.recap} title={v.XT.recap} onClose={v.closeRecap} /> : null}
         {(this.props.offline) ? (
           <div className="offline" role="status" style={{ fontFamily: v.fB }}>
             {v.T.reconnecting}

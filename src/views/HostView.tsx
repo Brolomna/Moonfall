@@ -10,13 +10,15 @@ import { endArt } from '../endArt';
 import { playTick, playTimeUp } from '../sound';
 import { playRoleTheme } from '../roleSounds';
 import { DONATE_URL } from '../brand';
+import { buildRecap } from '../recap';
+import { RecapView } from './RecapView';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme', 'loverSeen'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme', 'loverSeen', 'recap'];
 
   constructor(props) {
     super(props);
@@ -42,6 +44,9 @@ export class HostView extends React.Component<any, any> {
     if (this._flip || this._drag) this.seatAnimate();
     const w = this._winner || null, cur = this.state.winner || null;
     if (JSON.stringify(w) !== JSON.stringify(cur)) this.setState({ winner: w });
+    // the post-game recap (built from the game's record once it is over) goes to every phone with the end card
+    const rc = this._recapOut || null;
+    if (JSON.stringify(rc) !== JSON.stringify(this.state.recap || null)) this.setState({ recap: rc });
     // a finished game is remembered once: Hall of Fame + who holds the Ivory Tower next game
     const rec = this._record;
     if (rec && HostView.store('moonfall.lastGame') !== rec.id) {
@@ -59,7 +64,7 @@ export class HostView extends React.Component<any, any> {
     }
   }
 
-  componentWillUnmount() { clearInterval(this._tick); }
+  componentWillUnmount() { clearInterval(this._tick); clearTimeout(this._hold); }
 
   // ---------- seating drag (players screen) ----------
   // ---------- master controls: the test players play the game out by themselves ----------
@@ -405,7 +410,7 @@ export class HostView extends React.Component<any, any> {
     const KEEP = ['werewolf', 'villager']; // every deck needs these, so they can't be deleted
     const isWolfRole = (r) => r.team === 'Werewolves' && r.wolf !== false && r.key !== 'minion' && r.key !== 'sorceress';
     const needWolves = Math.max(1, Math.round(n / 4));
-    const openEdit = (r) => this.setState({ sheet: true, editing: r.key, draft: { name: r.name, team: r.team, strength: r.strength, desc: r.blurb, iconD: r.icon, color: r.color, rgb: r.rgb, auto: {}, search: 'idle' } });
+    const openEdit = (r) => this.setState({ sheet: true, editing: r.key, draft: { name: r.name, team: r.team, strength: r.strength, desc: r.blurb, iconD: r.icon, color: r.color, rgb: r.rgb, img: (r.custom && !r.lib && r.img) || null, auto: {}, search: 'idle' } });
     const counts = s.counts || { werewolf: 2, villager: 2, mason: 0 };
     const picked = s.picked || ['seer', 'healer', 'hunter', 'apprentice', 'wolfcub', 'doppelganger'];
     const setCount = (k, v) => this.setState({ counts: { ...counts, [k]: v } });
@@ -493,6 +498,7 @@ export class HostView extends React.Component<any, any> {
       ? { name: editingRole.name, team: editingRole.team, strength: editingRole.strength, desc: editingRole.blurb, iconD: editingRole.icon, color: editingRole.color, rgb: editingRole.rgb, auto: {}, search: 'idle' }
       : { name: 'Little Girl', team: 'Village', strength: 4, desc: findLib('Little Girl').desc, iconD: iconD('eye'), color: '#f08fb8', rgb: '240,143,184', auto: { team: true, strength: true, desc: true, icon: true }, search: 'found', found: { name: 'Little Girl', source: 'Werewolves of Millers Hollow' } };
     const d = s.draft || demoDraft;
+    const canPicture = !editingRole || (!!editingRole.custom && !editingRole.lib);
     const auto = d.auto || {};
     const setDraft = (patch, clear) => this.setState(prev => {
       const cur = prev.draft || d;
@@ -814,6 +820,19 @@ export class HostView extends React.Component<any, any> {
       hunter: { how: 'night', cause: 'hunter' }, poison: { how: 'night', cause: 'poison' }, heartbreak: { how: 'night', cause: 'heartbreak' },
       kingshot: { how: 'night', cause: 'kingshot' }, starved: { how: 'night', cause: 'starved' },
     };
+    // who caused a death — for the host's History and the recap only (phones never learn it): the holders of the role behind the cause
+    const CAUSE_LIB = { knife: 'Serial Killer', burned: 'Arsonist', betrayed: 'White Werewolf', staked: 'Vampire Hunter', revealed: 'Revealer', vengeance: 'Vengeful Spirit', deathcurse: 'Death', kingshot: 'Wolf King' };
+    const libKeyOf = (k) => { const r = byKey[k]; return r ? (r.lib || (ROLE_LIBRARY.find(x => x.builtin === k) || {}).name || null) : null; };
+    const causedBy = (mk, victim) => {
+      if (!mk || mk.how !== 'night') return [];
+      const holders = (test) => names.filter(nm => nm !== victim && test(nm));
+      if (!mk.cause) return holders(nm => !isOut(nm) && isWolf(roleOf(nm)));
+      if (mk.cause === 'poison') return holders(nm => roleOf(nm).key === 'witch');
+      if (mk.cause === 'hunter') return holders(nm => roleOf(nm).key === 'hunter');
+      if (CAUSE_LIB[mk.cause]) return holders(nm => libKeyOf(roleOf(nm).key) === CAUSE_LIB[mk.cause]);
+      return [];
+    };
+    const outEv = (nm, mk) => ev('out', { ...mk, name: nm, role: roleOf(nm).name, byWho: causedBy(mk, nm) });
     const markOf = (m) => (!m ? 'alive' : m.how === 'voted' ? 'voted' : m.how === 'removed' ? 'left' : m.cause || 'wolves');
     const loversNow = st('lovers', null);
     const mateOf = (nm) => (loversNow && loversNow.indexOf(nm) >= 0 ? loversNow.find(x => x !== nm) : null);
@@ -823,7 +842,7 @@ export class HostView extends React.Component<any, any> {
       if (!mk) delete next[nm]; else next[nm] = { ...mk, round, phase };
       let lg = unlog(log, nm);
       const fixedHere = lg.length !== log.length;
-      lg = mk ? lg.concat([ev('out', { ...mk, name: nm, role: roleOf(nm).name })]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]);
+      lg = mk ? lg.concat([outEv(nm, mk)]) : fixedHere ? lg : lg.concat([ev('back', { name: nm })]);
       const dead = mk && mk.how !== 'removed' ? [nm] : [];
       // Cupid's lovers: when one dies the other dies of a broken heart at once; undoing the death undoes that too
       const mate = mateOf(nm);
@@ -951,7 +970,7 @@ export class HostView extends React.Component<any, any> {
         const marked = st('acts', []).filter(a => a.kind === 'mark').reduce((s0, a) => s0.concat(a.targets || []), []).filter((x, i, arr) => arr.indexOf(x) === i && !isOut(x));
         if (marked.length) push('death-' + nm, 'Death · ' + nm, 'Death takes the marked with them', 'Death was voted out. Everyone Death marked dies now: ' + marked.join(', ') + '.', '154,146,171', '#c6c0d4', r.icon, { label: 'Mark them out', fn: () => {
           const next = { ...status }; const lg = log.slice();
-          marked.forEach(m => { next[m] = { how: 'night', cause: 'deathcurse', round, phase }; lg.push(ev('out', { how: 'night', cause: 'deathcurse', name: m, role: roleOf(m).name })); });
+          marked.forEach(m => { next[m] = { how: 'night', cause: 'deathcurse', round, phase }; lg.push(outEv(m, { how: 'night', cause: 'deathcurse' })); });
           this.setState({ status: next, log: lg });
         } });
       }
@@ -1281,7 +1300,7 @@ export class HostView extends React.Component<any, any> {
         if (spec.kind === 'insomniac' && actors[0] && pick.length === 2) nm2.seat = { ...(mech.seat || {}), [actors[0]]: pick.slice() };
         patch.mech = nm2;
         patch.acts = acts.filter(b => !(b.round === round && b.key === actX.key)).concat([a]);
-        patch.log = log.filter(e => !(e.t === 'act' && e.round === round && e.key === actX.key)).concat([ev('act', { key: actX.key, kind: spec.kind, by: roleLabel(actX.key), targets: a.targets || [], result: a.result, save: a.save, poison: a.poison, convert: a.convert, ignite: a.ignite, role: a.role ? roleLabel(a.role) : undefined })]);
+        patch.log = log.filter(e => !(e.t === 'act' && e.round === round && e.key === actX.key)).concat([ev('act', { key: actX.key, kind: spec.kind, by: roleLabel(actX.key), who: actors.slice(), ...(spec.kind === 'check' && pick[0] ? { found: looksWolf(pick[0]) } : {}), targets: a.targets || [], result: a.result, save: a.save, poison: a.poison, convert: a.convert, ignite: a.ignite, role: a.role ? roleLabel(a.role) : undefined })]);
         if (spec.kind === 'witch') {
           const w = { ...witchUsed };
           if (w.save === round && !a.save) delete w.save; if (a.save) w.save = round;
@@ -1355,11 +1374,11 @@ export class HostView extends React.Component<any, any> {
     const voteOut = (nm, tally) => {
       if (nm === HOST) {
         const t2 = (tally || []).map(x => [x[0] === HOST ? 'the host' : x[0], x[1]]);
-        this.setState({ mech: { ...mech, hostOut: round }, log: log.concat([ev('vote', { tally: t2, out: 'the host' })]), vote: { ...vote, ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: HOST, tally } }, nominating: false });
+        this.setState({ mech: { ...mech, hostOut: round }, log: log.concat([ev('vote', { tally: t2, out: 'the host', noms: nomsLog() })]), vote: { ...vote, ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: HOST, tally } }, nominating: false });
         return;
       }
       const patch = markPatch(nm, 'voted');
-      const vEv = ev('vote', { tally, out: nm });
+      const vEv = ev('vote', { tally, out: nm, noms: nomsLog() });
       const lg = patch.log.slice(); const at = lg.findIndex(e => e.t === 'out' && e.name === nm && e.round === round && e.phase === phase);
       lg.splice(at < 0 ? lg.length : at, 0, vEv);
       this.setState({ ...patch, log: lg, vote: { ...vote, ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: nm, tally } }, nominating: false });
@@ -1371,11 +1390,13 @@ export class HostView extends React.Component<any, any> {
     const forcedVotes = vote.forced || {};
     const countOf = (n) => (forcedVotes[n.name] != null ? forcedVotes[n.name] : ballot && ballot.nominee === n.name ? ballot.kill : n.count);
     let frozenNoms = null; // the phone counts, kept on the panel once the phone vote closes
+    // who nominated whom (the host picks it after each nomination) — kept in the History and used by the recap
+    const nomsLog = () => vote.noms.map(x => ({ name: x.name, by: x.by || null }));
     const freeze = () => { if (ballot) { frozenNoms = vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: countOf(x) } : x)); this.props.onBallot && this.props.onBallot(null); } };
     // closing a nominee's phone vote keeps their "eliminate" count on the panel
     const closeBallot = () => { if (!ballot) return; setVote({ noms: vote.noms.map(x => (x.name === ballot.nominee ? { ...x, count: countOf(x) } : x)) }); this.props.onBallot && this.props.onBallot(null); };
     const tallyOf = () => vote.noms.map(n => ({ ...n, count: countOf(n) })).filter(n => n.count > 0).sort((a, b) => b.count - a.count).map(n => [n.name, n.count]);
-    const noOneOut = (why) => setVote({ ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: null, why, tally: tallyOf() } }, { log: log.concat([ev('vote', { tally: tallyOf(), out: null, why })]), nominating: false });
+    const noOneOut = (why) => setVote({ ...(frozenNoms ? { noms: frozenNoms } : {}), closed: true, result: { out: null, why, tally: tallyOf() } }, { log: log.concat([ev('vote', { tally: tallyOf(), out: null, why, noms: nomsLog() })]), nominating: false });
     const endVote = () => {
       const t = tallyOf();
       freeze();
@@ -1410,13 +1431,26 @@ export class HostView extends React.Component<any, any> {
           canPhone: !vote.closed && !ballot && n.name !== HOST, phone: () => openBallot(n.name),
           onTrial: !!(ballot && ballot.nominee === n.name),
           canRemove: !vote.closed,
+          byText: n.by ? 'nominated by ' + n.by : vote.closed ? '' : 'who nominated? tap to add',
+          hasBy: !!n.by, setBy: () => this.setState({ nomFor: n.name, nominating: false }), canSetBy: !vote.closed,
         };
       }),
+      // right after a nomination: who nominated them? (any living player but the nominee; or skip)
+      nomBy: (() => {
+        const nf = !vote.closed && s.nomFor ? vote.noms.find(x => x.name === s.nomFor) : null;
+        if (!nf) return null;
+        const setBy = (by) => setVote({ noms: vote.noms.map(x => (x.name === nf.name ? { ...x, by } : x)) }, { nomFor: null });
+        return {
+          name: nf.name === HOST ? 'the host' : nf.name,
+          opts: alive.filter(nm => nm !== nf.name).map(nm => ({ name: nm, on: nf.by === nm, pick: () => setBy(nm) })),
+          skip: () => this.setState({ nomFor: null }), clear: nf.by ? () => setBy(null) : null,
+        };
+      })(),
       nominating: !vote.closed && !!s.nominating,
       toggleNominate: () => this.setState({ nominating: !s.nominating }),
       candidates: alive.filter(nm => !vote.noms.some(n => n.name === nm)).map(nm => ({
-        name: nm + (nm === s.ivory ? ' 🏰' : ''), pick: () => setVote({ noms: vote.noms.concat([{ name: nm, count: 0 }]) }, { nominating: false }),
-      })).concat(vote.noms.some(n => n.name === HOST) ? [] : [{ name: '👑 The host (Atheist rule)', pick: () => setVote({ noms: vote.noms.concat([{ name: HOST, count: 0 }]) }, { nominating: false }) }]),
+        name: nm + (nm === s.ivory ? ' 🏰' : ''), pick: () => setVote({ noms: vote.noms.concat([{ name: nm, count: 0 }]) }, { nominating: false, nomFor: nm }),
+      })).concat(vote.noms.some(n => n.name === HOST) ? [] : [{ name: '👑 The host (Atheist rule)', pick: () => setVote({ noms: vote.noms.concat([{ name: HOST, count: 0 }]) }, { nominating: false, nomFor: HOST }) }]),
       canEnd: !vote.closed,
       endLabel: nominees.some(n => countOf(n) > 0) ? 'End vote & reveal' : 'End vote — no one is out',
       endVote,
@@ -1428,7 +1462,7 @@ export class HostView extends React.Component<any, any> {
       noneText: res && res.why === 'skipped' ? 'The village chose to skip the vote. No one is out today.' : res && res.why === 'no majority' ? 'No one reached a majority (' + need + ' votes needed). No one is out today.' : res && res.why === 'tie' ? 'The vote stayed tied. No one is out today.' : 'No votes were cast. No one is out today.',
       tieText: res && res.tie ? 'Tie: ' + res.tie.join(' and ') + ' — ' + res.tally[0][1] + ' votes each.' : '',
       tieHint: { revote: 'House rule: vote again between the tied players.', none: 'House rule: on a tie, no one is out.', host: 'House rule: the host decides.' }[tieRule] || '',
-      tieRevote: () => { const nx = (res.tie || []).map(nm => ({ name: nm, count: 0 })); setVote({ closed: false, result: null, noms: nx }); },
+      tieRevote: () => { const nx = (res.tie || []).map(nm => ({ name: nm, count: 0, by: (vote.noms.find(x => x.name === nm) || {}).by || null })); setVote({ closed: false, result: null, noms: nx }); },
       tieNone: () => noOneOut('tie'),
       tiePicks: (res && res.tie ? res.tie : []).map(nm => ({ name: nm, pick: () => voteOut(nm, res.tally) })),
       revoteFirst: tieRule !== 'none',
@@ -1502,6 +1536,12 @@ export class HostView extends React.Component<any, any> {
       st('acts', []).some(a => a.round === round && a.kind === 'banish' && a.targets && a.targets[0]) ? [] : dr2('oldhag', 'the player they banish at night can’t talk or vote the next day.')
     );
 
+    // who got which card, e.g. "Seer (Alex) · Werewolf (Bob, Cara)" — the deal as the server made it
+    const cardsOf = (roleFor) => {
+      const g = []; names.forEach(nm => { const r = roleFor(nm); if (!r) return; const x = g.find(y => y.r === r.name); if (x) x.n.push(nm); else g.push({ r: r.name, n: [nm], t: r.team === 'Werewolves' ? 0 : r.team === 'Loner' ? 1 : 2 }); });
+      return g.sort((a, b) => a.t - b.t).map(x => x.r + ' (' + x.n.join(', ') + ')').join(' · ');
+    };
+    const dealtSummary = this.props.net && this.props.net.dealt ? cardsOf(nm => baseRole[nm]) : '';
     // ---------- game end ----------
     const anyOut = names.some(isOut);
     // lone killers (Serial Killer, Arsonist, Death) and vampires play against everyone: the village only wins once they're gone too
@@ -1587,6 +1627,7 @@ export class HostView extends React.Component<any, any> {
     if (cupidIn) endTips.push('If the two lovers are the last ones standing, they win together.');
     if (inGame('doppelganger')) endTips.push('The Doppelgänger wins with the team of the role they copied.');
     if (also.length) endTips.push('Also winning: ' + also.map(x => x.name + ' (' + roleOf(x.name).name + ' — ' + x.why + ')').join(', ') + '.');
+    if (gameOver) endTips.push('Who was who: ' + cardsOf(roleOf) + '.');
     endTips.push('Ask everyone to show their cards and enjoy the reveal!');
     const wolfNames = alive.filter(nm => isWolf(roleOf(nm)));
     const winSide = winSide0;
@@ -1612,6 +1653,12 @@ export class HostView extends React.Component<any, any> {
     this._winner = !winSide ? null : winSide === 'solo'
       ? { side: 'solo', key: tannerWin ? 'tanner' : keyOfLib(solo.lib) || roleOf(solo.names[0]).key, lib: tannerWin ? 'Tanner' : solo.lib, names: tannerWin ? [tannerWin] : solo.names.slice(), also: alsoOut }
       : { side: winSide, also: alsoOut };
+    // the post-game recap: highlight cards built by rules from this game's record (see src/recap.ts) — only once it's over
+    this._recapOut = gameOver && screen === 'play' && n > 0 ? buildRecap({
+      players: names.map(nm => { const r = roleOf(nm), m = status[nm]; return { name: nm, role: r.name, team: r.team, out: m ? { how: m.how, round: m.round, phase: m.phase, cause: m.cause } : null }; }),
+      log, winners: winnersAll, winner: this._winner,
+      spirits: councilNet ? Object.fromEntries(Object.keys(councilNet.spirits).map(nm => [nm, { faction: councilNet.spirits[nm].faction, to: councilNet.spirits[nm].to, won: spiritsNet.won ? spiritsNet.won[nm] : null }])) : null,
+    }) : null;
 
     const dealNow = () => {
         const tally = []; deck.forEach(r => { const t = tally.find(x => x.name === r.name); if (t) t.n++; else tally.push({ name: r.name, n: 1 }); });
@@ -1656,9 +1703,12 @@ export class HostView extends React.Component<any, any> {
 
     // ---------- history view ----------
     const who = (e) => e.name + (hide || !e.role ? '' : ' (' + e.role + ')');
-    const actLine = (e) => {
+    const named = (e) => (!hide && Array.isArray(e.who) && e.who.length ? ' (' + e.who.join(', ') + ')' : ''); // "Seer (Alex)"
+    const actLine = (e0) => {
+      const e = { ...e0, by: e0.by + named(e0) };
       const t = (e.targets || []).join(' and ');
-      if (e.kind === 'kill') return 'The werewolves chose ' + (t || 'no one');
+      if (e.kind === 'kill' && e.convert) return 'The werewolves' + named(e0) + ' chose ' + (t || 'no one') + ' — the Alpha turned them';
+      if (e.kind === 'kill') return 'The werewolves' + named(e0) + ' chose ' + (t || 'no one');
       // nobody picked (no one to choose, or they passed) — one plain line for every kind except the ones with their own wording
       if (!t && !e.ignite && !e.result && ['witch', 'drunk', 'kill'].indexOf(e.kind) < 0) return e.by + ' chose no one';
       if (e.kind === 'check') return e.by + ' checked ' + t + ' — ' + e.result;
@@ -1672,7 +1722,7 @@ export class HostView extends React.Component<any, any> {
       if (e.kind === 'rob') return e.by + ' robbed ' + t + ' — they swapped roles';
       if (e.kind === 'swap') return e.by + ' swapped ' + t + '’s roles';
       if (e.kind === 'mimic') return e.by + ' copied ' + t + '’s power';
-      if (e.kind === 'drunk') return 'The Drunk sobered up as the ' + (e.role || '?');
+      if (e.kind === 'drunk') return 'The Drunk' + named(e0) + ' sobered up as the ' + (e.role || '?');
       if (e.kind === 'arson') return e.ignite ? e.by + ' set everyone doused alight' : e.by + ' doused ' + t;
       if (e.kind === 'block') return e.by + ' blocked ' + t + '’s power';
       if (e.kind === 'disguise') return e.by + ' disguised ' + t;
@@ -1693,27 +1743,29 @@ export class HostView extends React.Component<any, any> {
       if (e.kind === 'witch') return [e.save ? e.by + ' used the healing potion on ' + e.save : '', e.poison ? e.by + ' poisoned ' + e.poison : ''].filter(Boolean).join(' · ') || e.by + ' did nothing';
       return e.by + ' chose ' + (t || 'no one');
     };
+    const byWhoTxt = (e) => (!hide && Array.isArray(e.byWho) && e.byWho.length ? ' (' + e.byWho.join(', ') + ')' : '');
+    const nomLine = (e) => { const ns = (e.noms || []).filter(x => x.by); return ns.length ? ' · nominated: ' + ns.map(x => (x.name === HOST ? 'the host' : x.name) + ' by ' + x.by).join(', ') : ''; };
     const evLine = (e) => ({
-      out: { night: who(e) + ({ poison: ' was poisoned by the Witch', hunter: ' was shot by the Hunter', heartbreak: ' died of a broken heart' }[e.cause] || (CAUSES[e.cause] && CAUSES[e.cause].phrase) || ' was killed by the wolves'), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
+      out: { night: who(e) + ({ poison: ' was poisoned by the Witch', hunter: ' was shot by the Hunter', heartbreak: ' died of a broken heart' }[e.cause] || (CAUSES[e.cause] && CAUSES[e.cause].phrase) || ' was killed by the wolves') + byWhoTxt(e), voted: who(e) + ' was voted out by the village', removed: e.name + ' left the game' }[e.how],
       back: e.name + ' is back in the game',
       tough: e.name + ' was attacked but, as the Tough Guy, lives until the next night',
       cursed: e.name + ' was attacked and, being Cursed, turned into a Werewolf',
       prince: e.name + ' revealed the Prince and survived the vote',
       dg: e.name + ' (Doppelgänger) became the ' + e.role,
       note: e.text,
-      saved: e.name + ' survived — saved by ' + (/^(their|the )/.test(e.by) ? e.by : 'the ' + e.by),
-      turned: e.name + ' became the ' + e.role + (e.by === 'apprentice' ? ' (the apprentice steps up)' : e.by ? ' (' + e.by + ')' : ''),
+      saved: e.name + ' survived — saved by ' + (/^(their|the )/.test(e.by) ? e.by : 'the ' + e.by) + named(e),
+      turned: e.name + ' became the ' + e.role + (e.by === 'apprentice' ? ' (the apprentice steps up)' : e.by ? ' (' + e.by + (named(e) ? ': ' + e.who.join(', ') : '') + ')' : ''),
       raised: e.name + ' was raised from the dead',
       revived: e.name + ' was brought back to life by the Witch’s potion',
       drunk: 'The Drunk is secretly the ' + e.role + ' (revealed on night 3)',
-      vote: 'The vote: ' + ((e.tally || []).map(x => x[0] + ' ' + x[1]).join(' · ') || 'no votes') + (e.out ? '' : e.why === 'skipped' ? ' — the village skipped the vote' : e.why === 'tie' ? ' — tied, no one is out' : e.why === 'no majority' ? ' — no majority, no one is out' : ' — no one is out'),
+      vote: 'The vote: ' + ((e.tally || []).map(x => x[0] + ' ' + x[1]).join(' · ') || 'no votes') + (e.out ? '' : e.why === 'skipped' ? ' — the village skipped the vote' : e.why === 'tie' ? ' — tied, no one is out' : e.why === 'no majority' ? ' — no majority, no one is out' : ' — no one is out') + nomLine(e),
       act: actLine(e),
     }[e.t]);
     const evColor = (e) => (e.t === 'out' ? { night: '#ff8a9b', voted: '#f2a65a', removed: '#b9acd2' }[e.how] : { vote: '#f2c58a', act: '#a6c8ff', saved: '#62d4a6', turned: '#c2a8f0', raised: '#8fe0b8', revived: '#c98bf2', back: '#62d4a6', tough: '#f29a7a', cursed: '#c2a8f0', prince: '#f2d06b', dg: '#c6d0dc', note: '#e8d3a0' }[e.t]) || '#c7a8ff';
     const chapters = [];
     log.forEach((e, i) => {
       if (e.t === 'start' || e.t === 'phase') {
-        chapters.push({ title: (e.phase === 'night' ? 'Night ' : 'Day ') + e.round, night: e.phase === 'night', sub: e.t === 'start' ? e.players + ' players · ' + (hide ? 'cards dealt' : e.text) : '', items: [] });
+        chapters.push({ title: (e.phase === 'night' ? 'Night ' : 'Day ') + e.round, night: e.phase === 'night', sub: e.t === 'start' ? e.players + ' players · ' + (hide ? 'cards dealt' : (dealtSummary || e.text) + (dealtSummary && /— not dealt/.test(e.text || '') ? ' —' + e.text.split('—').slice(1).join('—') : '')) : '', items: [] });
         return;
       }
       if (!chapters.length) chapters.push({ title: 'Night 1', night: true, sub: '', items: [] });
@@ -1816,7 +1868,7 @@ export class HostView extends React.Component<any, any> {
           else {
             const mk = val === 'voted' ? { how: 'voted' } : val === 'wolves' ? { how: 'night' } : { how: 'night', cause: val };
             next[nm] = { ...mk, round, phase };
-            lg = lg.concat([ev('out', { ...mk, name: nm, role: roleOf(nm).name })]);
+            lg = lg.concat([outEv(nm, mk)]);
           }
           this.setState({ status: next, log: lg });
         },
@@ -1861,10 +1913,15 @@ export class HostView extends React.Component<any, any> {
       // switch every ending off (no win screen of any kind) or back on
       noEnd: !!mech.noEnd, toggleNoEnd: () => this.setState({ mech: { ...mech, noEnd: !mech.noEnd } }),
     };
-    const tapAlive = () => {
-      const now = Date.now(); this._taps = (this._taps || []).filter(t => now - t < 1500).concat([now]);
-      if (this._taps.length >= 5) { this._taps = []; this.setState({ master: true }); }
-    };
+    // hold the "N alive" counter for a moment to open the master controls
+    const holdAlive = (() => {
+      const stop = () => { clearTimeout(this._hold); this._hold = null; };
+      return {
+        onPointerDown: (e) => { if (e.button > 0) return; stop(); this._hold = setTimeout(() => { this._hold = null; try { navigator.vibrate && navigator.vibrate(25); } catch { /* no vibration */ } this.setState({ master: true }); }, 900); },
+        onPointerUp: stop, onPointerLeave: stop, onPointerCancel: stop,
+        onContextMenu: (e) => e.preventDefault(),
+      };
+    })();
 
     // who's ahead: the strength of everyone still alive (village roles vs wolves and lone killers); full once the game is over
     let vPow = 0, oPow = 0;
@@ -1878,7 +1935,7 @@ export class HostView extends React.Component<any, any> {
     const inPlayDay = screen === 'play' && !night;
     return {
       balView,
-      masterView, tapAlive,
+      masterView, holdAlive,
       steps,
       ruleGroups, rulesSummary,
       rulesOpen: screen === 'players' && !!st('rulesOpen', false),
@@ -2042,6 +2099,23 @@ export class HostView extends React.Component<any, any> {
       closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
 
       dr, teamOpts, iconOpts, colorOpts, lk, auto,
+      // an optional picture, only for hand-made roles (new ones, or your own) — standard roles keep their artwork
+      canPicture, roleImg: d.img || null,
+      pickRoleImg: (e) => {
+        const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+        const img = new Image(), url = URL.createObjectURL(f);
+        img.onload = () => {
+          // scaled down to 480 px on the long side (kept in proportion), so it travels light to every phone
+          const k = Math.min(1, 480 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+          let out = c.toDataURL('image/webp', 0.82); if (!/^data:image\/webp/.test(out)) out = c.toDataURL('image/jpeg', 0.85);
+          setDraft({ img: out });
+        };
+        img.onerror = () => URL.revokeObjectURL(url);
+        img.src = url;
+      },
+      clearRoleImg: () => setDraft({ img: null }),
       sheetTitle: editingRole ? 'Edit ' + editingRole.name : 'Create a role',
       sheetKicker: editingRole ? (editingRole.custom ? 'Your role' : 'Role details') : 'New role',
       saveLabel: editingRole ? 'Save changes' : 'Add to the deck',
@@ -2069,12 +2143,14 @@ export class HostView extends React.Component<any, any> {
         if (editingRole) {
           const patch = { name: d.name, team: d.team, strength: d.strength, blurb: d.desc, icon: d.iconD, color: d.color, rgb: d.rgb };
           if (editingRole.kind !== 'unique' && d.name !== editingRole.name) patch.plural = d.name + 's';
-          this.setState({ edits: { ...edits, [editing]: { ...(edits[editing] || {}), ...patch } }, sheet: false });
+          // the picture lives on the hand-made role itself; every other setting stays as it was
+          const pic = canPicture ? { custom: custom.map(c => (c.key === editing ? (() => { const { img, ...rest } = c; return d.img ? { ...rest, img: d.img } : rest; })() : c)) } : {};
+          this.setState({ edits: { ...edits, [editing]: { ...(edits[editing] || {}), ...patch } }, ...pic, sheet: false });
           return;
         }
         const key = 'c' + Date.now();
         // hand-made roles wake every night unless the lookup said otherwise
-        const role = { key, name: d.name, team: d.team, kind: 'unique', strength: d.strength, color: d.color, rgb: d.rgb, blurb: d.desc || 'Custom role.', icon: d.iconD, custom: true, night: d.night === undefined ? 'every' : d.night, ...(d.wolf === false ? { wolf: false } : {}) };
+        const role = { key, name: d.name, team: d.team, kind: 'unique', strength: d.strength, color: d.color, rgb: d.rgb, blurb: d.desc || 'Custom role.', icon: d.iconD, custom: true, night: d.night === undefined ? 'every' : d.night, ...(d.wolf === false ? { wolf: false } : {}), ...(d.img ? { img: d.img } : {}) };
         this.setState({ custom: custom.concat([role]), picked: picked.concat([key]), sheet: false });
       },
 
@@ -2095,6 +2171,8 @@ export class HostView extends React.Component<any, any> {
       showVote: !night && (!gameOver || !!(vote.result && vote.result.out)),
       timerView, showTimer: !night && screen === 'play' && !gameOver,
       canRematch: gameOver,
+      recapReady: !!this._recapOut, openRecap: () => this.setState({ recapOpen: true }), closeRecap: () => this.setState({ recapOpen: false }),
+      recapView: gameOver && s.recapOpen ? this._recapOut : null,
       rematch: () => {
         // same players, same deck, reshuffled — or back to the roles screen when the table changed (spectators joining)
         const spect = (this.props.net && this.props.net.spectators) || 0;
@@ -2201,10 +2279,10 @@ export class HostView extends React.Component<any, any> {
         ((wolvesAct && wolvesAct.targets) || []).filter(nm => !isOut(nm)).forEach(v => {
           if (isLib(v, 'Serial Killer')) { saves.push({ name: v, by: 'their own strength — wolves can’t kill the Serial Killer' }); return; }
           // protection comes first: a protected victim is neither killed nor turned by the Alpha (the charge isn't used up)
-          if (protect === v) { saves.push({ name: v, by: roleLabel('healer') }); return; }
-          if (witch && witch.save === v) { saves.push({ name: v, by: roleLabel('witch') }); return; }
-          if (guard === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard') }); die(guardian, 'sacrifice'); return; }
-          if (convertLeft) { convertLeft = false; turned.push({ nm: v, key: 'werewolf', why: 'Alpha Werewolf' }); nm2.used['Alpha Werewolf'] = round; return; }
+          if (protect === v) { saves.push({ name: v, by: roleLabel('healer'), who: actorsOf(eff('protect')[0]) }); return; }
+          if (witch && witch.save === v) { saves.push({ name: v, by: roleLabel('witch'), who: actorsOf(witch) }); return; }
+          if (guard === v && guardian) { saves.push({ name: v, by: roleLabel('bodyguard'), who: [guardian] }); die(guardian, 'sacrifice'); return; }
+          if (convertLeft) { convertLeft = false; turned.push({ nm: v, key: 'werewolf', why: 'Alpha Werewolf', who: names.filter(nm => isLib(nm, 'Alpha Werewolf')) }); nm2.used['Alpha Werewolf'] = round; return; }
           if (blessedSave(v)) return;
           if (isLib(v, 'Elder') && !nm2.elderHit[v]) { nm2.elderHit[v] = true; saves.push({ name: v, by: 'the Elder’s luck (next time it kills)' }); return; }
           if (roleOf(v).key === 'toughguy' && !(v in nm2.wounded) && !deaths.find(d => d.nm === v)) { nm2.wounded[v] = round; toughLog.push(ev('tough', { name: v, phase: 'night' })); return; }
@@ -2230,7 +2308,7 @@ export class HostView extends React.Component<any, any> {
         if (round === 1) names.filter(nm => !isOut(nm) && isLib(nm, 'Ghost')).forEach(nm => die(nm, 'ghost'));
         // bites and raisings
         const bite = first1('bite'), vampKey = keyOfLib('Vampire');
-        if (bite && vampKey && !deaths.find(d => d.nm === bite) && !isOut(bite) && !isWolf(roleOf(bite))) turned.push({ nm: bite, key: vampKey, why: 'Vampire' });
+        if (bite && vampKey && !deaths.find(d => d.nm === bite) && !isOut(bite) && !isWolf(roleOf(bite))) turned.push({ nm: bite, key: vampKey, why: 'Vampire', who: actorsOf(eff('bite')[0]) });
         const raise = first1('raise');
         // lovers die together
         const dead = deaths.map(d => d.nm);
@@ -2241,11 +2319,11 @@ export class HostView extends React.Component<any, any> {
         const revived = []; // the Witch's healing potion on someone who died before tonight
         if (witch && witch.save && isOut(witch.save) && nextStatus[witch.save] && nextStatus[witch.save].how !== 'removed') { delete nextStatus[witch.save]; revived.push(witch.save); }
         turned.forEach(t => { ov[t.nm] = t.key; });
-        const nightLog = toughLog.concat(saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by }))
-          .concat(turned.map(t => ({ t: 'turned', round, phase: 'night', name: t.nm, role: roleLabel(t.key), by: t.why })))
-          .concat(deaths.map(d => ({ t: 'out', round, phase: 'night', how: 'night', name: d.nm, role: roleOf(d.nm).name, ...(d.cause ? { cause: d.cause } : {}) })))
+        const nightLog = toughLog.concat(saves.map(x => ({ t: 'saved', round, phase: 'night', name: x.name, by: x.by, ...(x.who && x.who.length ? { who: x.who } : {}) })))
+          .concat(turned.map(t => ({ t: 'turned', round, phase: 'night', name: t.nm, role: roleLabel(t.key), by: t.why, ...(t.who && t.who.length ? { who: t.who } : {}) })))
+          .concat(deaths.map(d => ({ t: 'out', round, phase: 'night', how: 'night', name: d.nm, role: roleOf(d.nm).name, ...(d.cause ? { cause: d.cause } : {}), byWho: causedBy({ how: 'night', cause: d.cause }, d.nm) })))
           .concat(raised.map(nm => ({ t: 'raised', round, phase: 'night', name: nm })))
-          .concat(revived.map(nm => ({ t: 'revived', round, phase: 'night', name: nm }))));
+          .concat(revived.map(nm => ({ t: 'revived', round, phase: 'night', name: nm })));
         const patch = { phase: 'day', round, status: nextStatus, override: ov, mech: nm2, log: log.concat(nightLog, [{ t: 'phase', round, phase: 'day' }]) };
         dgTakeOver(patch, dead); // the Doppelgänger takes over the copied player's role
         promote(patch, dead); // apprentices step up
@@ -2799,7 +2877,7 @@ export class HostView extends React.Component<any, any> {
                   </button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 10px 10px 14px', borderRadius: '18px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(236,230,246,.1)' }}>
-                  <span onClick={v.tapAlive} style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '3px', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                  <span {...v.holdAlive} style={{ flex: '1', WebkitTouchCallout: 'none', display: 'flex', flexDirection: 'column', gap: '3px', userSelect: 'none', WebkitTapHighlightColor: 'transparent' }}>
                     <span style={{ fontSize: '15px', fontWeight: '700' }}>
                       {v.aliveCount} alive{' '}
                       <span style={{ color: '#a99bc2', fontWeight: '600' }}>
@@ -2907,6 +2985,11 @@ export class HostView extends React.Component<any, any> {
                           </React.Fragment>
                         ))}
                       </ul>
+                      {(v.recapReady) ? (
+                        <button className="press" onClick={v.openRecap} style={{ marginTop: '6px', width: '100%', height: '48px', borderRadius: '14px', border: 'none', background: 'rgba(255,255,255,.1)', color: '#fff4d6', fontSize: '15px', fontWeight: '800' }}>
+                          ✨ Match recap · also on every phone
+                        </button>
+                      ) : null}
                       <button className="press" onClick={v.openHist} style={{ marginTop: '6px', width: '100%', height: '48px', borderRadius: '14px', border: `1px solid ${v.endColor}`, background: 'rgba(0,0,0,.2)', color: v.endColor, fontSize: '15px', fontWeight: '700' }}>
                         Read the story of this game
                       </button>
@@ -3199,7 +3282,7 @@ export class HostView extends React.Component<any, any> {
                         </span>
                       ) : null}
                       {((v.voteView.noms) || []).map((n: any) => (
-                        <div key={n.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: n.lead ? 'rgba(242,166,90,.14)' : 'rgba(20,12,34,.75)', border: `1.5px solid ${n.lead ? 'rgba(242,166,90,.55)' : 'rgba(236,230,246,.09)'}` }}>
+                        <div key={n.name} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '14px', background: n.lead ? 'rgba(242,166,90,.14)' : 'rgba(20,12,34,.75)', border: `1.5px solid ${n.lead ? 'rgba(242,166,90,.55)' : 'rgba(236,230,246,.09)'}` }}>
                           <span style={{ width: '30px', height: '30px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '13px', color: '#12091c', background: '#f2c58a' }}>
                             {n.initial}
                           </span>
@@ -3223,8 +3306,26 @@ export class HostView extends React.Component<any, any> {
                           {(n.canRemove) ? (
                             <button className="press" onClick={n.remove} aria-label={`Withdraw ${n.name}'s nomination`} style={{ width: '28px', height: '40px', flex: 'none', border: 'none', background: 'none', color: '#7f7397', fontSize: '18px' }}>×</button>
                           ) : null}
+                            {(n.byText) ? (
+                              <button className="press" onClick={n.setBy} disabled={!n.canSetBy} style={{ flexBasis: '100%', margin: '-4px 0 0 40px', padding: '0', border: 'none', background: 'none', textAlign: 'left', fontSize: '11.5px', fontWeight: '600', color: n.hasBy ? '#c4b8da' : '#8f82a8', textDecoration: n.canSetBy && !n.hasBy ? 'underline' : 'none' }}>{n.byText}</button>
+                            ) : null}
                         </div>
                       ))}
+                      {(v.voteView.nomBy) ? (
+                        // right after a nomination: the host taps who made it (kept for the History and the recap)
+                        <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', borderRadius: '14px', background: 'rgba(10,6,18,.6)', border: '1px solid rgba(255,211,168,.4)' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: '#ffd3a8' }}>Who nominated {v.voteView.nomBy.name}?</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {v.voteView.nomBy.opts.map((o: any) => (
+                              <button key={o.name} className="press" onClick={o.pick} aria-pressed={o.on} style={{ height: '36px', padding: '0 12px', borderRadius: '999px', border: `1px solid ${o.on ? '#f2c58a' : 'rgba(255,211,168,.3)'}`, background: o.on ? '#f2c58a' : 'rgba(242,197,138,.08)', color: o.on ? '#1c120a' : '#f6e7c1', fontSize: '14px', fontWeight: '700' }}>{o.name}</button>
+                            ))}
+                          </div>
+                          <span style={{ display: 'flex', gap: '12px' }}>
+                            <button className="press" onClick={v.voteView.nomBy.skip} style={{ height: '32px', padding: '0', border: 'none', background: 'none', color: '#a99bc2', fontSize: '13px', fontWeight: '700' }}>Skip</button>
+                            {v.voteView.nomBy.clear ? <button className="press" onClick={v.voteView.nomBy.clear} style={{ height: '32px', padding: '0', border: 'none', background: 'none', color: '#a99bc2', fontSize: '13px', fontWeight: '700' }}>Clear</button> : null}
+                          </span>
+                        </div>
+                      ) : null}
                       {(v.voteView.open) ? (
                         <>
                           {(v.voteView.nominating) ? (
@@ -3384,10 +3485,12 @@ export class HostView extends React.Component<any, any> {
                   ) : null}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px', borderRadius: '18px', background: `linear-gradient(150deg, ${v.dr.tint}, rgba(14,8,24,.9))`, border: `1px solid ${v.dr.edge}`, transition: 'all .3s ease' }}>
-                  <span style={{ width: '54px', height: '54px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: v.dr.soft, border: `1px solid ${v.dr.edge}`, boxShadow: `0 0 26px ${v.dr.soft}` }}>
+                  <span style={{ width: '54px', height: '54px', flex: 'none', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: v.dr.soft, border: `1px solid ${v.dr.edge}`, boxShadow: `0 0 26px ${v.dr.soft}` }}>
+                    {v.roleImg ? <img src={v.roleImg} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={v.dr.color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
                       <path d={v.dr.icon} />
                     </svg>
+                    )}
                   </span>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '0' }}>
                     <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '20px' }}>
@@ -3511,6 +3614,32 @@ export class HostView extends React.Component<any, any> {
                     ))}
                   </div>
                 </div>
+                {(v.canPicture) ? (
+                  // an optional picture for your own role (shown on the player's card, fitted without stretching)
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '700' }}>
+                      Picture <span style={{ fontWeight: '500', color: '#a99bc2' }}>· optional</span>
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ width: '120px', height: '80px', flex: 'none', borderRadius: '14px', overflow: 'hidden', position: 'relative', border: `1px solid ${v.dr.edge}`, background: 'rgba(10,6,18,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7f7397', fontSize: '12px' }}>
+                        {v.roleImg ? (
+                          <>
+                            <img src={v.roleImg} alt="" aria-hidden="true" style={{ position: 'absolute', inset: '-8px', width: 'calc(100% + 16px)', height: 'calc(100% + 16px)', objectFit: 'cover', filter: 'blur(10px)', opacity: 0.5 }} />
+                            <img src={v.roleImg} alt="Role picture" style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'contain' }} />
+                          </>
+                        ) : 'No picture'}
+                      </span>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1' }}>
+                        <label className="press" style={{ height: '40px', borderRadius: '12px', border: '1px solid rgba(199,168,255,.4)', background: 'rgba(167,127,240,.12)', color: '#e9dcff', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                          {v.roleImg ? 'Change picture' : 'Upload a picture'}
+                          <input type="file" accept="image/*" onChange={v.pickRoleImg} style={{ display: 'none' }} />
+                        </label>
+                        {v.roleImg ? <button className="press" onClick={v.clearRoleImg} style={{ height: '34px', borderRadius: '10px', border: 'none', background: 'none', color: '#a99bc2', fontSize: '13px', fontWeight: '700' }}>Remove picture</button> : null}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#a99bc2' }}>Shown on the player’s card instead of the symbol. Only for roles you make.</span>
+                  </div>
+                ) : null}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '14px', fontWeight: '700' }}>
                     Card color
@@ -4562,6 +4691,7 @@ export class HostView extends React.Component<any, any> {
             </button>
           </div>
         ) : null}
+        {(v.recapView) ? <RecapView recap={v.recapView} onClose={v.closeRecap} /> : null}
       </div>
     );
   }

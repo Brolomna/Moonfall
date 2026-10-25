@@ -6,6 +6,7 @@ import { HostView } from './views/HostView';
 import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
+import { DeathNotice } from './views/DeathNotice';
 
 const SOUND_KEY = 'moonfall.hostSound';
 
@@ -82,6 +83,9 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
   useEffect(() => () => stopAmbience(), []);
 
   const [theme, setTheme] = useState<string | null>(null);
+  // "<name> died" — the same short notice every phone gets
+  const [death, setDeath] = useState<{ id: number; names: string[] } | null>(null);
+  const deathTimer = useRef<number | undefined>(undefined);
   const onPatch = (patch: Record<string, unknown>) => {
     socket.emit('host:patch', patch);
     if ('theme' in patch) setTheme((patch.theme as string) || null);
@@ -122,6 +126,9 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
     });
     socket.on('room', setNet);
+    socket.on('room:death', (d: { id: number; names: string[] }) => {
+      setDeath(d); window.clearTimeout(deathTimer.current); deathTimer.current = window.setTimeout(() => setDeath(null), 4500);
+    });
     socket.on('connect', () => setOnline(true));
     socket.on('disconnect', () => setOnline(false));
     fetch('/api/info?room=' + encodeURIComponent(room)).then(r => r.json()).then(setInfo).catch(() => setInfo(null));
@@ -176,6 +183,7 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
         )}
       </PhoneFrame>
       <HalloweenLayer on={theme === 'halloween'} />
+      {death && <DeathNotice fixed id={death.id} kicker="Everyone sees" text={death.names.join(' & ') + ' died'} />}
       {!online && <div className="offline">Reconnecting to the room…</div>}
     </>
   );

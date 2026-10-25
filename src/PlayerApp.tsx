@@ -1,7 +1,8 @@
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { connect, playerId, roomCode } from './net';
+import { connect, device, playerId, roomCode } from './net';
+import { Tutorial } from './Tutorial';
 import { PhoneFrame } from './PhoneFrame';
 import { brandText, type Sponsor } from './brand';
 import { HalloweenLayer } from './halloween';
@@ -16,6 +17,7 @@ type View = {
   whisper?: Record<string, unknown> | null; timer?: { running: boolean; leftMs: number; endsAt?: number } | null; now?: number;
   ballot?: { nominee: string; mine: 'kill' | 'spare' | null; accused?: boolean } | null; ivory?: boolean; sponsor?: Sponsor;
   spirit?: { chat: { from: string; text: string; at: number }[]; council: any; need: number; dead: number } | null; spiritWhispers?: { id: string; text: string }[]; note?: { id: string; text: string } | null;
+  lobbyChat?: { from: string; text: string; at: number }[] | null; voteResult?: any; recap?: any;
   lover?: string | null; // Cupid's partner, shown as a heart on the card // joined after the deal: watching (server sends players, roles, status and the host's log instead)
 } | null;
 
@@ -97,6 +99,12 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
   useEffect(() => { fetch('/api/theme?room=' + encodeURIComponent(room)).then(r => r.json()).then(t => setTheme(t.theme || null)).catch(() => { /* default look */ }); }, []);
   useEffect(() => { fetch('/api/sponsor?room=' + encodeURIComponent(room)).then(r => r.json()).then(setPreSponsor).catch(() => { /* none */ }); }, []);
   useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
+  // after the splash, a new phone is offered the interactive tutorial once (it can be opened again from the game guide)
+  const [tutorial, setTutorial] = useState<boolean>(() => { try { return !localStorage.getItem('moonfall.tutorialSeen') && !playerId.get(room); } catch { return false; } });
+  const tutorialDone = () => { try { localStorage.setItem('moonfall.tutorialSeen', '1'); } catch { /* private mode */ } setTutorial(false); };
+  // "<name> died" on every phone (the server never says who did it)
+  const [death, setDeath] = useState<{ id: number; names: string[] } | null>(null);
+  const deathTimer = useRef<number | undefined>(undefined);
   const [soundOn, setSoundOn] = useState(() => { try { return localStorage.getItem('moonfall.playerSound') !== 'off'; } catch { return true; } });
   const soundRef = useRef(soundOn); soundRef.current = soundOn;
   const toggleSound = () => setSoundOn(on => { try { localStorage.setItem('moonfall.playerSound', on ? 'off' : 'on'); } catch { /* private mode */ } return !on; });
@@ -116,6 +124,9 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
     socket.on('room:theme', (t: string | null) => setTheme(t || null));
     socket.on('player:kicked', () => { playerId.clear(room); setView(null); });
     socket.on('room:none', () => setNoRoom(true));
+    socket.on('room:death', (d: { id: number; names: string[] }) => {
+      setDeath(d); window.clearTimeout(deathTimer.current); deathTimer.current = window.setTimeout(() => setDeath(null), 4500);
+    });
     socket.on('player:view', () => setNoRoom(false));
     // the server restarted and the host put the game back: reconnect to find this phone's seat again
     socket.on('room:restored', () => { socket.disconnect(); socket.connect(); });
@@ -126,6 +137,7 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
 
   const join = (name: string) => {
     if (!name) return;
+    device.saveName(name); // filled in next time on this phone
     socket.emit('player:join', { name }, (r: { playerId?: string; error?: string }) => { if (r.playerId) playerId.set(room, r.playerId); else if (r.error === 'no-room') onLeave(room); });
   };
 
@@ -180,6 +192,13 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
             showRoles={view?.showRoles}
             playerCount={view?.playerCount}
             onJoin={join}
+            lastName={device.lastName()}
+            lobbyChat={view && !view.spectator ? view.lobbyChat || null : null}
+            onLobbySay={(text: string) => socket.emit('lobby:say', text)}
+            voteResult={view?.voteResult || null}
+            recap={view?.recap || null}
+            deathNotice={death && view && (view.dealt || view.spectator) ? death : null}
+            onTutorial={() => setTutorial(true)}
             room={room}
             onChangeRoom={() => onLeave()}
             offline={!online}
@@ -190,6 +209,7 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
         )}
       </PhoneFrame>
       <HalloweenLayer on={theme === 'halloween'} />
+      {tutorial && !splash && <Tutorial onDone={tutorialDone} />}
       {splash && (
         <div className="splash" onClick={() => setSplash(false)}>
           <img src="/splash.webp" alt="Moonfall" />
