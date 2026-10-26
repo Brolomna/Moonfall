@@ -25,7 +25,7 @@ the host a guide (wake-up order, special-case reminders, win check).
     (restart / redeploy / sleep) it sends it back with `host:restore` and players' phones reconnect (`room:restored`)
 - `src/main.tsx` — lazy-loads HostApp or PlayerApp (separate chunks), adds the app manifest (`public/manifest*.webmanifest`, icons in `public/icons`) and `public/sw.js` (installable; caches nothing)
 - `src/wakeLock.ts` — keeps phones' screens on during a game
-- `src/sound.ts` — synthesized sounds (Web Audio, no files): howl, dawn, timer. `src/roleSounds.ts` — a theme per night role, played on
+- `src/sound.ts` — synthesized sounds (Web Audio, no files): dawn, timer (nightfall has no sound). `src/roleSounds.ts` — a theme per night role, played on
   the host's phone when a wake-up step is tapped (`playRoleTheme(libraryName)`): hand-made themes for the main roles, a motif generated
   from the name for every other role. All synthesized in code, so there are no audio licences to track.
 - `src/halloween.tsx` (+ `html.halloween` rules in `src/global.css`) — the Halloween theme: the host's 🎃 header button sets shared `theme`;

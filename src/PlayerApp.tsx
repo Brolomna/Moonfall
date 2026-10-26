@@ -7,7 +7,7 @@ import { PhoneFrame } from './PhoneFrame';
 import { brandText, type Sponsor } from './brand';
 import { HalloweenLayer } from './halloween';
 import { PlayerView } from './views/PlayerView';
-import { installAudioUnlock, playDawn, playHowl } from './sound';
+import { installAudioUnlock, playDawn } from './sound';
 
 type View = {
   name: string; dealt: boolean; role: string | null; phase: 'night' | 'day'; fate: 'none' | 'killed' | 'voted' | 'poisoned' | 'shot' | 'heartbreak' | 'slain';
@@ -113,8 +113,8 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
     const inGame = !!view && (view.dealt || !!view.spectator);
     const phase = inGame ? view!.phase : null;
     if (phase && lastPhase.current && phase !== lastPhase.current) {
-      // spirits (dead players) are out of the village's day and night: no howl / sunrise for them
-      if (soundRef.current && (view!.fate || 'none') === 'none') { if (phase === 'night') playHowl(); else playDawn((view as any).dawnDeaths || 0); }
+      // sunrise only (nightfall is silent); spirits (dead players) are out of the village's day: no sound for them
+      if (soundRef.current && (view!.fate || 'none') === 'none' && phase === 'day') playDawn((view as any).dawnDeaths || 0);
     }
     lastPhase.current = phase;
   }, [view]);

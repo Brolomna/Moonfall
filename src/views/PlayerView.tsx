@@ -1314,6 +1314,13 @@ export class PlayerView extends React.Component<any, any> {
                     ) : null}
                     {(v.isAlive || !v.ST) ? (
                     <div className="face" style={{ position: 'absolute', inset: '0', transform: 'rotateY(180deg)', borderRadius: '26px', overflow: 'hidden', background: `linear-gradient(170deg, ${v.rc.tint} 0%, #120a1f 62%, #0b0614 100%)`, border: `1px solid ${v.rc.edge}`, boxShadow: `0 30px 80px rgba(0,0,0,.6), 0 0 70px ${v.rc.halo}` }}>
+                      {(v.rc.img) ? (
+                        <>
+                          {/* NET: the host's own picture for a hand-made role fills the whole card; a dark wash under the text keeps it readable */}
+                          <img src={v.rc.img} alt={v.rc.name} draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div aria-hidden="true" style={{ position: 'absolute', inset: '0', background: 'linear-gradient(180deg, rgba(8,4,16,.55) 0%, rgba(8,4,16,.08) 18%, rgba(8,4,16,.1) 34%, rgba(8,4,16,.72) 52%, rgba(8,4,16,.9) 70%, rgba(8,4,16,.94) 100%)' }} />
+                        </>
+                      ) : null}
                       <div style={{ position: 'absolute', inset: '10px', borderRadius: '18px', border: `1px solid ${v.rc.frame}` }} />
                       <span style={{ position: 'absolute', top: '6px', left: '6px', width: '8px', height: '8px', transform: 'rotate(45deg)', background: v.rc.color }} />
                       <span style={{ position: 'absolute', top: '6px', right: '6px', width: '8px', height: '8px', transform: 'rotate(45deg)', background: v.rc.color }} />
@@ -1416,7 +1423,7 @@ export class PlayerView extends React.Component<any, any> {
                           </svg>
                         </>
                       ) : null}
-                      {(v.rc.isCustom) ? (
+                      {(v.rc.isCustom && !v.rc.img) ? (
                         <>
                           <svg width="326" height="520" viewBox="0 0 326 520" style={{ position: 'absolute', inset: '0' }} aria-hidden="true">
                             <g fill="none" stroke={v.rc.color}>
@@ -1442,11 +1449,8 @@ export class PlayerView extends React.Component<any, any> {
                           </span>
                         </div>
                         {(v.rc.img) ? (
-                          // NET: the host's own picture for a hand-made role — fitted whole (never stretched) on a soft blurred copy of itself
-                          <div style={{ position: 'relative', marginTop: '16px', width: '200px', height: '132px', flex: 'none', borderRadius: '20px', overflow: 'hidden', border: `1px solid ${v.rc.edge}`, boxShadow: `0 0 50px ${v.rc.halo}`, background: '#0e0819' }}>
-                            <img src={v.rc.img} alt="" aria-hidden="true" draggable={false} style={{ position: 'absolute', inset: '-12px', width: 'calc(100% + 24px)', height: 'calc(100% + 24px)', objectFit: 'cover', filter: 'blur(14px)', opacity: 0.55 }} />
-                            <img src={v.rc.img} alt={v.rc.name} draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'contain' }} />
-                          </div>
+                          // the picture is the card's background: leave its top part clear
+                          <div style={{ flex: '1', minHeight: '40px' }} />
                         ) : (
                           <div className="shimmer" style={{ marginTop: '18px', width: '116px', height: '116px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${v.rc.edge}`, background: `radial-gradient(circle, ${v.rc.halo} 0%, rgba(0,0,0,0) 70%)`, boxShadow: `0 0 60px ${v.rc.halo}, inset 0 0 30px ${v.rc.halo}` }}>
                             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={v.rc.color} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">
@@ -1454,10 +1458,10 @@ export class PlayerView extends React.Component<any, any> {
                             </svg>
                           </div>
                         )}
-                        <span style={{ marginTop: '16px', fontFamily: v.fD, fontWeight: '700', fontSize: v.rc.nameSize, lineHeight: '1.15', letterSpacing: '.06em', marginRight: '-.06em', color: '#f6f1ff' }}>
+                        <span style={{ marginTop: '16px', fontFamily: v.fD, fontWeight: '700', fontSize: v.rc.nameSize, lineHeight: '1.15', letterSpacing: '.06em', marginRight: '-.06em', color: '#f6f1ff', textShadow: v.rc.img ? '0 2px 12px rgba(0,0,0,.9)' : undefined }}>
                           {v.rc.upper}
                         </span>
-                        <span style={{ marginTop: '2px', fontFamily: v.fI, fontStyle: 'italic', fontSize: '19px', color: v.rc.color }}>
+                        <span style={{ marginTop: '2px', fontFamily: v.fI, fontStyle: 'italic', fontSize: '19px', color: v.rc.color, textShadow: v.rc.img ? '0 1px 8px rgba(0,0,0,.9)' : undefined }}>
                           {v.rc.motto}
                         </span>
                         <div style={{ margin: '12px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1465,7 +1469,7 @@ export class PlayerView extends React.Component<any, any> {
                           <span style={{ width: '6px', height: '6px', transform: 'rotate(45deg)', border: `1px solid ${v.rc.color}` }} />
                           <span style={{ width: '44px', height: '1px', background: v.rc.frame }} />
                         </div>
-                        <p style={{ margin: '0', fontSize: v.rc.descSize, lineHeight: '1.5', color: '#e0d8ee' }}>
+                        <p style={{ margin: '0', fontSize: v.rc.descSize, lineHeight: '1.5', color: v.rc.img ? '#f2ecfa' : '#e0d8ee', textShadow: v.rc.img ? '0 1px 6px rgba(0,0,0,.95)' : undefined }}>
                           {v.rc.desc}
                         </p>
                         {(v.tip) ? (
@@ -1478,7 +1482,7 @@ export class PlayerView extends React.Component<any, any> {
                             </span>
                           </span>
                         ) : null}
-                        <div style={{ flex: '1' }} />
+                        <div style={{ flex: v.rc.img ? '0 0 12px' : '1' }} />
                         {(v.loverText) ? (
                           <span className="heartbeat" style={{ alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', padding: '6px 14px', borderRadius: '999px', fontSize: '13.5px', fontWeight: '700', color: '#ffd6e6', background: 'rgba(240,143,184,.18)', border: '1px solid rgba(240,143,184,.55)' }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="#f08fb8" stroke="none">

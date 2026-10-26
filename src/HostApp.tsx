@@ -3,7 +3,7 @@ import { connect, roomCode } from './net';
 import { PhoneFrame } from './PhoneFrame';
 import { HalloweenLayer } from './halloween';
 import { HostView } from './views/HostView';
-import { installAudioUnlock, playDawn, playHowl, startAmbience, stopAmbience } from './sound';
+import { installAudioUnlock, playDawn, startAmbience, stopAmbience } from './sound';
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
 import { DeathNotice } from './views/DeathNotice';
@@ -91,15 +91,12 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
     if ('theme' in patch) setTheme((patch.theme as string) || null);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     if (patch.status) statusRef.current = patch.status as Record<string, unknown>;
-    // Night / Day buttons send phase without screen; deal and end-game also send screen (no sound for those)
-    if (phase && !screen && phase !== phaseRef.current && soundOn) {
-      if (phase === 'night') playHowl();
-      else {
-        // morning sound by tonight's deaths (the Day patch carries the resolved status)
-        const round = patch.round as number | undefined;
-        const deaths = Object.values((patch.status || {}) as Record<string, any>).filter(m => m && m.phase === 'night' && m.round === round && m.how !== 'removed').length;
-        playDawn(deaths);
-      }
+    // the Day button sends phase without screen; deal and end-game also send screen (no sound for those). Nightfall is silent.
+    if (phase === 'day' && !screen && phase !== phaseRef.current && soundOn) {
+      // morning sound by tonight's deaths (the Day patch carries the resolved status)
+      const round = patch.round as number | undefined;
+      const deaths = Object.values((patch.status || {}) as Record<string, any>).filter(m => m && m.phase === 'night' && m.round === round && m.how !== 'removed').length;
+      playDawn(deaths);
     }
     if (phase) phaseRef.current = phase;
     if (phase || screen) setStage(st => ({ phase: phase || st.phase, screen: screen || st.screen }));

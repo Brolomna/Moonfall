@@ -92,14 +92,6 @@ export function wolf(c: AudioContext, t0: number, base: number, level: number, p
   [o1, o2, lfo, n].forEach(s => { s.start(t0); s.stop(t0 + dur + 0.1); });
 }
 
-/** Night falls: a wolf howls, a second answers from far away (the original howl, played softly). */
-export function playHowl() {
-  const c = audio(); if (!c || c.state !== 'running') return;
-  const t = c.currentTime + 0.05;
-  wolf(c, t, 640, 0.16, -0.2);
-  wolf(c, t + 1.1, 540, 0.07, 0.45);
-}
-
 /** Day breaks: a warm swell, bell tones climbing, and birds. */
 export function playSunrise() {
   const c = audio(); if (!c || c.state !== 'running') return;
