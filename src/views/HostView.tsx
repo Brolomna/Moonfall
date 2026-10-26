@@ -12,6 +12,8 @@ import { playRoleTheme } from '../roleSounds';
 import { DONATE_URL } from '../brand';
 import { buildRecap } from '../recap';
 import { RecapView } from './RecapView';
+import { RoleCardFace, roleCardLook, CARD_MOTIF, CORE_CARD } from './RoleCard';
+import { ROLE_TIPS, TEAM_TIPS } from './roleTips';
 
 // village roles the Drunk can secretly be (each works on its own — no Apprentice, Masons or Cupid)
 const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayor', 'healer', 'oldhag', 'idiot'];
@@ -546,6 +548,26 @@ export class HostView extends React.Component<any, any> {
         });
       }, 900);
     };
+    // "Preview card": the role card exactly as a player's phone draws it (English), from what is in the editor right now
+    const cardPreview = (() => {
+      if (!s.cardPreview) return null;
+      const libE = (editingRole && editingRole.lib && findLib(editingRole.lib)) || (editing && !(editingRole && editingRole.custom) && ROLE_LIBRARY.find(e => e.builtin === editing))
+        || (d.search === 'found' && d.found && findLib(d.found.name)) || null;
+      const handMade = !libE;
+      const T = { yourRole: 'Your role', onYourOwn: 'On your own', teamWolves: 'Team Werewolves', teamVillage: 'Team Village' };
+      const wantsOut = editing === 'tanner' || (libE && (libE.name === 'Fool' || libE.name === 'Jester'));
+      const goal = wantsOut ? 'Get yourself voted out' : (editing === 'doppelganger' ? 'Win with the team you copy'
+        : (d.team === 'Werewolves' ? 'Outnumber the villagers' : (d.team === 'Loner' ? 'Win alone — follow your card' : 'Find and vote out every werewolf')));
+      const R = { name: d.name || 'New role', team: d.team, color: d.color, rgb: d.rgb, icon: d.iconD, desc: d.desc || 'Custom role.', motto: handMade ? '' : (libE.motto || ''), goal };
+      const core = editing && !(editingRole && editingRole.custom) && CORE_CARD[editing];
+      if (core) Object.assign(R, core);
+      const motif = (editing && !(editingRole && editingRole.custom) && CARD_MOTIF[editing]) || 'generic';
+      const tips = (libE && ROLE_TIPS[libE.name]) || TEAM_TIPS[d.team] || TEAM_TIPS.Village;
+      return {
+        rc: { ...R, ...roleCardLook(R, motif, T, false), img: (canPicture && d.img) || '' },
+        T, fD: "'Cinzel', serif", fI: "'Cormorant Garamond', serif", tip: tips[0], loverText: ''
+      };
+    })();
     const S = { search: 'M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z M20 20l-4-4', globe: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z', check: 'M5 12.5l4.5 4.5L19 7.5', warn: 'M12 4l9 16H3z M12 10v4 M12 17h.01' };
     const q = '“' + (d.name || '').trim() + '”';
     let lk = { show: false };
@@ -2096,7 +2118,8 @@ export class HostView extends React.Component<any, any> {
       fixOpen: screen === 'roles' && !!s.fixOpen, openFix: () => this.setState({ fixOpen: true, fixPick: null }), closeFix: () => this.setState({ fixOpen: false, fixPick: null }),
       fixRows, fixedN, fixLabel: fixedN ? 'Fixed roles · ' + fixedN : 'Fix roles', clearFix: () => this.setState({ fixed: {}, fixPick: null }), hasFixed: fixedN > 0,
       openSheet: () => this.setState({ sheet: true, editing: null, draft: { name: '', team: 'Village', strength: 1, desc: '', iconD: iconD('star'), color: '#8fd3e8', rgb: '143,211,232', auto: {}, search: 'idle' } }),
-      closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false }); },
+      closeSheet: () => { clearTimeout(this._lk); this.setState({ sheet: false, cardPreview: false }); },
+      cardPreview, openCardPreview: () => this.setState({ cardPreview: true }), closeCardPreview: () => this.setState({ cardPreview: false }),
 
       dr, teamOpts, iconOpts, colorOpts, lk, auto,
       // an optional picture, only for hand-made roles (new ones, or your own) — standard roles keep their artwork
@@ -3668,12 +3691,32 @@ export class HostView extends React.Component<any, any> {
                   </button>
                 ) : null}
               </div>
-              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
-                <button className="press" onClick={v.saveRole} disabled={v.draftEmpty} style={{ width: '100%', height: '58px', borderRadius: '16px', border: 'none', background: v.dr.color, color: '#12091c', fontSize: '17px', fontWeight: '700', opacity: v.addOpacity }}>
+              <div style={{ padding: '12px 20px 30px', borderTop: '1px solid rgba(236,230,246,.08)', display: 'flex', gap: '10px' }}>
+                <button className="press" onClick={v.openCardPreview} aria-label="Preview the role card" style={{ height: '58px', flex: 'none', padding: '0 16px', borderRadius: '16px', border: `1px solid ${v.dr.edge}`, background: v.dr.soft, color: '#f6f1ff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z" />
+                  </svg>
+                  Preview
+                </button>
+                <button className="press" onClick={v.saveRole} disabled={v.draftEmpty} style={{ flex: '1', minWidth: '0', height: '58px', borderRadius: '16px', border: 'none', background: v.dr.color, color: '#12091c', fontSize: '17px', fontWeight: '700', opacity: v.addOpacity }}>
                   {v.saveLabel}
                 </button>
               </div>
             </section>
+            {(v.cardPreview) ? (
+              // the card as players will see it; tap anywhere to go back to the editor
+              <div className="fade" role="dialog" aria-label="Role card preview" onClick={v.closeCardPreview} style={{ position: 'absolute', inset: '0', zIndex: '20', background: 'rgba(5,3,10,.86)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase', color: '#c7a8ff' }}>
+                  What players will see
+                </span>
+                <div style={{ position: 'relative', width: '326px', height: '520px', flex: 'none' }}>
+                  <RoleCardFace v={v.cardPreview} front={true} />
+                </div>
+                <button className="press" onClick={v.closeCardPreview} style={{ height: '48px', padding: '0 22px', borderRadius: '14px', border: '1px solid rgba(236,230,246,.18)', background: 'rgba(255,255,255,.06)', color: '#ece6f6', fontSize: '15px', fontWeight: '700' }}>
+                  Back to editing
+                </button>
+              </div>
+            ) : null}
           </>
         ) : null}
         {(v.rulesOpen) ? (

@@ -1,0 +1,6 @@
+/* role card face (src/views/RoleCard.tsx) */
+.face{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+@keyframes shimmer{0%,100%{opacity:.6}50%{opacity:1}}
+.shimmer{animation:shimmer 3s ease-in-out infinite}
+@keyframes heartbeat{0%,100%{transform:scale(1)}12%{transform:scale(1.06)}24%{transform:scale(1)}36%{transform:scale(1.04)}}
+.heartbeat{animation:heartbeat 1.8s ease-in-out infinite}
