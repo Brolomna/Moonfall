@@ -65,6 +65,7 @@ export default {
     'White Werewolf': ['Tu gagnes seul — aide la meute jusqu’à ce que la fin approche.', 'Élimine le loup qui pourrait te battre en finale.', 'Ne laisse jamais la meute deviner que tu n’es pas des leurs.'],
     'Wolf King': ['Si tu tombes, emporte un villageois fort avec toi.', 'Choisis ta dernière cible avant que le jour commence.', 'Aie l’air sûr de toi : le village a peur d’éliminer un joueur puissant.'],
     'Nightmare Wolf': ['Bloque la Voyante ou un protecteur les nuits décisives.', 'Bloquer au hasard les laisse dans le doute.', 'Utilise ton pouvoir la nuit où la meute prépare sa meilleure attaque.'],
+    'Assassin': ['Les loups ne peuvent pas vous tuer : s’ils attaquent, l’un d’eux tombe.', 'Un loup mort au matin ? Vous étiez peut-être la cible.', 'Au vote, restez prudent comme un simple villageois.'],
     'Shadow Wolf': ['Les vérifications te montrent comme villageois — propose-toi pour être inspecté.', 'Sers-toi de ton résultat « innocent » pour mener le vote.', 'N’en fais pas trop : trop d’assurance sonne faux.'],
     'Omega Wolf': ['Fais-toi discret tant que la meute est nombreuse.', 'Quand tu es le dernier loup, ta double attaque peut renverser la partie.', 'Survis à tout prix — tu es le dernier espoir de la meute.'],
     'Big Bad Wolf': ['Ta victime en plus ne marche que tant qu’aucun loup n’est mort — frappe tôt.', 'Choisis une victime assise à côté d’un rôle à pouvoir.', 'Protège ta meute dans les débats : une seule perte et ton bonus s’arrête.'],

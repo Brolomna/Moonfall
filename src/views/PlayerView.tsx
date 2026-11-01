@@ -424,7 +424,8 @@ export class PlayerView extends React.Component<any, any> {
     const cjk = lang === 'zh' || lang === 'ja' || lang === 'ko';
     const rc = {
       ...R, ...roleCardLook(R, motif, T, cjk),
-      img: (defs[key] && defs[key].custom && defs[key].img) || '' // NET: the host's picture for a hand-made role
+      img: (defs[key] && defs[key].img) || '', // NET: the host's picture for a hand-made role, or the room's theme pack
+      imgCrop: (defs[key] && defs[key].imgCrop) || null
     };
 
     // roles the host chose for this round (mock — sent by the host in the real app)

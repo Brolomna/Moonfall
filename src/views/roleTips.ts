@@ -68,6 +68,7 @@ export const ROLE_TIPS: Record<string, string[]> = {
   'White Werewolf': ['You win alone — help the pack until the end is near.', 'Eliminate the wolf who could beat you in the final.', 'Never let the pack know you’re not one of them.'],
   'Wolf King': ['If you go down, take a strong villager with you.', 'Choose your final target before the day starts.', 'Act confident; the village fears killing a powerful player.'],
   'Nightmare Wolf': ['Block the Seer or protector on key nights.', 'Blocking at random keeps them guessing.', 'Use your power the night the pack plans its best kill.'],
+  'Assassin': ['The wolves can’t kill you — if they try, one of them dies instead.', 'A dead wolf at dawn may mean you were the target.', 'You can still be voted out: be as careful as any villager.'],
   'Shadow Wolf': ['Checks show you as a villager — volunteer to be checked.', 'Use your “clean” result to lead the vote.', 'Don’t overplay it; too much confidence looks fake.'],
   'Omega Wolf': ['Stay quiet while the pack is big.', 'When you’re the last wolf, your double kill can turn the game.', 'Survive at all costs — you’re the pack’s last hope.'],
   'Big Bad Wolf': ['Your extra kill works only while no wolf has died — strike early.', 'Pick a victim sitting next to a power role.', 'Protect your packmates in talks; one loss ends your bonus.'],

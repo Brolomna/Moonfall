@@ -32,6 +32,7 @@ export default {
     'Cult Leader': ["Gourou", "Rejoins-nous — tout le monde finit par le faire", "Chaque nuit, fais entrer un joueur dans ta secte. Tu gagnes quand tous les survivants en font partie."],
     'Wolf King': ['Roi des loups', 'Vive le roi !', 'Tu mènes la meute. Quand tu es éliminé, tu emportes un joueur avec toi.'],
     'Nightmare Wolf': ['Loup cauchemar', 'Fini, les beaux rêves', 'Tu chasses avec la meute. Chaque nuit, tu peux aussi choisir un joueur dont le pouvoir échoue cette nuit.'],
+    'Assassin': ['Assassin', 'Le chasseur de chasseurs', 'Vous êtes du côté du village et les loups-garous ne peuvent pas vous tuer : s’ils vous attaquent, l’un des loups attaquants meurt à votre place. Le village peut toujours vous éliminer au vote.'],
     'Shadow Wolf': ['Loup de l’ombre', 'Invisible, insaisissable', 'Tu chasses avec la meute, mais tous les rôles qui enquêtent te voient comme un simple Villageois.'],
     'Omega Wolf': ['Loup oméga', 'Le dernier est le plus féroce', 'Tu chasses avec la meute. Dès que tu es le dernier loup-garou en vie, tu peux faire deux victimes chaque nuit.'],
     'Big Bad Wolf': ['Grand Méchant Loup', 'Je souffle, je souffle… et je dévore', 'Tu te réveilles avec les loups. Tant qu’aucun loup-garou n’a été éliminé, tu élimines en plus un voisin de la victime.'],

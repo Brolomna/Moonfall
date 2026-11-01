@@ -4,6 +4,7 @@
 // and the optional tip and loverText lines.
 import React from 'react';
 import './RoleCard.css';
+import { CroppedImg } from './CropEditor';
 
 /** Roles with their own card decoration; every other role uses the generic one. */
 export const CARD_MOTIF = { werewolf: 'wolf', seer: 'seer', healer: 'healer', witch: 'witch', hunter: 'hunter', villager: 'village' };
@@ -38,7 +39,7 @@ export function RoleCardFace({ v, front = false }) {
         {(v.rc.img) ? (
           <>
             {/* NET: the host's own picture for a hand-made role fills the whole card; a dark wash under the text keeps it readable */}
-            <img src={v.rc.img} alt={v.rc.name} draggable={false} style={{ position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'cover' }} />
+            <CroppedImg src={v.rc.img} crop={v.rc.imgCrop} alt={v.rc.name} />
             <div aria-hidden="true" style={{ position: 'absolute', inset: '0', background: 'linear-gradient(180deg, rgba(8,4,16,.55) 0%, rgba(8,4,16,.08) 18%, rgba(8,4,16,.1) 34%, rgba(8,4,16,.72) 52%, rgba(8,4,16,.9) 70%, rgba(8,4,16,.94) 100%)' }} />
           </>
         ) : null}

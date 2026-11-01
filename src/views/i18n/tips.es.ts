@@ -65,6 +65,7 @@ export default {
     'White Werewolf': ['Ganas solo: ayuda a la manada hasta que se acerque el final.', 'Elimina al lobo que podría ganarte en el último duelo.', 'Que la manada nunca sepa que no eres uno de ellos.'],
     'Wolf King': ['Si caes, llévate contigo a un aldeano fuerte.', 'Elige tu último objetivo antes de que empiece el día.', 'Muéstrate seguro; a la aldea le da miedo matar a alguien poderoso.'],
     'Nightmare Wolf': ['Bloquea a la Vidente o a un protector en las noches clave.', 'Bloquear al azar los mantiene desconcertados.', 'Usa tu poder la noche en que la manada prepare su mejor ataque.'],
+    'Assassin': ['Los lobos no pueden matarte: si te atacan, cae uno de ellos.', 'Si amanece un lobo muerto, quizá te buscaban a ti.', 'En la votación, cuídate como cualquier aldeano.'],
     'Shadow Wolf': ['Las revisiones te muestran como aldeano: ofrécete a que te revisen.', 'Usa tu resultado “limpio” para guiar la votación.', 'No te pases; demasiada seguridad parece falsa.'],
     'Omega Wolf': ['Calla mientras la manada sea grande.', 'Cuando seas el último lobo, tu doble ataque puede darle la vuelta a la partida.', 'Sobrevive a toda costa: eres la última esperanza de la manada.'],
     'Big Bad Wolf': ['Tu ataque extra solo funciona mientras no haya muerto ningún lobo: ataca pronto.', 'Elige una víctima sentada junto a un rol de poder.', 'Protege a tu manada al hablar; una sola baja acaba con tu ventaja.'],

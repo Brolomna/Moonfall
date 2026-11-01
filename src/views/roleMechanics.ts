@@ -74,6 +74,7 @@ export const DAY_REMINDERS: Record<string, string> = {
   'King': 'once per game may cancel the vote before anyone is eliminated.',
   'Pacifist': 'can never vote to eliminate anyone.',
   'Elder': 'survives the first wolf attack.',
+  'Assassin': 'can’t be killed by the wolves (an attacking wolf dies instead) — but can be voted out.',
   'Angel': 'wins alone if eliminated today (first day only).',
   'Executioner': 'wins if their target is voted out.',
   'Wolf King': 'if eliminated, takes one player down with them.',

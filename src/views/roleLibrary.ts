@@ -63,6 +63,7 @@ export const ROLE_LIBRARY: LibRole[] = [
   { name: 'Lycan', cat: 'Village', team: 'Village', s: -1, icon: 'wolf', color: C.wine, builtin: 'lycan', desc: 'You are a villager, but the Seer sees you as a werewolf.' },
   { name: 'Tough Guy', cat: 'Village', team: 'Village', s: 3, icon: 'shield', color: C.coral, builtin: 'toughguy', desc: 'If the wolves attack you, you aren’t told — you die the following night.' },
   { name: 'Village Idiot', cat: 'Village', team: 'Village', s: 2, icon: 'mask', color: C.lime, builtin: 'idiot', desc: 'You must always vote to eliminate someone.' },
+  { name: 'Assassin', motto: 'The hunter of hunters', cat: 'Village', team: 'Village', s: 4, icon: 'dagger', color: C.ash, night: false, aliases: ['wolf slayer', 'wolf hunter'], desc: 'You are on the village side, and werewolves can’t kill you: if they attack you, one of the attacking werewolves dies instead. The village can still vote you out.' },
   { name: 'Old Hag', cat: 'Village', team: 'Village', s: 1, icon: 'moon', color: C.mint, builtin: 'oldhag', desc: 'Each night, banish one player from the next day — they can’t talk or vote. Never yourself, never the same player twice.' },
 
   // ---------- Werewolf ----------

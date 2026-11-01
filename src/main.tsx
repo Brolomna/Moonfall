@@ -7,7 +7,9 @@ import './install'; // starts listening for the browser's install offer right aw
 const HostApp = lazy(() => import('./HostApp').then(m => ({ default: m.HostApp })));
 const PlayerApp = lazy(() => import('./PlayerApp').then(m => ({ default: m.PlayerApp })));
 
-const isHost = window.location.pathname.replace(/\/+$/, '') === '/host';
+const path = window.location.pathname.replace(/\/+$/, '');
+const isMaster = path === '/master'; // the master host: same host screens, unlocked with the master PIN (checked by the server)
+const isHost = path === '/host' || isMaster;
 
 // Installable as an app: players get "Moonfall", the host page gets "Moonfall Host"
 const manifest = document.createElement('link');
@@ -21,6 +23,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 createRoot(document.getElementById('root')!).render(
   <Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#0a0612' }} />}>
-    {isHost ? <HostApp /> : <PlayerApp />}
+    {isHost ? <HostApp master={isMaster} /> : <PlayerApp />}
   </Suspense>
 );

@@ -37,7 +37,17 @@ the host a guide (wake-up order, special-case reminders, win check).
 - `scripts/build-pages.ts` — runs in `npm run build` after Vite: writes crawlable pages into dist/ (`/how-to-play`, `/roles`, `/<lang>/…` for 7 languages,
   `sitemap.xml`, `robots.txt`) from the app's own guide text, role cards and tips. `SITE_URL` env sets the absolute URLs (default moonfall.onrender.com).
   `public/privacy.html` is the privacy policy (`/privacy`).
-- `src/PhoneFrame.tsx` — designs are 390×844; scaled to fit any phone, height stretched to fill
+- `src/PhoneFrame.tsx` — designs are 390×844; scaled to fit any phone, height stretched to fill (minus the supporters' banner strip)
+- `src/images.ts` — role pictures at full quality: the host uploads the file as is (`POST /api/img?room=`, header `x-moonfall-password`; kept per room by content hash,
+  served at `/api/img?room=&id=`), the crop is stored as numbers `{ id, crop: {x, y, z, w, h} }` and drawn by `cropStyle()` / `CroppedImg` on the 326×520 card.
+  The host's phone keeps a copy in IndexedDB and re-sends pictures the server lost (`host:images` {have, need}). `src/views/CropEditor.tsx` = the dotted-guide crop frame.
+- `src/Supporters.tsx` — supporters' names (shared `supporters`, edited from Players → Supporters) scroll in a bottom strip on every host and player screen;
+  mounted outside the screens and timed by the clock, so it never restarts; the phone frame is shortened so it covers nothing.
+- `src/ThemePacks.tsx` — master-only theme packs: a picture + crop per role (keyed by built-in key or library name), saved on the master's phone, applied as shared `themePack`
+  (server `packImg()` puts it on every card; a host's own picture on a hand-made role wins).
+- Host permissions (server `FEATURES` / `PLANS`): `/host` = plan `host`, `/master` = plan `master` after the master PIN (env `MASTER_PIN`, or the git-ignored `server/master-pin.txt` locally — never in the repo;
+  `POST /api/master/login` → signed token, sent as socket auth `master`). The server refuses Spirit Council events and strips `theme` / `themePack` / `notes` from patches
+  for hosts without the feature (`host:locked`); `host:init` sends `perms` and the host screen greys those features out (`HostView.can()`). A paid plan = one more entry in `PLANS`.
 - `src/views/HostView.tsx`, `src/views/PlayerView.tsx` (+ `.css`) — the UI, generated from the design canvas
 - `design/*.dc.html` — the design sources exported from the Claude design canvas
 - `tools/dc2tsx.py` — converts a design file into a React class component (logic class kept verbatim, template → JSX)
@@ -71,7 +81,7 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
   The host fakes the Werewolves step and may lie (no automatic phone answers). An Atheist game never ends because no evil is left.
   The vote can nominate the host (`HOST = '__host__'`, `mech.hostOut`): voted out in an Atheist game with nobody evil alive → village wins;
   with someone evil alive (a turned player) or without an Atheist → wolves win. Otherwise the imaginary wolves win at 2 players left.
-  Phones never see the Atheist: it's listed as a Villager, and its holder's card shows a Villager until the game ends (server `playerView`).
+  The role list on phones shows the Atheist (and the Drunk) by name; only the holder's own card shows a Villager until the game ends (server `playerView`).
 - Spirit Realm (server-authoritative, `server/index.ts` → "the Spirit Realm"): dead players chat (`spirit:say`, `room.spiritChat`).
   The host calls the one Spirit Council (`host:council` → `callCouncil()`; suggested at ceil(30% of the starting players) dead): each spirit at that moment gets a secret
   faction (good / evil / neutral, `room.council.spirits[name].faction`; all good in an Atheist game; phones see it only after the host taps Reveal factions, `host:council:reveal`) and secretly chooses one living player
@@ -101,6 +111,10 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
 - Custom role pictures: the role editor's "Picture" (only roles you create) stores a resized data URL on the custom role (`img`);
   phones load it from `/api/role-img?room=&key=` (fitted with `object-fit: contain` over a blurred copy).
 - Newer player-phone strings (7 languages): `src/views/i18n/extra.ts`.
+- Hand-made roles' "How it plays" (`src/views/AbilityEditor.tsx`, stored as `ab` on the custom role): wake-up, action (kill / protect / check / see role / block /
+  recruit / mark+ignite), target count, skip, self, repeat, once, immunity, what checks see, hidden from Watcher/Tracker, win condition, persistent group
+  (`mech.groups[key]`). HostView uses it for the night steps (`CUSTOM_KIND`), `actSpec`, dawn (`setDay`), checks (`hiddenAs`, `unseen`) and the win check.
+- Shadow Wolf: passes every check as a Villager and leaves no trace for Watcher / Tracker / Insomniac (`unseen`). Assassin: village; wolves can't kill it — an attacking wolf dies instead.
 - Master controls (secret: press and hold the "N alive" counter on the Play screen for about a second): force any ending (`state.forced`, never saved
   to the Hall of Fame), give anyone any library role (via `override`), set any fate/death card, shuffle roles, revive, change round,
   scenario presets + a simulator (`simNight`/`simDay`/`simAll` drive the real host screens through `this._v`), and secret messages

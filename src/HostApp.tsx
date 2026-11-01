@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { connect, roomCode } from './net';
+import { connect, roomCode, masterToken } from './net';
+import { SupporterBanner } from './Supporters';
+import { ThemePacks } from './ThemePacks';
+import { uploadImage, resendImages } from './images';
 import { PhoneFrame } from './PhoneFrame';
 import { HalloweenLayer } from './halloween';
 import { HostView } from './views/HostView';
@@ -24,14 +27,56 @@ const savedCreds = (): Creds | null => { try { const c = JSON.parse(store.get(RO
 
 /** The host opens a room by name and password (checked by the server); a new name creates that room.
  *  Each room is its own game, so several hosts can run games on the same server at once. Remembered on this phone. */
-export function HostApp() {
+export function HostApp({ master = false }: { master?: boolean }) {
   const [creds, setCreds] = useState<Creds | null>(savedCreds);
   const [denied, setDenied] = useState<string | null>(null);
+  // /master: the master PIN first (checked by the server, which hands back a signed token kept on this phone)
+  const [token, setToken] = useState(() => (master ? masterToken.get() : ''));
+  const [tokenOk, setTokenOk] = useState<boolean | null>(master ? null : true);
+  useEffect(() => {
+    if (!master) return;
+    if (!token) { setTokenOk(false); return; }
+    fetch('/api/master/check', { headers: { 'x-moonfall-master': token } }).then(r => r.json()).then(r => setTokenOk(r.plan === 'master')).catch(() => setTokenOk(true)); // offline: let the socket decide
+  }, [master, token]);
+  if (master && tokenOk === false) return <MasterPin onToken={t => { masterToken.set(t); setToken(t); setTokenOk(true); }} />;
+  if (master && tokenOk === null) return <PhoneFrame>{frameH => <div className="sky pin-screen" style={{ height: frameH }}><img src="/moon.svg" alt="" className="pin-moon pin-wait" /><div className="pin-title">Master host</div></div>}</PhoneFrame>;
   if (!creds) return <HostRoom denied={denied} last={(() => { try { return store.get(ROOM_KEY + '.last') || ''; } catch { return ''; } })()}
     onEnter={c => { setDenied(null); store.set(ROOM_KEY, JSON.stringify(c)); store.set(ROOM_KEY + '.last', c.room); setCreds(c); }} />;
-  return <HostGame key={creds.room + '/' + creds.password} room={creds.room} password={creds.password}
+  return <HostGame key={creds.room + '/' + creds.password} room={creds.room} password={creds.password} master={master ? token : ''}
     onDenied={(why: string) => { store.del(ROOM_KEY); setDenied(why || 'password'); setCreds(null); }}
     onLock={() => { store.del(ROOM_KEY); setDenied(null); setCreds(null); }} />;
+}
+
+/** /master: the master PIN. The server checks it (it never ships in the app) and returns a token for this phone. */
+function MasterPin({ onToken }: { onToken: (t: string) => void }) {
+  const [pin, setPin] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const go = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!pin) return;
+    setBusy(true); setMsg('');
+    try {
+      const r = await fetch('/api/master/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pin }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.token) onToken(j.token);
+      else setMsg(r.status === 429 ? 'Too many tries. Wait a minute and try again.' : 'That PIN isn’t right.');
+    } catch { setMsg('Can’t reach the server. Check the connection.'); } finally { setBusy(false); setPin(''); }
+  };
+  const field: React.CSSProperties = { width: 220, height: 56, borderRadius: 14, border: '1px solid rgba(242,195,138,.4)', background: 'rgba(20,12,34,.7)', color: '#fff3e2', font: "700 26px 'Manrope', sans-serif", letterSpacing: '.3em', textAlign: 'center', boxSizing: 'border-box' };
+  return (
+    <PhoneFrame>
+      {frameH => (
+        <form className="sky pin-screen" style={{ height: frameH }} onSubmit={go}>
+          <img src="/moon.svg" alt="" className="pin-moon" />
+          <div className="pin-title">Master host</div>
+          <p className={'pin-sub' + (msg ? ' pin-shake' : '')} style={{ maxWidth: 290, textAlign: 'center', lineHeight: 1.45 }}>{msg || 'Enter the master PIN to unlock the master controls, the Spirit Council and theme packs.'}</p>
+          <input style={field} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 12))} inputMode="numeric" autoComplete="one-time-code" type="password" aria-label="Master PIN" placeholder="PIN" />
+          <button className="press pin-go" type="submit" disabled={!pin || busy}>Unlock</button>
+          <a className="pin-sub" href="/host" style={{ fontSize: 13, opacity: .8 }}>Regular host</a>
+        </form>
+      )}
+    </PhoneFrame>
+  );
 }
 
 function HostRoom({ denied, last, onEnter }: { denied: string | null; last: string; onEnter: (c: Creds) => void }) {
@@ -61,9 +106,14 @@ function HostRoom({ denied, last, onEnter }: { denied: string | null; last: stri
   );
 }
 
-function HostGame({ room, password, onDenied, onLock }: { room: string; password: string; onDenied: (why: string) => void; onLock: () => void }) {
+function HostGame({ room, password, master, onDenied, onLock }: { room: string; password: string; master: string; onDenied: (why: string) => void; onLock: () => void }) {
   const inst = useInstall();
-  const socket = useMemo(() => connect('host', room, password), [room, password]);
+  const socket = useMemo(() => connect('host', room, password, master || undefined), [room, password, master]);
+  // what this host may do (from the server): regular hosts get the same screens with master features greyed out
+  const [perms, setPerms] = useState<{ plan: string; features: string[] }>({ plan: 'host', features: [] });
+  const [supporters, setSupporters] = useState<string[]>([]);
+  const [packsOpen, setPacksOpen] = useState(false);
+  const [themePack, setThemePack] = useState<any>(null);
   const [init, setInit] = useState<Record<string, unknown> | null>(null);
   const [initKey, setInitKey] = useState(0);
   const [net, setNet] = useState<RoomInfo>({ players: [], assign: {}, dealt: false });
@@ -89,6 +139,7 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
   const onPatch = (patch: Record<string, unknown>) => {
     socket.emit('host:patch', patch);
     if ('theme' in patch) setTheme((patch.theme as string) || null);
+    if ('supporters' in patch) setSupporters(Array.isArray(patch.supporters) ? patch.supporters as string[] : []);
     const phase = patch.phase as string | undefined, screen = patch.screen as string | undefined;
     if (patch.status) statusRef.current = patch.status as Record<string, unknown>;
     // the Day button sends phase without screen; deal and end-game also send screen (no sound for those). Nightfall is silent.
@@ -109,7 +160,10 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
     socket.on('host:snapshot', (snap: { players?: unknown[]; shared?: Record<string, unknown> }) => {
       if ((snap.players && snap.players.length) || (snap.shared && Object.keys(snap.shared).length)) store.set(SNAP_KEY(room), JSON.stringify(snap));
     });
-    socket.on('host:init', ({ shared, room: roomInfo, fresh, restored }) => {
+    // pictures the server lost (restart): this phone sends its own copies back
+    socket.on('host:images', ({ have, need }: { have: string[]; need: string[] }) => { resendImages(room, password, need || [], have || []); });
+    socket.on('host:init', ({ shared, room: roomInfo, fresh, restored, perms: p }) => {
+      if (p) setPerms(p);
       // the server came back empty (restart): put the last game back instead of starting over
       if (fresh) {
         let snap: { at?: number; players?: unknown[] } | null = null;
@@ -118,6 +172,7 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
       }
       if (restored) setInitKey(k => k + 1); // rebuild the screen from the restored game
       setInit(shared || {}); setNet(roomInfo); setTheme((shared && shared.theme) || null);
+      setSupporters(Array.isArray(shared && shared.supporters) ? shared.supporters : []); setThemePack((shared && shared.themePack) || null);
       phaseRef.current = (shared && shared.phase) || 'night';
       statusRef.current = (shared && shared.status) || {};
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
@@ -172,6 +227,9 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
             onAddFake={(count: number) => socket.emit('host:fake', count)}
             onRemoveFakes={() => socket.emit('host:unfake')}
             onBallot={(nominees: string[] | null) => socket.emit('host:ballot', nominees)}
+            perms={perms}
+            onUploadImage={(blob: Blob) => uploadImage(room, password, blob)}
+            onThemePacks={() => setPacksOpen(true)}
             installMode={inst.mode}
             onInstall={inst.install}
             onLock={onLock}
@@ -180,6 +238,11 @@ function HostGame({ room, password, onDenied, onLock }: { room: string; password
         )}
       </PhoneFrame>
       <HalloweenLayer on={theme === 'halloween'} />
+      {packsOpen && perms.features.includes('themePacks') && (
+        <ThemePacks room={room} password={password} applied={themePack} onClose={() => setPacksOpen(false)}
+          onApply={(pack: any) => { setThemePack(pack); socket.emit('host:patch', { themePack: pack }); }} />
+      )}
+      <SupporterBanner names={supporters} />
       {death && <DeathNotice fixed id={death.id} kicker="Everyone sees" text={death.names.join(' & ') + ' died'} />}
       {!online && <div className="offline">Reconnecting to the room…</div>}
     </>

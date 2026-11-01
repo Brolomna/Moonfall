@@ -7,7 +7,7 @@ import os from 'node:os';
 import dgram from 'node:dgram';
 import path from 'node:path';
 import fs from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
 import QRCode from 'qrcode';
@@ -45,6 +45,8 @@ const newRoom = (code: string, password: string) => ({
   // deaths marked during the night are announced on every phone at dawn (never who did it)
   deathQueue: [] as string[],
   deathSeq: 0,
+  // pictures the host uploaded (role pictures, theme packs), kept as sent — never re-encoded. Keyed by content hash.
+  images: new Map<string, { type: string; buf: Buffer }>(),
 });
 type Room = ReturnType<typeof newRoom>;
 type Faction = 'good' | 'evil' | 'neutral';
@@ -128,7 +130,11 @@ function roleDefsFor(room: Room, list: string[]) {
   for (const k of keys) {
     const custom = (sh.custom || []).find((c: any) => c.key === k);
     const edit = (sh.edits || {})[k];
-    if (!custom && !edit) continue;
+    // a picture for this role: the host's own (hand-made roles) wins over the room's theme pack
+    const own = custom && !custom.lib ? imgRef(custom.img) : null;
+    const pack = own ? null : packImg(room, k, custom);
+    const pic = own || pack;
+    if (!custom && !edit && !pic) continue;
     const src = { ...(custom || {}), ...(edit || {}) }; // host edits apply to their own roles too
     roleDefs[k] = {
       ...(src.name ? { name: src.name } : {}),
@@ -141,6 +147,8 @@ function roleDefsFor(room: Room, list: string[]) {
       ...(src.wolf === false ? { wolf: false } : {}), // wolf helpers don't count as wolves
       // the host's own picture for a hand-made role (never for standard roles): a plain URL, so phones fetch it once
       ...(custom && !custom.lib && roleImg(custom.img) ? { img: '/api/role-img?room=' + room.code + '&key=' + encodeURIComponent(k) + '&v=' + imgTag(custom.img) } : {}),
+      // pictures uploaded at full quality, with the host's crop (drawn by the phone, the file itself is never cut)
+      ...(pic && room.images.has(pic.id) ? { img: imgUrl(room, pic.id), ...(pic.crop ? { imgCrop: pic.crop } : {}) } : {}),
       // host-written text wins over the phone's translations; untouched library roles stay translatable
       edited: !!edit || (!!custom && !custom.lib),
     };
@@ -149,6 +157,29 @@ function roleDefsFor(room: Room, list: string[]) {
   return roleDefs;
 }
 
+
+/** A picture reference as the host stores it on a role: { id, crop? } (id = the server's content hash). */
+function imgRef(v: any): null | { id: string; crop?: any } {
+  if (!v || typeof v !== 'object' || typeof v.id !== 'string' || !/^[a-f0-9]{24}$/.test(v.id)) return null;
+  const c = v.crop;
+  const num = (x: any, lo: number, hi: number, d: number) => { const n = Number(x); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+  return { id: v.id, ...(c && typeof c === 'object' ? { crop: { x: num(c.x, 0, 1, .5), y: num(c.y, 0, 1, .5), z: num(c.z, 1, 8, 1), w: num(c.w, 1, 1e5, 1), h: num(c.h, 1, 1e5, 1) } } : {}) };
+}
+const imgUrl = (room: Room, id: string) => '/api/img?room=' + room.code + '&id=' + id;
+/** The applied theme pack's picture for a role key (packs are keyed by library name, or the built-in key). */
+function packImg(room: Room, k: string, custom?: any) {
+  const pk = room.shared.themePack;
+  if (!pk || typeof pk !== 'object' || !pk.roles) return null;
+  const lib = custom ? custom.lib : null;
+  return imgRef(pk.roles[k]) || (lib ? imgRef(pk.roles[lib]) : null);
+}
+/** Every picture the room's shared state points at (to ask the host for the ones the server lost on a restart). */
+function imgIds(room: Room): string[] {
+  const sh = room.shared, out = new Set<string>();
+  (sh.custom || []).forEach((c: any) => { const r = imgRef(c && c.img); if (r) out.add(r.id); });
+  const pk = sh.themePack; if (pk && pk.roles) Object.values(pk.roles).forEach((v: any) => { const r = imgRef(v); if (r) out.add(r.id); });
+  return [...out];
+}
 
 /** How many players died during the current round's night (picks the morning sound: none / one / more). */
 function dawnDeaths(room: Room) {
@@ -207,6 +238,12 @@ function sponsorView(room: Room) {
   return f ? { ...f, name: f.name.slice(0, 60), offer: f.offer.slice(0, 140), link: webLink(f.link) } : null;
 }
 
+/** The supporters' names the host keeps for the scrolling thank-you banner. */
+function supportersView(room: Room): string[] {
+  const l = room.shared.supporters;
+  return Array.isArray(l) ? l.map(x => String(x || '').trim().slice(0, 40)).filter(Boolean).slice(0, 100) : [];
+}
+
 function playerView(room: Room, p: Player) {
   const sh = room.shared;
   const mark = (sh.status || {})[p.name];
@@ -235,10 +272,8 @@ function playerView(room: Room, p: Player) {
   const poolCounts: Record<string, number> = {};
   if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
   const deck0 = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
-  // the Atheist never shows in the players' role list (it would give the twist away): it's listed as a Villager
-  const atheistKeys = (sh.custom || []).filter((c: any) => c.lib === 'Atheist').map((c: any) => c.key);
-  const hiddenN = deck0.filter(([k]) => atheistKeys.includes(k)).reduce((a, [, c]) => a + Number(c), 0);
-  const deck = hiddenN ? deck0.filter(([k]) => !atheistKeys.includes(k)).map(([k, c]) => [k, k === 'villager' ? Number(c) + hiddenN : c] as [string, number]).concat(deck0.some(([k]) => k === 'villager') ? [] : [['villager', hiddenN] as [string, number]]) : deck0;
+  // every card is listed by its real name — the Atheist and the Drunk too (only their holders' own cards hide them)
+  const deck = deck0;
 
   // roles named in this player's night answer too (e.g. the Drunk's real role, which was never dealt)
   const wh = (sh.whispers || {})[p.name] || {};
@@ -257,6 +292,7 @@ function playerView(room: Room, p: Player) {
     round: sh.round || 1,
     winner: room.dealt ? sh.winner || null : null,
     sponsor: sponsorView(room),
+    supporters: supportersView(room),
     theme: room.shared.theme || null, // the host's look (e.g. 'halloween')
     spirit: spiritView(room, p.name), // only when this player is dead
     note: (sh.notes || {})[p.name] || null, // a secret message from the host to this player only
@@ -324,6 +360,7 @@ function spectatorView(room: Room, sp: Player) {
   return {
     spectator: true,
     sponsor: sponsorView(room),
+    supporters: supportersView(room),
     theme: room.shared.theme || null,
     dawnDeaths: dawnDeaths(room),
     name: sp.name,
@@ -407,6 +444,41 @@ function hostView(room: Room) {
   };
 }
 
+// ---------- host permissions ----------
+// Every host gets a plan; a plan is a list of features. Regular hosts (/host) are on 'host'; the master host (/master,
+// unlocked with the master PIN) gets everything. A paid plan later is one more entry here (and a way to grant it).
+// The server checks these itself — a host phone can't switch a feature on by changing its own screen.
+const FEATURES = ['masterControls', 'spiritCouncil', 'themePacks', 'halloween', 'secretNotes'] as const;
+type Feature = typeof FEATURES[number];
+const PLANS: Record<string, readonly Feature[]> = { host: [], master: FEATURES };
+type Perms = { plan: string; features: Feature[] };
+const permsFor = (plan: string): Perms => ({ plan, features: [...(PLANS[plan] || [])] });
+const can = (perms: Perms, f: Feature) => perms.features.includes(f);
+// shared fields only a host with that feature may set (anything else in a patch is dropped for other hosts)
+const FIELD_FEATURE: Record<string, Feature> = { theme: 'halloween', themePack: 'themePacks', notes: 'secretNotes' };
+
+// The master PIN lives only on the server: the MASTER_PIN environment variable (set it on Render), or locally the
+// git-ignored file server/master-pin.txt. It is never in the repo or the app. Without one, /master stays locked.
+// The phone gets a signed token, never the PIN back.
+const MASTER_PIN = String(process.env.MASTER_PIN || (() => { try { return fs.readFileSync(path.join(ROOT, 'server', 'master-pin.txt'), 'utf8').trim(); } catch { return ''; } })());
+if (!MASTER_PIN) console.warn('⚠  No master PIN (MASTER_PIN or server/master-pin.txt): the master host (/master) is locked.');
+const MASTER_SECRET = process.env.MASTER_SECRET || createHash('sha256').update('moonfall-master:' + MASTER_PIN).digest('hex');
+const sign = (body: string) => createHmac('sha256', MASTER_SECRET).update(body).digest('base64url');
+function masterToken(days = 60) {
+  const body = Buffer.from(JSON.stringify({ plan: 'master', exp: Date.now() + days * 864e5 })).toString('base64url');
+  return body + '.' + sign(body);
+}
+/** The plan a token unlocks ('host' when there is no valid token). */
+function planOf(token: unknown): string {
+  const [body, mac] = String(token || '').split('.');
+  if (!body || !mac) return 'host';
+  const a = Buffer.from(sign(body)), b = Buffer.from(mac);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return 'host';
+  try { const t = JSON.parse(Buffer.from(body, 'base64url').toString()); return t && t.exp > Date.now() && PLANS[t.plan] ? t.plan : 'host'; } catch { return 'host'; }
+}
+// a few wrong PINs per minute from one address, then a pause
+const pinTries = new Map<string, { n: number; at: number }>();
+
 // ---------- server ----------
 const app = express();
 const server = http.createServer(app);
@@ -434,6 +506,43 @@ app.get('/api/role-img', (req, res) => {
   if (!m) return res.status(404).end();
   res.type(m[1]).set('Cache-Control', 'public, max-age=604800, immutable').send(Buffer.from(m[2], 'base64'));
 });
+
+// pictures at full quality: the host uploads the file as it is (host password, or the master token, for that room)
+const hostAllowed = (req: express.Request, room: Room) => String(req.get('x-moonfall-password') || '') === room.password;
+app.post('/api/img', express.raw({ type: () => true, limit: '12mb' }), (req, res) => {
+  const room = roomOf(req);
+  if (!room || !hostAllowed(req, room)) return res.status(403).json({ error: 'denied' });
+  const buf = req.body as Buffer;
+  const type = String(req.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!Buffer.isBuffer(buf) || !buf.length || !/^image\/(png|jpeg|webp|gif|avif)$/.test(type)) return res.status(400).json({ error: 'type' });
+  const total = [...room.images.values()].reduce((a, x) => a + x.buf.length, 0);
+  const id = createHash('sha256').update(buf).digest('hex').slice(0, 24);
+  if (!room.images.has(id) && total + buf.length > 120 * 1024 * 1024) return res.status(413).json({ error: 'full' });
+  const known = room.images.has(id);
+  room.images.set(id, { type, buf });
+  res.json({ id });
+  if (!known && imgIds(room).includes(id)) pushAll(room); // a picture sent back after a restart: phones can show it again
+});
+app.get('/api/img', (req, res) => {
+  const im = roomOf(req)?.images.get(String(req.query.id || ''));
+  if (!im) return res.status(404).end();
+  res.type(im.type).set('Cache-Control', 'public, max-age=31536000, immutable').send(im.buf);
+});
+// the scrolling thank-you banner, before a phone has joined
+app.get('/api/supporters', (req, res) => { const room = roomOf(req); res.json(room ? supportersView(room) : []); });
+// the master host: the PIN (checked here, never sent to phones) → a signed token for /master
+app.post('/api/master/login', express.json({ limit: '2kb' }), (req, res) => {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const t = pinTries.get(ip);
+  if (t && t.n >= 5 && Date.now() - t.at < 60000) return res.status(429).json({ error: 'wait' });
+  const pin = String((req.body && req.body.pin) || '');
+  if (!MASTER_PIN) return res.status(403).json({ error: 'off' });
+  const a = createHash('sha256').update(pin).digest(), b = createHash('sha256').update(MASTER_PIN).digest();
+  if (!timingSafeEqual(a, b)) { pinTries.set(ip, { n: t && Date.now() - t.at < 60000 ? t.n + 1 : 1, at: Date.now() }); return res.status(403).json({ error: 'pin' }); }
+  pinTries.delete(ip);
+  res.json({ token: masterToken() });
+});
+app.get('/api/master/check', (req, res) => res.json({ plan: planOf(req.get('x-moonfall-master')) }));
 
 // which commit is running (Render sets RENDER_GIT_COMMIT) — handy to check a deploy went out
 app.get('/api/version', (_req, res) => res.json({ commit: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7) }));
@@ -487,9 +596,13 @@ io.on('connection', (socket: Socket) => {
     if (!room) { room = newRoom(code, password); rooms.set(code, room); }
     else if (room.password !== password) return deny('password');
     const c = code;
+    // what this host may do: regular hosts are on the 'host' plan, the master token unlocks 'master'
+    const perms = permsFor(planOf(auth.master));
     socket.join([c + ':host', c + ':all']);
-    socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: isFresh(room), created, code });
+    socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: isFresh(room), created, code, perms });
     socket.emit('host:snapshot', snapshot(room));
+    socket.emit('host:images', { have: [...room.images.keys()], need: imgIds(room) }); // pictures the server lost on a restart are sent again
+    const allowed = (f: Feature) => { if (can(perms, f)) return true; socket.emit('host:locked', f); return false; };
 
     // after a restart the room is empty: the host's phone sends back its last copy of the game
     socket.on('host:restore', (snap: ReturnType<typeof snapshot>) => {
@@ -503,12 +616,16 @@ io.on('connection', (socket: Socket) => {
       room.spiritChat = Array.isArray(snap.spiritChat) ? snap.spiritChat : [];
       room.council = snap.council || null;
       room.lobbyChat = Array.isArray(snap.lobbyChat) ? snap.lobbyChat.slice(-100) : [];
-      socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: false, restored: true });
+      for (const [k, f] of Object.entries(FIELD_FEATURE)) if (!can(perms, f)) delete room.shared[k];
+      socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: false, restored: true, perms });
+      socket.emit('host:images', { have: [...room.images.keys()], need: imgIds(room) });
       io.to(c + ':all').emit('room:restored'); // phones reconnect and find their seat (and card) again
       pushAll(room);
     });
 
     socket.on('host:patch', (patch: Shared) => {
+      if (!patch || typeof patch !== 'object') return;
+      for (const [k, f] of Object.entries(FIELD_FEATURE)) if (k in patch && !can(perms, f)) delete patch[k]; // not on this host's plan
       if (patch.timer && patch.timer.running) patch.timer = { ...patch.timer, endsAt: Date.now() + Math.max(0, Number(patch.timer.leftMs) || 0) };
       const before = room.shared.status || {};
       Object.assign(room.shared, patch);
@@ -518,11 +635,11 @@ io.on('connection', (socket: Socket) => {
     });
     // secret phone vote, one nominee at a time: open with their name, close with null (the host only sees counts)
     // the host calls the Spirit Council when the game is ready for it (once per game)
-    socket.on('host:council', () => { callCouncil(room); pushAll(room); });
+    socket.on('host:council', () => { if (!allowed('spiritCouncil')) return; callCouncil(room); pushAll(room); });
     // …and can undo it (called by mistake): factions and choices are forgotten, it can be called again
-    socket.on('host:council:undo', () => { room.council = null; pushAll(room); });
+    socket.on('host:council:undo', () => { if (!allowed('spiritCouncil')) return; room.council = null; pushAll(room); });
     // …and reveals the factions on the spirits' phones (whenever the host likes: without a Council yet, it calls it first)
-    socket.on('host:council:reveal', () => { if (!room.council) callCouncil(room); if (room.council) { room.council.revealed = true; pushAll(room); } });
+    socket.on('host:council:reveal', () => { if (!allowed('spiritCouncil')) return; if (!room.council) callCouncil(room); if (room.council) { room.council.revealed = true; pushAll(room); } });
     socket.on('host:ballot', (nominee: string | null) => {
       room.ballot = typeof nominee === 'string' && nominee ? { nominee, votes: {} } : null;
       pushAll(room);

@@ -25,11 +25,18 @@ export const device = {
 /** Room names as the server keeps them: lower case letters, digits and dashes. */
 export const roomCode = (raw: string) => raw.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 24);
 
-export function connect(role: 'host', room: string, password: string): Socket;
+/** The master host's token (from the PIN on /master), kept on this phone; the server checks it on every connect. */
+export const masterToken = {
+  get: () => { try { return localStorage.getItem('moonfall.masterToken') || ''; } catch { return ''; } },
+  set: (t: string) => { try { localStorage.setItem('moonfall.masterToken', t); } catch { /* private mode */ } },
+  clear: () => { try { localStorage.removeItem('moonfall.masterToken'); } catch { /* ignore */ } },
+};
+
+export function connect(role: 'host', room: string, password: string, master?: string): Socket;
 export function connect(role: 'player', room: string): Socket;
-export function connect(role: 'host' | 'player', room: string, password?: string): Socket {
+export function connect(role: 'host' | 'player', room: string, password?: string, master?: string): Socket {
   // auth is a callback so every reconnect (e.g. after the phone was locked) sends the playerId saved at join
-  const socket = io({ auth: cb => cb(role === 'host' ? { role, room, password } : { role, room, playerId: playerId.get(room) }), transports: ['websocket', 'polling'] });
+  const socket = io({ auth: cb => cb(role === 'host' ? { role, room, password, ...(master ? { master } : {}) } : { role, room, playerId: playerId.get(room) }), transports: ['websocket', 'polling'] });
   // Phones drop the connection while locked; reconnect as soon as the page is visible again instead of waiting for the backoff
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && !socket.connected) socket.connect();

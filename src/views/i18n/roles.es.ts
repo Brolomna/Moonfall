@@ -32,6 +32,7 @@ export default {
     'Cult Leader': ["Líder de la secta", "Únete — todos acaban haciéndolo", "Cada noche, suma a un jugador a tu secta. Ganas cuando todos los que siguen vivos pertenecen a ella."],
     'Wolf King': ['Rey lobo', 'Larga vida al rey', 'Lideras la manada. Si te eliminan, te llevas a un jugador contigo.'],
     'Nightmare Wolf': ['Lobo de pesadilla', 'Se acabaron los dulces sueños', 'Cazas con la manada. Además, cada noche puedes elegir a un jugador cuyo poder falla esta noche.'],
+    'Assassin': ['Asesino', 'El cazador de cazadores', 'Estás con la aldea y los hombres lobo no pueden matarte: si te atacan, uno de los lobos atacantes muere en tu lugar. La aldea sí puede expulsarte con su voto.'],
     'Shadow Wolf': ['Lobo sombrío', 'Invisible, desconocido', 'Cazas con la manada, pero todos los roles que investigan te ven como un simple Aldeano.'],
     'Omega Wolf': ['Lobo omega', 'El último es el más feroz', 'Cazas con la manada. Cuando seas el último hombre lobo vivo, puedes llevarte a dos víctimas cada noche.'],
     'Big Bad Wolf': ['Gran Lobo Feroz', 'Soplaré, soplaré… y me daré un festín', 'Despiertas con los hombres lobo. Mientras no hayan eliminado a ningún hombre lobo, también eliminas a un jugador sentado junto a la víctima.'],

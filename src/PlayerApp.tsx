@@ -6,6 +6,7 @@ import { Tutorial } from './Tutorial';
 import { PhoneFrame } from './PhoneFrame';
 import { brandText, type Sponsor } from './brand';
 import { HalloweenLayer } from './halloween';
+import { SupporterBanner } from './Supporters';
 import { PlayerView } from './views/PlayerView';
 import { installAudioUnlock, playDawn } from './sound';
 
@@ -22,6 +23,8 @@ type View = {
 } | null;
 
 const LAST_ROOM = 'moonfall.lastRoom';
+// the supporters' banner, in the phone's language
+const THANKS: Record<string, string> = { en: 'Thank you to our supporters', ko: '후원해 주신 분들께 감사드려요', ja: '応援してくださった皆さま、ありがとう', zh: '感谢我们的支持者', fr: 'Merci à nos soutiens', es: 'Gracias a quienes nos apoyan', th: 'ขอบคุณผู้สนับสนุนของเรา' };
 const urlRoom = () => roomCode(new URLSearchParams(window.location.search).get('room') || '');
 const lastRoom = () => { try { return localStorage.getItem(LAST_ROOM) || ''; } catch { return ''; } };
 
@@ -98,6 +101,9 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
   const [theme, setTheme] = useState<string | null>(null);
   useEffect(() => { fetch('/api/theme?room=' + encodeURIComponent(room)).then(r => r.json()).then(t => setTheme(t.theme || null)).catch(() => { /* default look */ }); }, []);
   useEffect(() => { fetch('/api/sponsor?room=' + encodeURIComponent(room)).then(r => r.json()).then(setPreSponsor).catch(() => { /* none */ }); }, []);
+  // the supporters' banner, before this phone has joined (then it comes with every view)
+  const [preSupporters, setPreSupporters] = useState<string[]>([]);
+  useEffect(() => { fetch('/api/supporters?room=' + encodeURIComponent(room)).then(r => r.json()).then(l => setPreSupporters(Array.isArray(l) ? l : [])).catch(() => { /* none */ }); }, []);
   useEffect(() => { const t = window.setTimeout(() => setSplash(false), 4000); return () => clearTimeout(t); }, []);
   // after the splash, a new phone is offered the interactive tutorial once (it can be opened again from the game guide)
   const [tutorial, setTutorial] = useState<boolean>(() => { try { return !localStorage.getItem('moonfall.tutorialSeen') && !playerId.get(room); } catch { return false; } });
@@ -209,6 +215,7 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
         )}
       </PhoneFrame>
       <HalloweenLayer on={theme === 'halloween'} />
+      <SupporterBanner names={view ? (view as any).supporters || [] : preSupporters} label={THANKS[startLang] || THANKS.en} />
       {tutorial && !splash && <Tutorial onDone={tutorialDone} />}
       {splash && (
         <div className="splash" onClick={() => setSplash(false)}>
