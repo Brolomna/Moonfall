@@ -450,7 +450,8 @@ function hostView(room: Room) {
 // The server checks these itself — a host phone can't switch a feature on by changing its own screen.
 const FEATURES = ['masterControls', 'spiritCouncil', 'themePacks', 'halloween', 'secretNotes'] as const;
 type Feature = typeof FEATURES[number];
-const PLANS: Record<string, readonly Feature[]> = { host: [], master: FEATURES };
+// For now every host gets every feature. To lock them again: `host: []` here, and pass `master` to HostApp in src/main.tsx.
+const PLANS: Record<string, readonly Feature[]> = { host: FEATURES, master: FEATURES };
 type Perms = { plan: string; features: Feature[] };
 const permsFor = (plan: string): Perms => ({ plan, features: [...(PLANS[plan] || [])] });
 const can = (perms: Perms, f: Feature) => perms.features.includes(f);
@@ -461,7 +462,6 @@ const FIELD_FEATURE: Record<string, Feature> = { theme: 'halloween', themePack: 
 // git-ignored file server/master-pin.txt. It is never in the repo or the app. Without one, /master stays locked.
 // The phone gets a signed token, never the PIN back.
 const MASTER_PIN = String(process.env.MASTER_PIN || (() => { try { return fs.readFileSync(path.join(ROOT, 'server', 'master-pin.txt'), 'utf8').trim(); } catch { return ''; } })());
-if (!MASTER_PIN) console.warn('⚠  No master PIN (MASTER_PIN or server/master-pin.txt): the master host (/master) is locked.');
 const MASTER_SECRET = process.env.MASTER_SECRET || createHash('sha256').update('moonfall-master:' + MASTER_PIN).digest('hex');
 const sign = (body: string) => createHmac('sha256', MASTER_SECRET).update(body).digest('base64url');
 function masterToken(days = 60) {

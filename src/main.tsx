@@ -8,8 +8,8 @@ const HostApp = lazy(() => import('./HostApp').then(m => ({ default: m.HostApp }
 const PlayerApp = lazy(() => import('./PlayerApp').then(m => ({ default: m.PlayerApp })));
 
 const path = window.location.pathname.replace(/\/+$/, '');
-const isMaster = path === '/master'; // the master host: same host screens, unlocked with the master PIN (checked by the server)
-const isHost = path === '/host' || isMaster;
+// every host has every feature for now, so /master is simply another address for /host (no PIN screen)
+const isHost = path === '/host' || path === '/master';
 
 // Installable as an app: players get "Moonfall", the host page gets "Moonfall Host"
 const manifest = document.createElement('link');
@@ -23,6 +23,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 createRoot(document.getElementById('root')!).render(
   <Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#0a0612' }} />}>
-    {isHost ? <HostApp master={isMaster} /> : <PlayerApp />}
+    {isHost ? <HostApp /> : <PlayerApp />}
   </Suspense>
 );

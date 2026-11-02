@@ -45,7 +45,8 @@ the host a guide (wake-up order, special-case reminders, win check).
   mounted outside the screens and timed by the clock, so it never restarts; the phone frame is shortened so it covers nothing.
 - `src/ThemePacks.tsx` — master-only theme packs: a picture + crop per role (keyed by built-in key or library name), saved on the master's phone, applied as shared `themePack`
   (server `packImg()` puts it on every card; a host's own picture on a hand-made role wins).
-- Host permissions (server `FEATURES` / `PLANS`): `/host` = plan `host`, `/master` = plan `master` after the master PIN (env `MASTER_PIN`, or the git-ignored `server/master-pin.txt` locally — never in the repo;
+- Host permissions — **currently open: every host has every feature** (`PLANS.host = FEATURES` in the server; `/master` just opens the host screen, no PIN). The lock below is kept for later; to turn it back on, set `host: []` and pass `master` to `HostApp` in `src/main.tsx`.
+  How it works when on (server `FEATURES` / `PLANS`): `/host` = plan `host`, `/master` = plan `master` after the master PIN (env `MASTER_PIN`, or the git-ignored `server/master-pin.txt` locally — never in the repo;
   `POST /api/master/login` → signed token, sent as socket auth `master`). The server refuses Spirit Council events and strips `theme` / `themePack` / `notes` from patches
   for hosts without the feature (`host:locked`); `host:init` sends `perms` and the host screen greys those features out (`HostView.can()`). A paid plan = one more entry in `PLANS`.
 - `src/views/HostView.tsx`, `src/views/PlayerView.tsx` (+ `.css`) — the UI, generated from the design canvas
