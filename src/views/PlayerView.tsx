@@ -12,6 +12,7 @@ import { spiritText } from './i18n/spirit';
 import { extraText } from './i18n/extra';
 import { RecapView } from './RecapView';
 import { DeathNotice } from './DeathNotice';
+import { PlayerExtras } from './PlayerExtras';
 import { RoleCardFace, roleCardLook, CARD_MOTIF } from './RoleCard';
 
 // the players' Instagram group chat — shown as a button on the waiting screen
@@ -508,7 +509,8 @@ export class PlayerView extends React.Component<any, any> {
 
     const langObj = langs.find(l => l.code === lang);
     return {
-      T, lang, fD, fI, fB, rc, fmt,
+      T, lang, fD, fI, fB, rc, fmt, screen,
+      locRole: (k) => (all[k] ? loc(k) : { name: k, color: '#c7a8ff', icon: '' }), // NET: role names in this phone's language (bluff pick)
       // NET: the host's sponsor (name, offer, link, logo) and the "Support Moonfall" link
       sp: this.props.sponsor || null, B: brandText(lang), donate: DONATE_URL,
       realm: fate !== 'none' && screen === 'card', // dead players live in the spirit realm (own backdrop, no day/night)
@@ -1895,6 +1897,12 @@ export class PlayerView extends React.Component<any, any> {
               <button className="press" onClick={v.vrOk} style={{ height: '50px', borderRadius: '16px', border: 'none', background: '#f2c58a', color: '#1c120a', fontSize: '16px', fontWeight: '800' }}>{v.XT.ok}</button>
             </section>
           </div>
+        ) : null}
+        {/* NET: the werewolves' bluff pick and the items bag / shop */}
+        {(v.screen === 'card' || v.screen === 'waiting') ? (
+          <PlayerExtras lang={v.lang} font={v.fB} fontD={v.fD} role={v.locRole}
+            bluff={v.screen === 'card' ? this.props.bluff || null : null} shop={this.props.shop || null}
+            onBluff={this.props.onBluff || (() => {})} onBuy={this.props.onBuy || (() => Promise.resolve({}))} onUse={this.props.onUse || (() => Promise.resolve({}))} />
         ) : null}
         {/* NET: "<name> died" on every phone */}
         {(v.deathText) ? <DeathNotice id={this.props.deathNotice.id} kicker={v.XT.diedKicker} text={v.deathText} /> : null}

@@ -93,6 +93,17 @@ Role strategy tips (shown on the role card, one per peek) are in `src/views/role
 - Bluff cards: the deck may hold up to one extra card per werewolf card. `dealNow` deals by priority (wolf side, then solo roles,
   then village) and leaves the extras out at random among village cards (never a Mason); shared `pool` = every selected card (what phones list as the round's roles), `unused` = not dealt (host only).
   The wake-up order still calls roles nobody holds (not dealt, or the player was turned) as "fake it" steps, so it never gives anything away.
+- Bluff roles (separate from bluff cards): the Roles screen's 🎭 **Bluff roles** box picks village/neutral roles that are never dealt
+  (shared `bluffRoles`; hidden from the waiting room and the balance). At the deal they're fixed as `bluffIn`: phones list them in the round's
+  roles like any card (server `playerView` deck), the host's 🃏 sheet marks them, and night roles among them are called in the wake-up order as
+  `gone: 'bluff'` steps (tag "Bluff — fake it", no answers). The host sends `bluffPack` {wolves, open} (open while the Werewolves step is awake
+  on night 1, or by the host's "Let the wolves pick now"); wolves' phones get `bluff` (server `bluffView`) and pick with `bluff:pick`
+  (`room.bluffPicks`, shown to the pack and in the host's Werewolves step). UI on the phone: `src/views/PlayerExtras.tsx`, text `src/views/i18n/shop.ts`.
+- Shop & items: `src/shop.ts` (data, kept on the host's phone in `moonfall.shop`; points = Hall of Fame wins × `PTS_PER_WIN`; quests would be
+  another source in `earned()`), `src/ShopHost.tsx` (🛍 header button on every host screen: items, players, opening the shop, gifts, use log).
+  HostApp shares `shop` (`shopShared()`: items, who it's open to, each player's points + bag); phones get their part via `shopView()`.
+  `shop:buy` / `shop:use` from a phone are checked by the server and forwarded to the host (`shop:req`), which applies them and shows a `UseNotice`.
+  Artifacts: once per game (game id `moonfall.game.<room>`, set at the deal); power-ups: once. The host applies effects in person.
 - Host-only helpers on the Play screen (`HostView.renderVals` view object): **Bluff cards** (`bluffView`, from `unused`; collapsible, never sent to phones),
   the **lover popup** (`loverPop`: the moment a lover is out, however it happened, and again at dawn if it happened at night; seen keys in shared `loverSeen`),
   the **🃏 Roles in play** sheet in the header (`rolesInPlay` view value: every card of the round with its full description, to read out), and the **Atheist story** card + sheet in an Atheist game (`HostView.atheistStory()`,

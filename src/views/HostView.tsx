@@ -28,7 +28,7 @@ const DRUNK_ROLES = ['bodyguard', 'hunter', 'prince', 'toughguy', 'witch', 'mayo
 
 export class HostView extends React.Component<any, any> {
   // NET: fields the host owns that are mirrored to the server (so players see them and a refresh keeps the game)
-  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme', 'loverSeen', 'recap', 'supporters', 'themePack'];
+  static SHARED = ['screen', 'counts', 'picked', 'custom', 'edits', 'rules', 'roomLang', 'phase', 'round', 'status', 'override', 'dismissed', 'checks', 'tough', 'dgDone', 'log', 'hidden', 'preset', 'acts', 'witch', 'lovers', 'dgCopy', 'story', 'fixed', 'mech', 'vote', 'winner', 'locked', 'whispers', 'timer', 'ivory', 'seats', 'awake', 'notes', 'sponsor', 'sponsorLogo', 'pool', 'unused', 'theme', 'loverSeen', 'recap', 'supporters', 'themePack', 'bluffRoles', 'bluffIn', 'bluffPack'];
 
   constructor(props) {
     super(props);
@@ -61,6 +61,9 @@ export class HostView extends React.Component<any, any> {
     // the post-game recap (built from the game's record once it is over) goes to every phone with the end card
     const rc = this._recapOut || null;
     if (JSON.stringify(rc) !== JSON.stringify(this.state.recap || null)) this.setState({ recap: rc });
+    // the werewolves' bluff pick (who the wolves are, and whether the pick is open) goes to the server, which shows it to the wolves only
+    const bp = this._bluffPack || null;
+    if (JSON.stringify(bp) !== JSON.stringify(this.state.bluffPack || null)) this.setState({ bluffPack: bp });
     // a finished game is remembered once: Hall of Fame + who holds the Ivory Tower next game
     const rec = this._record;
     if (rec && HostView.store('moonfall.lastGame') !== rec.id) {
@@ -474,6 +477,17 @@ export class HostView extends React.Component<any, any> {
     ];
     const customItems = uniques.filter(r => r.custom && !r.lib);
     if (customItems.length) groups.push(mkGroup('Your roles', '#c7a8ff', '#d9c6ff', customItems));
+    // Bluff roles: cards that are never dealt. Hidden from the waiting room and left out of the balance; once the cards
+    // are dealt they join the role list on every phone (looking like any other card), each werewolf picks one to pretend
+    // to be on the first night, and the wake-up order calls them like the rest (host-only "Bluff" tag, no answers).
+    const bluffSel = (s.bluffRoles || []).filter(k => byKey[k] && hidden.indexOf(k) < 0);
+    const bluffNow = bluffSel.filter(k => picked.indexOf(k) < 0); // a role put in the deck stops being a bluff
+    const bluffSetup = {
+      n: bluffNow.length, open: !!s.bluffSetOpen, toggle: () => this.setState({ bluffSetOpen: !s.bluffSetOpen }),
+      chosen: bluffNow.map(k => ({ key: k, name: byKey[k].name, color: byKey[k].color, rgb: byKey[k].rgb, icon: byKey[k].icon, drop: () => this.setState({ bluffRoles: bluffSel.filter(x => x !== k) }) })),
+      options: visible.filter(r => r.kind === 'unique' && r.team !== 'Werewolves' && picked.indexOf(r.key) < 0 && r.lib !== 'Atheist' && r.lib !== 'Drunk')
+        .map(r => { const on = bluffSel.indexOf(r.key) >= 0; return { key: r.key, name: r.name, color: r.color, rgb: r.rgb, on, toggle: () => this.setState({ bluffRoles: on ? bluffSel.filter(x => x !== r.key) : bluffSel.concat([r.key]) }) }; }),
+    };
     const total = counted.reduce((a, r) => a + r.count, 0) + uniques.filter(r => r.on).length;
     const score = counted.reduce((a, r) => a + r.count * r.strength, 0) + uniques.filter(r => r.on).reduce((a, r) => a + r.strength, 0);
     const wolfCards = counts.werewolf || 0;
@@ -1066,6 +1080,19 @@ export class HostView extends React.Component<any, any> {
     const victimsWanted = Math.min(3, 1 + (rage ? 1 : 0) + (bigBad ? 1 : 0) + (omega ? 1 : 0));
     const alphaReady = wolves.some(nm => isLib(nm, 'Alpha Werewolf')) && !usedAt('Alpha Werewolf');
     const ck = (key) => round + '-' + key;
+    // the werewolves pick their bluffs on their phones while the pack is awake on the first night (or whenever the host reopens it)
+    const bluffIn0 = screen === 'play' ? st('bluffIn', []).filter(k => byKey[k]) : [];
+    const bluffWolves = bluffIn0.length ? names.filter(nm => isWolf(roleOf(nm))) : [];
+    const bluffOpen = !!s.bluffForce || (night && round === 1 && st('awake', null) === 'werewolf');
+    this._bluffPack = bluffWolves.length ? { wolves: bluffWolves, open: bluffOpen } : null;
+    const bluffPicks = (this.props.net && this.props.net.bluffPicks) || {};
+    const bluffPickLine = bluffWolves.length ? '🎭 Bluffs: ' + bluffWolves.map(nm => nm + ' → ' + (bluffPicks[nm] && byKey[bluffPicks[nm]] ? byKey[bluffPicks[nm]].name : '…')).join(' · ') : '';
+    const bluffPicksView = bluffIn0.length ? {
+      roles: bluffIn0.map(k => byKey[k].name).join(', '), open: bluffOpen, forced: !!s.bluffForce, noWolves: !bluffWolves.length,
+      rows: bluffWolves.map(nm => { const r = bluffPicks[nm] && byKey[bluffPicks[nm]]; return { name: nm, pick: r ? r.name : 'not picked yet', color: r ? r.color : '#8f84a8' }; }),
+      shown: !!s.bluffPkOpen, toggle: () => this.setState({ bluffPkOpen: !s.bluffPkOpen }),
+      force: () => this.setState({ bluffForce: !s.bluffForce }),
+    } : null;
     const acts = st('acts', []);
     const witchUsed = st('witch', {}); // { save: round, poison: round } — each potion works once per game
     const actOf = (key, rd) => acts.find(a => a.round === (rd || round) && a.key === key);
@@ -1099,7 +1126,7 @@ export class HostView extends React.Component<any, any> {
       const o = opts || {};
       const ghost = !!o.gone || (!o.deadRole && !who.some(nm => !isOut(nm))); // everyone with this role is out (or turned, or it wasn't dealt) — the host still calls it
       const blocked = !ghost && who.some(nm => !isOut(nm) && blockedNow.indexOf(nm) >= 0) && o.kind !== 'kill';
-      defs.push({ key, title: t, who, ghost, gone: o.gone || null, blocked, say: o.gone === 'unused' ? 'Not dealt this game (a bluff card) — call as usual, wait in silence, no answers.' : o.gone === 'converted' ? 'Their player was turned — call as usual, wait in silence, no answers.' : ghost ? 'Out — call as usual, wait in silence, no answers.' : blocked ? 'Blocked tonight — call them, wait, give no answer.' : o.spent ? 'Power used — call for show, then move on.' : (renamed(key) ? byKey[key].blurb : say), ...o });
+      defs.push({ key, title: t, who, ghost, gone: o.gone || null, blocked, say: o.gone === 'bluff' ? 'Bluff role — nobody has it. Call it as usual, wait in silence; no answers, no effect.' : o.gone === 'unused' ? 'Not dealt this game (a bluff card) — call as usual, wait in silence, no answers.' : o.gone === 'converted' ? 'Their player was turned — call as usual, wait in silence, no answers.' : ghost ? 'Out — call as usual, wait in silence, no answers.' : blocked ? 'Blocked tonight — call them, wait, give no answer.' : o.spent ? 'Power used — call for show, then move on.' : (renamed(key) ? byKey[key].blurb : say), ...o });
     };
     // the pack
     const agree = rules.wolfPick === 'unanimous' ? ' All must agree.' : '';
@@ -1119,9 +1146,13 @@ export class HostView extends React.Component<any, any> {
     const gone = {};
     names.forEach(nm => { const k = baseRole[nm] && baseRole[nm].key; if (k && inPlay.indexOf(k) < 0) (gone[k] = gone[k] || []).push(nm); });
     (screen === 'play' ? st('pool', []) : []).forEach(k => { if (byKey[k] && inPlay.indexOf(k) < 0 && !gone[k]) gone[k] = []; });
+    // the host's bluff roles (never dealt) are called too when they wake at night — only the host sees "Bluff"
+    const bluffGame = screen === 'play' ? st('bluffIn', []).filter(k => byKey[k]) : [];
+    const bluffOnly = (k) => bluffGame.indexOf(k) >= 0 && st('pool', []).indexOf(k) < 0;
+    bluffGame.forEach(k => { if (inPlay.indexOf(k) < 0 && !gone[k]) gone[k] = []; });
     inPlay.concat(Object.keys(gone)).forEach(k => {
       if (k === 'werewolf' || k === 'wolfcub') return;
-      const goneWhy = gone[k] ? (gone[k].length ? 'converted' : 'unused') : null;
+      const goneWhy = gone[k] ? (gone[k].length ? 'converted' : bluffOnly(k) ? 'bluff' : 'unused') : null;
       const lib = libOf(k), m = MECH[lib];
       const c = custom.find(x => x.key === k);
       const holders = goneWhy ? gone[k] : drunkTonight && k === drunkTonight.key ? (drunkTonight.who || []) : names.filter(nm => wokeAs(nm).key === k);
@@ -1209,11 +1240,11 @@ export class HostView extends React.Component<any, any> {
     const nightSteps = defs.map((x, i) => {
       const r = byKey[x.key] || byKey.werewolf;
       const done = checks.indexOf(ck(x.key)) >= 0;
-      const tag = x.gone === 'unused' ? 'Not dealt — fake it' : x.gone === 'converted' ? 'Turned — fake it' : x.ghost ? 'Out — fake it' : x.blocked ? 'Blocked' : x.spent ? 'For show' : x.rage ? victimsWanted + ' victims!' : (x.peaceful ? 'Peaceful night' : (x.firstOnly ? 'First night only' : ''));
+      const tag = x.gone === 'bluff' ? 'Bluff — fake it' : x.gone === 'unused' ? 'Not dealt — fake it' : x.gone === 'converted' ? 'Turned — fake it' : x.ghost ? 'Out — fake it' : x.blocked ? 'Blocked' : x.spent ? 'For show' : x.rage ? victimsWanted + ' victims!' : (x.peaceful ? 'Peaceful night' : (x.firstOnly ? 'First night only' : ''));
       const grey = x.ghost || x.blocked || x.spent;
       return {
-        num: done ? '✓' : String(i + 1), title: x.title, who: x.gone === 'unused' ? 'Nobody' : x.who.map(nm => (x.gone === 'converted' ? nm + ' (turned into the ' + roleOf(nm).name + ')' : isOut(nm) ? nm + ' (out)' : nm)).join(', '), say: x.say, icon: r.icon, color: r.color, done,
-        hasTag: !!tag, tag, tagFg: grey ? '#d8cfe8' : x.rage ? '#ffd0cb' : '#e9dcff', tagBg: grey ? 'rgba(185,172,210,.18)' : x.rage ? 'rgba(255,111,97,.3)' : 'rgba(167,127,240,.25)',
+        num: done ? '✓' : String(i + 1), title: x.title, who: x.gone === 'bluff' ? 'Nobody (bluff role)' : x.gone === 'unused' ? 'Nobody' : x.who.map(nm => (x.gone === 'converted' ? nm + ' (turned into the ' + roleOf(nm).name + ')' : isOut(nm) ? nm + ' (out)' : nm)).join(', '), say: x.say, icon: r.icon, color: r.color, done,
+        hasTag: !!tag, tag, tagFg: x.gone === 'bluff' ? '#ffd9a8' : grey ? '#d8cfe8' : x.rage ? '#ffd0cb' : '#e9dcff', tagBg: x.gone === 'bluff' ? 'rgba(242,166,90,.25)' : grey ? 'rgba(185,172,210,.18)' : x.rage ? 'rgba(255,111,97,.3)' : 'rgba(167,127,240,.25)',
         numBg: done ? '#62d4a6' : 'rgba(' + r.rgb + ',.2)', numFg: done ? '#0d2a20' : r.color,
         border: x.rage ? 'rgba(255,111,97,.6)' : (done ? 'rgba(98,212,166,.3)' : 'rgba(236,230,246,.08)'),
         bg: x.rage ? 'rgba(255,111,97,.1)' : 'rgba(10,6,18,.45)', opacity: done ? 0.6 : 1, strike: done ? 'line-through' : 'none',
@@ -1391,7 +1422,7 @@ export class HostView extends React.Component<any, any> {
       };
       const r0 = byKey[actX.key] || byKey.werewolf;
       actView = {
-        title: actX.title, who: actors.join(', '), ask: spec.ask, icon: r0.icon, color: r0.color,
+        title: actX.title, who: actors.join(', '), ask: spec.ask, icon: r0.icon, color: r0.color, bluffLine: actX.key === 'werewolf' ? bluffPickLine : '',
         isWitch: spec.kind === 'witch', isPick: spec.kind !== 'witch',
         need: spec.count > 1 ? 'Pick ' + spec.count + ' · ' + pick.length + ' chosen' : '',
         rows: spec.kind === 'drunk' && mech.drunkAs ? [] : spec.kind === 'drunk'
@@ -1770,7 +1801,7 @@ export class HostView extends React.Component<any, any> {
           : drunkLib.builtin && byKey[drunkLib.builtin] ? drunkLib.builtin
           : (custom.find(c => c.lib === drunkLib.name) || (drunkCustom = libRole(drunkLib))).key;
         const drunkLog = drunkAs ? [{ t: 'drunk', round: 1, phase: 'night', role: drunkCustom ? drunkCustom.name : byKey[drunkAs].name }] : [];
-        this.setState({ /* NET */ ...(drunkCustom ? { custom: custom.concat([drunkCustom]) } : {}), pool: deck.map(r => r.key), unused, loverSeen: [], screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, forced: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
+        this.setState({ /* NET */ ...(drunkCustom ? { custom: custom.concat([drunkCustom]) } : {}), pool: deck.map(r => r.key), unused, bluffIn: bluffNow, bluffPack: null, bluffForce: false, loverSeen: [], screen: 'play', phase: 'night', round: 1, status: {}, override: {}, dismissed: [], checks: [], tough: null, dg: null, dgDone: null, markOpen: false, log: [start].concat(drunkLog), acts: [], witch: {}, lovers: null, dgCopy: null, nightAct: null, mech: drunkAs ? { drunkAs } : {}, whispers: {}, awake: null, forced: null, timer: null, ivory: (() => { const iv = HostView.store('moonfall.ivoryNext'); return iv && names.indexOf(iv) >= 0 ? iv : null; })(), vote: null, nominating: false, story: Math.floor(Math.random() * 1000) });
       };
 
     // ---------- history view ----------
@@ -2061,6 +2092,9 @@ export class HostView extends React.Component<any, any> {
       rolesInPlay: (() => {
         const keys = screen === 'play' && st('pool', []).length ? st('pool', []) : deck.map(r => r.key);
         const n0 = {}; keys.forEach(k => { n0[k] = (n0[k] || 0) + 1; });
+        // bluff roles are listed too (phones show them like any other card); only the host sees the "Bluff" note
+        const bl = (screen === 'play' ? st('bluffIn', []) : bluffNow).filter(k => byKey[k] && !n0[k]);
+        bl.forEach(k => { n0[k] = 1; });
         const TEAM = { Village: ['Village', '#8fe0b8'], Werewolves: ['Wolf side', '#ff8a9b'], Loner: ['On their own', '#e3c7a5'] };
         const rank = { Werewolves: 0, Loner: 1, Village: 2 };
         return Object.keys(n0).filter(k => byKey[k]).map(k => {
@@ -2073,7 +2107,7 @@ export class HostView extends React.Component<any, any> {
           const wakes = k === 'werewolf' ? 'Wakes every night' : (lib && lib.night === 'wolves') || (r.team === 'Werewolves' && r.wolf !== false && k !== 'minion' && k !== 'sorceress' && !m) ? 'Wakes with the werewolves' : m && m.kind !== 'none' ? (m.when === 'first' ? 'Wakes on the first night' : m.when === 'third' ? 'Wakes on night 3' : m.when === 'dead' ? 'Wakes after dying' : m.when === 'even' ? 'Wakes every other night' : 'Wakes every night') : lib && lib.night === 'first' ? 'Wakes on the first night' : '';
           const t = TEAM[r.team] || TEAM.Village;
           return { key: k, name: n0[k] > 1 ? n0[k] + ' × ' + (r.plural || r.name) : r.name, desc, icon: r.icon, color: r.color, soft: 'rgba(' + r.rgb + ',.16)', team: t[0], teamColor: t[1], wakes,
-            secret: libName === 'Atheist' ? 'Only you know — phones show it as a Villager. Don’t read this one out.' : '', sort: (rank[r.team] ?? 2) * 100 + (k === 'werewolf' ? 0 : k === 'villager' ? 99 : 1) };
+            secret: bl.indexOf(k) >= 0 ? '🎭 Bluff role — not dealt. Phones list it like any other card; read it out as usual so nobody can tell.' : libName === 'Atheist' ? 'Only you know — phones show it as a Villager. Don’t read this one out.' : '', sort: (rank[r.team] ?? 2) * 100 + (k === 'werewolf' ? 0 : k === 'villager' ? 99 : 1) };
         }).sort((x, y) => x.sort - y.sort);
       })(),
       // the Atheist story: a recommended way to run an Atheist game — follow it, or play your own way
@@ -2157,6 +2191,7 @@ export class HostView extends React.Component<any, any> {
       pairTips: s.pairsAll ? pairTips : pairTips.slice(0, 3), hasPairTips: pairTips.length > 0,
       pairsMore: pairTips.length > 3 ? (s.pairsAll ? 'Show fewer' : 'Show all ' + pairTips.length + ' tips') : '', togglePairs: () => this.setState({ pairsAll: !s.pairsAll }),
       balLabel, balColor, balPos: Math.round((clamp + 15) / 30 * 100) + '%',
+      bluffSetup, bluffPicksView,
       deckHint, deckColor, cantDeal: !ready, dealOpacity: ready ? 1 : 0.45,
       presets, presetPlayers: Math.max(5, n),
       libOpen: screen === 'roles' && !!s.libOpen, openLib: () => this.setState({ libOpen: true }), closeLib: () => this.setState({ libOpen: false, libQ: '' }),
@@ -2461,26 +2496,27 @@ export class HostView extends React.Component<any, any> {
         </div>
         <div style={{ position: 'absolute', inset: '0', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '54px 20px 14px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1e9d2" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
               </svg>
-              <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: '16px', letterSpacing: '.22em' }}>
+              <span style={{ fontFamily: "'Cinzel', serif", fontWeight: '700', fontSize: this.props.onLock ? '13px' : '16px', letterSpacing: this.props.onLock ? '.14em' : '.22em', marginRight: 'auto' }}>
                 MOONFALL
               </span>
               {(this.props.installMode) ? (
                 <button className="press" onClick={() => (this.props.installMode === 'prompt' ? this.props.onInstall() : this.setState({ iosHelp: true }))} aria-label="Install the host app" style={{ height: '28px', padding: '0 9px 0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v11 M7 10l5 5 5-5 M5 20h14" /></svg>
-                  {' '}App
+                  {this.props.onLock ? null : ' App'}
                 </button>
               ) : null}
               {(this.props.onLock) ? (
                 <>
-                <button className="press" disabled={!this.can('halloween')} onClick={() => this.can('halloween') && this.setState({ theme: this.state.theme === 'halloween' ? null : 'halloween' })} aria-label={this.state.theme === 'halloween' ? 'Turn the Halloween theme off' : 'Turn the Halloween theme on'} aria-pressed={this.state.theme === 'halloween'} title="Halloween theme (every phone follows)" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: `1px solid ${this.state.theme === 'halloween' ? 'rgba(255,140,40,.9)' : 'rgba(255,140,40,.35)'}`, background: this.state.theme === 'halloween' ? 'rgba(255,120,20,.3)' : 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', filter: this.state.theme === 'halloween' ? 'none' : 'grayscale(.7)', opacity: this.can('halloween') ? 1 : 0.35 }}>🎃</button>
-                <button className="press" disabled={!this.can('themePacks')} onClick={() => this.can('themePacks') && this.props.onThemePacks && this.props.onThemePacks()} aria-label="Theme packs (master host)" title={this.can('themePacks') ? 'Theme packs' : 'Theme packs — master host only'} style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', opacity: this.can('themePacks') ? 1 : 0.35, filter: this.can('themePacks') ? 'none' : 'grayscale(1)' }}>🎨</button>
-                <button className="press" onClick={v.openGuide} aria-label="Roles in play" title="Roles in play" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🃏</button>
-                <button className="press" onClick={v.openFame} aria-label="Hall of Fame" style={{ height: '28px', padding: '0 8px', borderRadius: '999px', border: '1px solid rgba(242,208,107,.4)', background: 'rgba(20,12,34,.6)', color: '#f2d06b', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🏆</button>
-                <button className="press" onClick={this.props.onLock} aria-label="Leave this room (asks for the room password again)" title="Leave this room" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                <button className="press" disabled={!this.can('halloween')} onClick={() => this.can('halloween') && this.setState({ theme: this.state.theme === 'halloween' ? null : 'halloween' })} aria-label={this.state.theme === 'halloween' ? 'Turn the Halloween theme off' : 'Turn the Halloween theme on'} aria-pressed={this.state.theme === 'halloween'} title="Halloween theme (every phone follows)" style={{ height: '28px', padding: '0 6px', borderRadius: '999px', border: `1px solid ${this.state.theme === 'halloween' ? 'rgba(255,140,40,.9)' : 'rgba(255,140,40,.35)'}`, background: this.state.theme === 'halloween' ? 'rgba(255,120,20,.3)' : 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', filter: this.state.theme === 'halloween' ? 'none' : 'grayscale(.7)', opacity: this.can('halloween') ? 1 : 0.35 }}>🎃</button>
+                <button className="press" disabled={!this.can('themePacks')} onClick={() => this.can('themePacks') && this.props.onThemePacks && this.props.onThemePacks()} aria-label="Theme packs (master host)" title={this.can('themePacks') ? 'Theme packs' : 'Theme packs — master host only'} style={{ height: '28px', padding: '0 6px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center', opacity: this.can('themePacks') ? 1 : 0.35, filter: this.can('themePacks') ? 'none' : 'grayscale(1)' }}>🎨</button>
+                <button className="press" onClick={v.openGuide} aria-label="Roles in play" title="Roles in play" style={{ height: '28px', padding: '0 6px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🃏</button>
+                {(this.props.onShop) ? <button className="press" onClick={this.props.onShop} aria-label="Shop" title="Shop & items" style={{ height: '28px', padding: '0 6px', borderRadius: '999px', border: '1px solid rgba(143,224,184,.4)', background: 'rgba(20,12,34,.6)', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🛍</button> : null}
+                <button className="press" onClick={v.openFame} aria-label="Hall of Fame" style={{ height: '28px', padding: '0 6px', borderRadius: '999px', border: '1px solid rgba(242,208,107,.4)', background: 'rgba(20,12,34,.6)', color: '#f2d06b', fontSize: '13px', display: 'flex', alignItems: 'center' }}>🏆</button>
+                <button className="press" onClick={this.props.onLock} aria-label="Leave this room (asks for the room password again)" title="Leave this room" style={{ height: '28px', padding: '0 10px', borderRadius: '999px', border: '1px solid rgba(199,168,255,.35)', background: 'rgba(20,12,34,.6)', color: '#e9dcff', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px', padding: '0 6px' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 11h12v10H6z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11" /></svg>
                 </button>
                 </>
@@ -2897,6 +2933,36 @@ export class HostView extends React.Component<any, any> {
                     </div>
                   </React.Fragment>
                 ))}
+                {/* bluff roles: never dealt, hidden from the waiting room and the balance; the werewolves pick from them on night 1 */}
+                {(v.bluffSetup) ? (
+                  <section aria-label="Bluff roles" style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px', borderRadius: '18px', background: 'rgba(242,166,90,.07)', border: '1px solid rgba(242,166,90,.32)' }}>
+                    <button className="press" onClick={v.bluffSetup.toggle} aria-expanded={v.bluffSetup.open} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0', border: 'none', background: 'none', color: '#ffd9a8', textAlign: 'left' }}>
+                      <span style={{ fontSize: '18px' }}>🎭</span>
+                      <span style={{ flex: '1', fontSize: '12px', fontWeight: '800', letterSpacing: '.14em', textTransform: 'uppercase' }}>Bluff roles</span>
+                      <span style={{ fontSize: '12px', color: '#a99bc2' }}>{v.bluffSetup.n ? v.bluffSetup.n + ' chosen' : 'none'} {v.bluffSetup.open ? '▲' : '▼'}</span>
+                    </button>
+                    <span style={{ fontSize: '12.5px', lineHeight: '1.45', color: '#c4b8da' }}>Never dealt. Hidden from the waiting room and left out of the balance. After the deal they appear in every phone’s role list like real cards, each werewolf picks one to pretend to be on the first night, and night roles among them are called in the wake-up order (marked “Bluff” for you only).</span>
+                    {(v.bluffSetup.chosen.length) ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {v.bluffSetup.chosen.map((r: any) => (
+                          <button key={r.key} className="press" onClick={r.drop} aria-label={`Remove ${r.name} from the bluff roles`} style={{ height: '34px', padding: '0 10px', borderRadius: '999px', border: `1px solid ${r.color}`, background: 'rgba(' + r.rgb + ',.16)', color: '#f6f1ff', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {r.name} <span style={{ color: '#a99bc2' }}>×</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {(v.bluffSetup.open) ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '4px', borderTop: '1px solid rgba(236,230,246,.08)' }}>
+                        {v.bluffSetup.options.length ? null : <span style={{ fontSize: '12.5px', color: '#a99bc2' }}>Every village and neutral role is already in the deck. Add more from the role library.</span>}
+                        {v.bluffSetup.options.map((r: any) => (
+                          <button key={r.key} className="press" onClick={r.toggle} aria-pressed={r.on} style={{ height: '34px', padding: '0 10px', borderRadius: '999px', border: `1px solid ${r.on ? r.color : 'rgba(236,230,246,.14)'}`, background: r.on ? 'rgba(' + r.rgb + ',.2)' : 'rgba(10,6,18,.5)', color: r.on ? '#f6f1ff' : '#c4b8da', fontSize: '13px', fontWeight: '700' }}>
+                            {r.on ? '✓ ' : '+ '}{r.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
                 <button className="press" onClick={v.openSheet} style={{ height: '56px', flex: 'none', borderRadius: '18px', border: '1px dashed rgba(199,168,255,.45)', background: 'rgba(167,127,240,.08)', color: '#e9dcff', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M12 5v14 M5 12h14" />
@@ -3042,6 +3108,30 @@ export class HostView extends React.Component<any, any> {
                         </div>
                       </>
                     )}
+                  </section>
+                ) : null}
+                {(v.bluffPicksView) ? (
+                  <section aria-label="Werewolves' bluffs (host only)" style={{ borderRadius: '18px', background: 'rgba(20,12,34,.75)', border: '1px solid rgba(242,166,90,.35)' }}>
+                    <button className="press" onClick={v.bluffPicksView.toggle} aria-expanded={v.bluffPicksView.shown} style={{ width: '100%', minHeight: '48px', padding: '0 16px', border: 'none', background: 'none', color: '#ffd9a8', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '800', textAlign: 'left' }}>
+                      <span style={{ flex: '1' }}>🎭 Bluff roles · {v.bluffPicksView.open ? 'wolves are picking' : v.bluffPicksView.rows.filter((r: any) => r.pick !== 'not picked yet').length + '/' + v.bluffPicksView.rows.length + ' picked'}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '.12em', color: '#a99bc2' }}>HOST ONLY {v.bluffPicksView.shown ? '▲' : '▼'}</span>
+                    </button>
+                    {(v.bluffPicksView.shown) ? (
+                      <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '12.5px', color: '#c4b8da', lineHeight: '1.45' }}>Bluffs: {v.bluffPicksView.roles}. {v.bluffPicksView.noWolves ? 'No werewolves this game — nobody picks.' : 'The werewolves pick on their phones while you call them on the first night.'}</span>
+                        {v.bluffPicksView.rows.map((r: any) => (
+                          <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                            <span style={{ flex: '1', fontWeight: '700' }}>{r.name}</span>
+                            <span style={{ fontWeight: '700', color: r.color }}>{r.pick}</span>
+                          </div>
+                        ))}
+                        {(!v.bluffPicksView.noWolves) ? (
+                          <button className="press" onClick={v.bluffPicksView.force} style={{ alignSelf: 'flex-start', height: '36px', padding: '0 12px', borderRadius: '12px', border: '1px solid rgba(242,166,90,.45)', background: v.bluffPicksView.forced ? 'rgba(242,166,90,.25)' : 'none', color: '#ffd9a8', fontSize: '13px', fontWeight: '700' }}>
+                            {v.bluffPicksView.forced ? 'Close the wolves’ bluff pick' : 'Let the wolves pick now'}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </section>
                 ) : null}
                 {(v.bluffView) ? (
@@ -4053,6 +4143,9 @@ export class HostView extends React.Component<any, any> {
                 <span style={{ fontSize: '15px', fontWeight: '700', color: '#f6f1ff' }}>
                   {v.actView.ask}
                 </span>
+                {(v.actView.bluffLine) ? (
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#ffd9a8', lineHeight: '1.4' }}>{v.actView.bluffLine}</span>
+                ) : null}
                 {(v.actView.need) ? (
                   <span style={{ alignSelf: 'flex-start', padding: '3px 9px', borderRadius: '8px', fontSize: '12px', fontWeight: '800', color: '#ffd0cb', background: 'rgba(255,111,97,.25)' }}>
                     {v.actView.need}

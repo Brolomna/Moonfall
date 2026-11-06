@@ -45,6 +45,8 @@ const newRoom = (code: string, password: string) => ({
   // deaths marked during the night are announced on every phone at dawn (never who did it)
   deathQueue: [] as string[],
   deathSeq: 0,
+  // the werewolves' bluffs: on the first night each wolf picks one of the host's bluff roles to pretend to be (name → role key)
+  bluffPicks: {} as Record<string, string>,
   // pictures the host uploaded (role pictures, theme packs), kept as sent — never re-encoded. Keyed by content hash.
   images: new Map<string, { type: string; buf: Buffer }>(),
 });
@@ -271,7 +273,11 @@ function playerView(room: Room, p: Player) {
   // with bluff cards the phones see the whole selected deck (sh.pool), never which cards were actually dealt
   const poolCounts: Record<string, number> = {};
   if (room.dealt && Array.isArray(sh.pool) && sh.pool.length) sh.pool.forEach((k: string) => { poolCounts[k] = (poolCounts[k] || 0) + 1; });
-  const deck0 = room.dealt ? Object.entries(Object.keys(poolCounts).length ? poolCounts : counts) : draft;
+  const dealtCounts: Record<string, number> = { ...(Object.keys(poolCounts).length ? poolCounts : counts) };
+  // the host's bluff roles join the round's role list once the cards are dealt, looking like any other card
+  // (never before: the waiting room doesn't see them). Nothing tells a phone they weren't dealt.
+  if (room.dealt) bluffRoles(room).forEach(k => { if (!dealtCounts[k]) dealtCounts[k] = 1; });
+  const deck0 = room.dealt ? Object.entries(dealtCounts) : draft;
   // every card is listed by its real name — the Atheist and the Drunk too (only their holders' own cards hide them)
   const deck = deck0;
 
@@ -308,7 +314,36 @@ function playerView(room: Room, p: Player) {
     lobbyChat: room.dealt ? null : room.lobbyChat.slice(-80), // the waiting screen's chat
     voteResult: voteResultView(room),
     recap: recapView(room),
+    bluff: bluffView(room, p.name),
+    shop: shopView(room, p.name),
   };
+}
+
+// ---------- the werewolves' bluffs ----------
+/** The bluff roles of the running game (fixed by the host at the deal; never dealt, never shown before it). */
+function bluffRoles(room: Room): string[] {
+  const l = room.shared.bluffIn;
+  return Array.isArray(l) ? l.filter((k: unknown) => typeof k === 'string').slice(0, 30) : [];
+}
+/** Only for werewolves (the host sends who they are): the bluff roles to pick from on the first night while the
+ *  pack is awake, their own pick and their teammates' picks. Everyone else gets nothing. */
+function bluffView(room: Room, name: string) {
+  const pack = room.shared.bluffPack, roles = bluffRoles(room);
+  if (!room.dealt || !roles.length || !pack || !Array.isArray(pack.wolves) || !pack.wolves.includes(name)) return null;
+  return { open: !!pack.open && !room.shared.winner, roles, mine: room.bluffPicks[name] || null,
+    pack: pack.wolves.filter((nm: string) => nm !== name).map((nm: string) => ({ name: nm, key: room.bluffPicks[nm] || null })) };
+}
+
+// ---------- the shop ----------
+/** One player's part of the shop the host shares: points and bag always (when there is anything), the items only
+ *  if the host opened the shop to them. Items can be used during a game only. */
+function shopView(room: Room, name: string) {
+  const sh = room.shared.shop;
+  if (!sh || typeof sh !== 'object' || !sh.wallets) return null;
+  const w = sh.wallets[name] || { pts: 0, inv: [] };
+  const open = Array.isArray(sh.open) && sh.open.includes(name);
+  if (!open && !(w.inv || []).length) return null;
+  return { open, pts: Number(w.pts) || 0, inv: Array.isArray(w.inv) ? w.inv : [], items: open && Array.isArray(sh.items) ? sh.items : [], inGame: room.dealt && !!room.assign[name] };
 }
 
 /** The day's vote once the host has closed it: each nominee's total only — never who voted for whom. */
@@ -439,6 +474,7 @@ function hostView(room: Room) {
       voters: room.players.filter(p => !(room.shared.status || {})[p.name] && p.name !== room.ballot!.nominee).length, // the nominee doesn't vote on themselves
     } : null,
     // the host sees the whole Spirit Realm (it runs the game); players never get this
+    bluffPicks: room.dealt ? room.bluffPicks : {},
     spirits: room.dealt ? { chat: room.spiritChat, council: room.council, need: councilNeed(room), dead: room.players.map(p => p.name).filter(nm => isSpirit(room, nm)).length,
       won: room.council ? Object.fromEntries(Object.keys(room.council.spirits).map(nm => [nm, spiritWon(room, nm)])) : {} } : null,
   };
@@ -567,7 +603,7 @@ if (PROD) {
 /** Everything needed to rebuild the room. The host's phone keeps a copy, so a server restart
  *  (redeploy, crash, free-plan sleep) doesn't end the game: the host sends it back when it reconnects. */
 function snapshot(room: Room) {
-  return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt, spiritChat: room.spiritChat, council: room.council, lobbyChat: room.lobbyChat };
+  return { at: Date.now(), players: room.players, spectators: room.spectators, shared: room.shared, assign: room.assign, dealt: room.dealt, spiritChat: room.spiritChat, council: room.council, lobbyChat: room.lobbyChat, bluffPicks: room.bluffPicks };
 }
 const isFresh = (room: Room) => !room.players.length && !room.dealt && !Object.keys(room.shared).length;
 
@@ -616,6 +652,7 @@ io.on('connection', (socket: Socket) => {
       room.spiritChat = Array.isArray(snap.spiritChat) ? snap.spiritChat : [];
       room.council = snap.council || null;
       room.lobbyChat = Array.isArray(snap.lobbyChat) ? snap.lobbyChat.slice(-100) : [];
+      room.bluffPicks = snap.bluffPicks && typeof snap.bluffPicks === 'object' ? snap.bluffPicks : {};
       for (const [k, f] of Object.entries(FIELD_FEATURE)) if (!can(perms, f)) delete room.shared[k];
       socket.emit('host:init', { shared: room.shared, room: hostView(room), fresh: false, restored: true, perms });
       socket.emit('host:images', { have: [...room.images.keys()], need: imgIds(room) });
@@ -678,14 +715,14 @@ io.on('connection', (socket: Socket) => {
       const deck = shuffle(rest);
       shuffle(room.players.filter(p => !room.assign[p.name])).forEach((p, i) => { if (deck[i]) room.assign[p.name] = deck[i]; });
       room.dealt = true;
-      room.spiritChat = []; room.council = null; room.deathQueue = [];
+      room.spiritChat = []; room.council = null; room.deathQueue = []; room.bluffPicks = {};
       pushAll(room);
     });
     socket.on('host:end', () => {
       room.ballot = null;
       room.assign = {};
       room.dealt = false;
-      room.spiritChat = []; room.council = null;
+      room.spiritChat = []; room.council = null; room.bluffPicks = {};
       for (const sp of room.spectators) room.players.push({ ...sp, color: nextColor(room) }); // they join the next game
       room.spectators = [];
       pushAll(room);
@@ -724,6 +761,31 @@ io.on('connection', (socket: Socket) => {
     room.ballot.votes[me.name] = choice;
     pushAll(room);
   });
+
+  // a werewolf picks the bluff role they'll pretend to be (while the pack is awake on the first night; null = undo)
+  socket.on('bluff:pick', (key: string | null) => {
+    const v = me && room.players.includes(me) ? bluffView(room, me.name) : null;
+    if (!me || !v || !v.open) return;
+    if (key === null) delete room.bluffPicks[me.name];
+    else if (typeof key === 'string' && v.roles.includes(key)) room.bluffPicks[me.name] = key;
+    else return;
+    pushAll(room);
+  });
+
+  // the shop: buying and using items. The host's phone keeps the shop, so the request goes to it (the host checks
+  // points and items and sends the new state back); with the host away, the phone is told to try again.
+  const toHost = (type: 'buy' | 'use', body: Record<string, string>, ack?: (r: { ok?: boolean; error?: string }) => void) => {
+    if (!me || !room.players.includes(me)) return ack?.({ error: 'no' });
+    const v = shopView(room, me.name);
+    if (!v) return ack?.({ error: 'no' });
+    if (type === 'buy' && (!v.open || !v.items.some((it: any) => it && it.id === body.id))) return ack?.({ error: 'no' });
+    if (type === 'use' && (!v.inGame || !v.inv.some((o: any) => o && o.uid === body.uid && o.usable))) return ack?.({ error: 'no' });
+    if (![...(io.sockets.adapter.rooms.get(c + ':host') || [])].length) return ack?.({ error: 'host' });
+    io.to(c + ':host').emit('shop:req', { type, name: me.name, ...body });
+    ack?.({ ok: true });
+  };
+  socket.on('shop:buy', (msg: { id: string }, ack?: (r: any) => void) => toHost('buy', { id: String(msg && msg.id || '') }, ack));
+  socket.on('shop:use', (msg: { uid: string }, ack?: (r: any) => void) => toHost('use', { uid: String(msg && msg.uid || '') }, ack));
 
   // the waiting screen's chat: players talk before the cards are dealt
   socket.on('lobby:say', (text: string) => {

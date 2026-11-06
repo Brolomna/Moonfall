@@ -211,6 +211,11 @@ function PlayerGame({ room, onLeave }: { room: string; onLeave: (why?: string) =
             soundOn={soundOn}
             onToggleSound={toggleSound}
             spectate={view?.spectator ? view : null}
+            bluff={view && !view.spectator ? (view as any).bluff || null : null}
+            onBluff={(key: string | null) => socket.emit('bluff:pick', key)}
+            shop={view && !view.spectator ? (view as any).shop || null : null}
+            onBuy={(id: string) => new Promise(res => { socket.timeout(5000).emit('shop:buy', { id }, (err: unknown, r: any) => res(err ? { error: 'host' } : r || {})); })}
+            onUse={(uid: string) => new Promise(res => { socket.timeout(5000).emit('shop:use', { uid }, (err: unknown, r: any) => res(err ? { error: 'host' } : r || {})); })}
           />
         )}
       </PhoneFrame>

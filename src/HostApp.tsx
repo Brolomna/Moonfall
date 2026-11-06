@@ -10,6 +10,8 @@ import { installAudioUnlock, playDawn, startAmbience, stopAmbience } from './sou
 import { useWakeLock } from './wakeLock';
 import { useInstall } from './install';
 import { DeathNotice } from './views/DeathNotice';
+import { ShopHost, UseNotice } from './ShopHost';
+import { loadShop, saveShop, shopShared, buy as shopBuy, use as shopUse, type ShopData } from './shop';
 
 const SOUND_KEY = 'moonfall.hostSound';
 
@@ -136,6 +138,15 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
   // "<name> died" — the same short notice every phone gets
   const [death, setDeath] = useState<{ id: number; names: string[] } | null>(null);
   const deathTimer = useRef<number | undefined>(undefined);
+  // the shop (src/shop.ts): kept on this phone; the room gets each player's part (points, bag, items if open to them)
+  const [shop, setShopState] = useState<ShopData>(loadShop);
+  const shopRef = useRef(shop); shopRef.current = shop;
+  const setShop = (d: ShopData) => { shopRef.current = d; saveShop(d); setShopState(d); };
+  const [shopOpen, setShopOpen] = useState(false);
+  const GAME_KEY = 'moonfall.game.' + room; // the running game's id (artifacts work once per game)
+  const gameRef = useRef<string | null>(null);
+  const lastShop = useRef('');
+  const unseen = shop.uses.find(u => !u.seen) || null;
   const onPatch = (patch: Record<string, unknown>) => {
     socket.emit('host:patch', patch);
     if ('theme' in patch) setTheme((patch.theme as string) || null);
@@ -178,6 +189,12 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
       setStage({ phase: (shared && shared.phase) || 'night', screen: (shared && shared.screen) || 'players' });
     });
     socket.on('room', setNet);
+    // a player buys or uses an item: this phone checks it against its shop and sends the new state to the room
+    socket.on('shop:req', (r: { type: string; name: string; id?: string; uid?: string }) => {
+      const d = shopRef.current;
+      if (r.type === 'buy' && r.id && (d.all || d.open.includes(r.name))) { const nx = shopBuy(d, r.name, r.id); if (nx) setShop(nx); }
+      if (r.type === 'use' && r.uid) { const nx = shopUse(d, r.name, r.uid, gameRef.current); if (nx) setShop(nx); }
+    });
     socket.on('room:death', (d: { id: number; names: string[] }) => {
       setDeath(d); window.clearTimeout(deathTimer.current); deathTimer.current = window.setTimeout(() => setDeath(null), 4500);
     });
@@ -188,6 +205,14 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
   }, [socket]);
 
   useWakeLock(stage.screen === 'play'); // keep the host's screen on during a game
+
+  // the shop's part for the room (points come from the Hall of Fame, which changes when a game ends — the room update follows)
+  gameRef.current = net.dealt ? store.get(GAME_KEY) || 'game' : null;
+  useEffect(() => {
+    if (!init) return; // not before the room is set up (an empty room may still be restored from this phone)
+    const v = JSON.stringify(shopShared(shop, net.players.map(p => p.name), gameRef.current));
+    if (v !== lastShop.current) { lastShop.current = v; socket.emit('host:patch', { shop: JSON.parse(v) }); }
+  }, [shop, net, init]);
 
   // waiting for the room (a sleeping free server takes up to a minute to wake): say so instead of a blank screen
   if (!init) return (
@@ -222,7 +247,8 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
             onCouncil={() => socket.emit('host:council')}
             onCouncilUndo={() => socket.emit('host:council:undo')}
             onCouncilReveal={() => socket.emit('host:council:reveal')}
-            onDeal={(keys: string[], fixed?: Record<string, string>) => socket.emit('host:deal', keys, fixed)}
+            onDeal={(keys: string[], fixed?: Record<string, string>) => { store.set(GAME_KEY, Date.now().toString(36)); socket.emit('host:deal', keys, fixed); }}
+            onShop={() => setShopOpen(true)}
             onEnd={() => socket.emit('host:end')}
             onAddFake={(count: number) => socket.emit('host:fake', count)}
             onRemoveFakes={() => socket.emit('host:unfake')}
@@ -234,6 +260,7 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
             onInstall={inst.install}
             onLock={onLock}
           />
+          {unseen ? <UseNotice use={unseen} onOk={() => setShop({ ...shopRef.current, uses: shopRef.current.uses.map(u => (u === unseen ? { ...u, seen: true } : u)) })} /> : null}
           </>
         )}
       </PhoneFrame>
@@ -242,6 +269,7 @@ function HostGame({ room, password, master, onDenied, onLock }: { room: string; 
         <ThemePacks room={room} password={password} applied={themePack} onClose={() => setPacksOpen(false)}
           onApply={(pack: any) => { setThemePack(pack); socket.emit('host:patch', { themePack: pack }); }} />
       )}
+      {shopOpen && <ShopHost shop={shop} setShop={setShop} players={net.players.map(p => p.name)} inGame={net.dealt} onClose={() => setShopOpen(false)} />}
       <SupporterBanner names={supporters} />
       {death && <DeathNotice fixed id={death.id} kicker="Everyone sees" text={death.names.join(' & ') + ' died'} />}
       {!online && <div className="offline">Reconnecting to the room…</div>}
